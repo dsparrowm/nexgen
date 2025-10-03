@@ -20,7 +20,10 @@ model User {
   role                  UserRole              @default(USER)
   isActive              Boolean               @default(true)
   isVerified            Boolean               @default(false)
+  isEmailVerified       Boolean               @default(false)
   emailVerificationToken String?
+  verificationCode      String?
+  verificationCodeExpires DateTime?
   passwordResetToken    String?
   passwordResetExpires  DateTime?
   twoFactorSecret       String?

@@ -108,7 +108,7 @@ const Verification = () => {
         try {
             const response = await axiosInstance.post('/api/auth/verify-email', {
                 email,
-                verificationCode: codeToSubmit,
+                code: codeToSubmit,
             });
 
             if (response.data.success || response.data.isSuccess) {
@@ -173,6 +173,22 @@ const Verification = () => {
             overlayDescription="We've sent a 6-digit verification code to your email address. Enter it below to activate your account."
         >
             <div className="w-full max-w-md">
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1, duration: 0.5 }}
+                    className="mb-6"
+                >
+                    <Link
+                        href="/"
+                        className="inline-flex items-center text-gray-300 hover:text-gold-500 transition-colors duration-200 group"
+                    >
+                        <ArrowRight className="w-4 h-4 mr-2 rotate-180 group-hover:-translate-x-1 transition-transform duration-200" />
+                        <span className="text-sm font-medium">Home</span>
+                    </Link>
+                </motion.div>
+
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -300,8 +316,34 @@ const Verification = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.8, duration: 0.8 }}
-                    className="mt-8 text-center space-y-4"
+                    className="mt-8 space-y-4"
                 >
+                    <div className="text-gray-300 text-sm text-center">
+                        <span>Wrong email? </span>
+                        <Link
+                            href="/signup"
+                            className="text-gold-400 hover:text-gold-300 font-semibold transition-colors duration-200"
+                        >
+                            Sign up again
+                        </Link>
+                    </div>
+
+                    {/* Terms and Privacy */}
+                    <div className="flex items-center justify-center space-x-4 text-sm">
+                        <Link
+                            href="/terms"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
+                        >
+                            Terms
+                        </Link>
+                        <span className="text-gray-600">•</span>
+                        <Link
+                            href="/privacy"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
+                        >
+                            Privacy
+                        </Link>
+                    </div>
                 </motion.div>
             </div>
         </AuthLayout>

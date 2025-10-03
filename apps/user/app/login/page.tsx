@@ -79,6 +79,22 @@ const Login = () => {
             overlayDescription="Sign in to access your dashboard and continue your journey to financial freedom with our proven mining technology."
         >
             <div className="w-full max-w-md">
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1, duration: 0.5 }}
+                    className="mb-6"
+                >
+                    <Link
+                        href="/"
+                        className="inline-flex items-center text-gray-300 hover:text-gold-500 transition-colors duration-200 group"
+                    >
+                        <ArrowRight className="w-4 h-4 mr-2 rotate-180 group-hover:-translate-x-1 transition-transform duration-200" />
+                        <span className="text-sm font-medium">Home</span>
+                    </Link>
+                </motion.div>
+
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -126,9 +142,17 @@ const Login = () => {
 
                     {/* Password Field */}
                     <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
-                            Password
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-200">
+                                Password
+                            </label>
+                            <Link
+                                href="/forgot-password"
+                                className="text-sm text-gold-400 hover:text-gold-300 transition-colors duration-200"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <FaLock className="h-5 w-5 text-gray-300" />
@@ -193,18 +217,9 @@ const Login = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6, duration: 0.8 }}
-                    className="mt-8 text-center space-y-4"
+                    className="mt-8 space-y-6"
                 >
-                    <div>
-                        <Link
-                            href="/"
-                            className="text-gray-300 hover:text-gray-200 text-sm transition-colors duration-200"
-                        >
-                            ← Back to Homepage
-                        </Link>
-                    </div>
-
-                    <div className="text-gray-300">
+                    <div className="text-gray-300 text-center">
                         <span>Don't have an account? </span>
                         <Link
                             href="/signup"
@@ -214,12 +229,20 @@ const Login = () => {
                         </Link>
                     </div>
 
-                    <div>
+                    {/* Terms and Privacy */}
+                    <div className="flex items-center justify-center space-x-4 text-sm">
                         <Link
-                            href="/forgot-password"
-                            className="text-gray-300 hover:text-gray-200 text-sm transition-colors duration-200"
+                            href="/terms"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
                         >
-                            Forgot your password?
+                            Terms
+                        </Link>
+                        <span className="text-gray-600">•</span>
+                        <Link
+                            href="/privacy"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
+                        >
+                            Privacy
                         </Link>
                     </div>
                 </motion.div>

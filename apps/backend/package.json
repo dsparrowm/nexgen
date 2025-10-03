@@ -9,6 +9,7 @@
         "dev": "nodemon --exec ts-node -r tsconfig-paths/register src/server.ts",
         "test": "jest",
         "test:watch": "jest --watch",
+        "test:email": "ts-node -r tsconfig-paths/register scripts/test-email.ts",
         "db:migrate": "prisma migrate dev",
         "db:generate": "prisma generate",
         "db:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",

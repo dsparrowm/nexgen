@@ -91,6 +91,15 @@ const Navbar = () => {
                                 {item.name}
                             </a>
                         ))}
+                        <Link href="/login">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="px-6 py-2 text-gold-500 border border-gold-500 rounded-lg hover:bg-gold-500/10 transition-all duration-300 font-medium"
+                            >
+                                Sign In
+                            </motion.button>
+                        </Link>
                         <Link href="/signup">
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
@@ -131,8 +140,21 @@ const Navbar = () => {
                                 {item.name}
                             </a>
                         ))}
+                        <Link href="/login">
+                            <button
+                                className="w-full mt-4 px-6 py-2 text-gold-500 border border-gold-500 rounded-lg hover:bg-gold-500/10 transition-all duration-300 font-medium"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Sign In
+                            </button>
+                        </Link>
                         <Link href="/signup">
-                            <button className="btn-primary w-full mt-4">Get Started</button>
+                            <button
+                                className="btn-primary w-full mt-3"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Get Started
+                            </button>
                         </Link>
                     </motion.div>
                 )}

@@ -25,6 +25,22 @@ const VerificationSuccess = () => {
             overlayDescription="Your account has been activated. Welcome to the NexGen community! Start your journey to financial freedom."
         >
             <div className="w-full max-w-md">
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1, duration: 0.5 }}
+                    className="mb-6"
+                >
+                    <Link
+                        href="/"
+                        className="inline-flex items-center text-gray-300 hover:text-gold-500 transition-colors duration-200 group"
+                    >
+                        <ArrowRight className="w-4 h-4 mr-2 rotate-180 group-hover:-translate-x-1 transition-transform duration-200" />
+                        <span className="text-sm font-medium">Home</span>
+                    </Link>
+                </motion.div>
+
                 {/* Success Icon */}
                 <motion.div
                     initial={{ scale: 0 }}
@@ -105,18 +121,37 @@ const VerificationSuccess = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.0, duration: 0.8 }}
-                    className="mt-8 text-center"
+                    className="space-y-6"
                 >
-                    <p className="text-gray-400 text-sm">
-                        You will be automatically redirected to the login page in 5 seconds...
-                    </p>
-                    <div className="mt-2 w-full bg-gray-700 rounded-full h-1">
-                        <motion.div
-                            initial={{ width: "100%" }}
-                            animate={{ width: "0%" }}
-                            transition={{ duration: 5, ease: "linear" }}
-                            className="bg-gold-500 h-1 rounded-full"
-                        />
+                    <div className="text-center">
+                        <p className="text-gray-400 text-sm">
+                            You will be automatically redirected to the login page in 5 seconds...
+                        </p>
+                        <div className="mt-2 w-full bg-gray-700 rounded-full h-1">
+                            <motion.div
+                                initial={{ width: "100%" }}
+                                animate={{ width: "0%" }}
+                                transition={{ duration: 5, ease: "linear" }}
+                                className="bg-gold-500 h-1 rounded-full"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Terms and Privacy */}
+                    <div className="flex items-center justify-center space-x-4 text-sm">
+                        <Link
+                            href="/terms"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
+                        >
+                            Terms
+                        </Link>
+                        <span className="text-gray-600">•</span>
+                        <Link
+                            href="/privacy"
+                            className="text-gray-400 hover:text-gold-400 transition-colors duration-200"
+                        >
+                            Privacy
+                        </Link>
                     </div>
                 </motion.div>
             </div>

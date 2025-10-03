@@ -6,6 +6,7 @@ import { generateUserToken, generateTokenPair, JWTPayload } from '@/utils/jwt';
 import { hashPassword, verifyPassword } from '@/utils/password';
 import { logger } from '@/utils/logger';
 import { createError } from '@/middlewares/error.middleware';
+import { sendPasswordResetEmail, sendEmailVerificationCode, sendWelcomeEmail } from '@/services/email.service';
 
 export interface AuthRequest extends Request {
     user?: JWTPayload;
@@ -211,6 +212,10 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
         // Generate unique referral code
         const userReferralCode = `${username}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
+        // Generate 6-digit verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationCodeExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
         // Create user
         const user = await db.prisma.user.create({
             data: {
@@ -224,6 +229,9 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
                 referralCode: userReferralCode,
                 referredBy: referrerId,
                 role: UserRole.USER,
+                verificationCode,
+                verificationCodeExpires,
+                isEmailVerified: false,
             }
         });
 
@@ -308,6 +316,19 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
             referrerId
         });
 
+        // Send verification email
+        try {
+            await sendEmailVerificationCode(
+                user.email,
+                verificationCode,
+                user.firstName || undefined
+            );
+            logger.info(`Verification email sent to: ${user.email}`);
+        } catch (emailError) {
+            logger.error('Failed to send verification email:', emailError);
+            // Don't fail registration if email sending fails
+        }
+
         // Return user data and tokens
         const userData = {
             id: user.id,
@@ -317,6 +338,7 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
             lastName: user.lastName,
             role: user.role,
             isVerified: user.isVerified,
+            isEmailVerified: user.isEmailVerified,
             balance: user.balance,
             totalInvested: user.totalInvested,
             totalEarnings: user.totalEarnings,
@@ -572,3 +594,356 @@ export const registerValidation = [
         .isLength({ min: 3, max: 20 })
         .withMessage('Invalid referral code format')
 ];
+
+export const forgotPasswordValidation = [
+    body('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('Please provide a valid email address')
+];
+
+export const resetPasswordValidation = [
+    body('token')
+        .notEmpty()
+        .withMessage('Reset token is required'),
+    body('password')
+        .isLength({ min: 8 })
+        .withMessage('Password must be at least 8 characters long')
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+        .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
+];
+
+/**
+ * Forgot password - Send reset email
+ */
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array()
+                }
+            });
+            return;
+        }
+
+        const { email } = req.body;
+
+        // Find user by email
+        const user = await db.prisma.user.findUnique({
+            where: { email: email.toLowerCase() }
+        });
+
+        // Always return success to prevent email enumeration
+        // But only send email if user exists
+        if (user) {
+            // Generate reset token (6-digit code)
+            const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+            const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+            // Save reset token to database
+            await db.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    passwordResetToken: resetToken,
+                    passwordResetExpires: resetExpires
+                }
+            });
+
+            // Send password reset email
+            try {
+                await sendPasswordResetEmail(
+                    user.email,
+                    resetToken,
+                    user.firstName || undefined
+                );
+                logger.info(`Password reset email sent to: ${email}`);
+            } catch (emailError) {
+                logger.error('Failed to send password reset email:', emailError);
+                // Don't throw error - still return success to prevent email enumeration
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                message: 'If an account exists with that email, a password reset link has been sent.'
+            }
+        });
+
+    } catch (error) {
+        logger.error('Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Internal server error',
+                code: 'FORGOT_PASSWORD_FAILED'
+            }
+        });
+    }
+};
+
+/**
+ * Reset password with token
+ */
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array()
+                }
+            });
+            return;
+        }
+
+        const { token, password } = req.body;
+
+        // Find user with valid reset token
+        const user = await db.prisma.user.findFirst({
+            where: {
+                passwordResetToken: token,
+                passwordResetExpires: {
+                    gte: new Date() // Token not expired
+                }
+            }
+        });
+
+        if (!user) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Invalid or expired reset token',
+                    code: 'INVALID_RESET_TOKEN'
+                }
+            });
+            return;
+        }
+
+        // Hash new password
+        const hashedPassword = await hashPassword(password);
+
+        // Update user password and clear reset token
+        await db.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashedPassword,
+                passwordResetToken: null,
+                passwordResetExpires: null
+            }
+        });
+
+        // Log password reset
+        logger.info(`Password reset successful for user: ${user.email}`);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                message: 'Password has been reset successfully. You can now login with your new password.'
+            }
+        });
+
+    } catch (error) {
+        logger.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Internal server error',
+                code: 'RESET_PASSWORD_FAILED'
+            }
+        });
+    }
+};
+
+/**
+ * Validation for email verification
+ */
+export const verifyEmailValidation = [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('code')
+        .notEmpty().withMessage('Verification code is required')
+        .isLength({ min: 6, max: 6 }).withMessage('Verification code must be 6 digits')
+        .isNumeric().withMessage('Verification code must be numeric'),
+];
+
+/**
+ * Verify email with 6-digit code
+ */
+export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array()
+                }
+            });
+            return;
+        }
+
+        const { email, code } = req.body;
+
+        // Find user with matching email and verification code
+        const user = await db.prisma.user.findFirst({
+            where: {
+                email: email.toLowerCase(),
+                verificationCode: code,
+                verificationCodeExpires: {
+                    gte: new Date() // Code not expired
+                }
+            }
+        });
+
+        if (!user) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Invalid or expired verification code',
+                    code: 'INVALID_VERIFICATION_CODE'
+                }
+            });
+            return;
+        }
+
+        // Check if already verified
+        if (user.isEmailVerified) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Email already verified',
+                    code: 'EMAIL_ALREADY_VERIFIED'
+                }
+            });
+            return;
+        }
+
+        // Mark email as verified and clear verification code
+        await db.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isEmailVerified: true,
+                verificationCode: null,
+                verificationCodeExpires: null,
+                isVerified: true, // Also set general verification flag
+            }
+        });
+
+        // Send welcome email
+        try {
+            await sendWelcomeEmail(user.email, user.firstName || user.username);
+            logger.info(`Welcome email sent to: ${user.email}`);
+        } catch (emailError) {
+            logger.error('Failed to send welcome email:', emailError);
+            // Don't fail verification if welcome email sending fails
+        }
+
+        // Log successful verification
+        logger.info(`Email verified for user: ${user.email}`);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                message: 'Email verified successfully! Welcome to NexGen.',
+                isEmailVerified: true
+            }
+        });
+
+    } catch (error) {
+        logger.error('Email verification error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Internal server error',
+                code: 'VERIFICATION_FAILED'
+            }
+        });
+    }
+};
+
+/**
+ * Validation for resend verification
+ */
+export const resendVerificationValidation = [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+];
+
+/**
+ * Resend verification code
+ */
+export const resendVerification = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array()
+                }
+            });
+            return;
+        }
+
+        const { email } = req.body;
+
+        // Find user by email
+        const user = await db.prisma.user.findUnique({
+            where: { email: email.toLowerCase() }
+        });
+
+        // Always return success to prevent email enumeration
+        // But only send email if user exists and not verified
+        if (user && !user.isEmailVerified) {
+            // Generate new verification code
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const verificationCodeExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+            // Update user with new code
+            await db.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    verificationCode,
+                    verificationCodeExpires
+                }
+            });
+
+            // Send verification email
+            try {
+                await sendEmailVerificationCode(
+                    user.email,
+                    verificationCode,
+                    user.firstName || undefined
+                );
+                logger.info(`Verification code resent to: ${user.email}`);
+            } catch (emailError) {
+                logger.error('Failed to resend verification email:', emailError);
+                // Don't throw error - still return success to prevent email enumeration
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                message: 'If your email is registered and not verified, a new verification code has been sent.'
+            }
+        });
+
+    } catch (error) {
+        logger.error('Resend verification error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Internal server error',
+                code: 'RESEND_VERIFICATION_FAILED'
+            }
+        });
+    }
+};
