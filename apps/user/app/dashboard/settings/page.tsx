@@ -1,13 +1,14 @@
 import React from 'react'
 import DashboardLayout from '../components/DashboardLayout'
 import Settings from '../components/Settings'
+import AuthGuard from '@/components/auth/AuthGuard'
 
-const SettingsPage = () => {
+export default function SettingsPage() {
     return (
-        <DashboardLayout activeSection="settings">
-            <Settings />
-        </DashboardLayout>
+        <AuthGuard>
+            <DashboardLayout activeSection="settings">
+                <Settings />
+            </DashboardLayout>
+        </AuthGuard>
     )
 }
-
-export default SettingsPage

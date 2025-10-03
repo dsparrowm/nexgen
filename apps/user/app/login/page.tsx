@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { ArrowRight, Mail, AlertCircle } from 'lucide-react';
 import axiosInstance from '@/lib/axiosInstance';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import AuthLayout from '@/app/components/AuthLayout';
+import { saveAuthData } from '@/utils/auth';
 
 interface LoginFormData {
     email: string;
@@ -18,6 +19,7 @@ interface LoginFormData {
 
 const Login = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [formData, setFormData] = useState<LoginFormData>({
         email: '',
         password: '',
@@ -25,6 +27,17 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Get redirect URL and expired status from query parameters
+    const redirect = searchParams.get('redirect') || '/dashboard';
+    const isExpired = searchParams.get('expired') === 'true';
+
+    // Show session expired message on component mount if needed
+    useEffect(() => {
+        if (isExpired) {
+            toast.error('Your session has expired. Please log in again.');
+        }
+    }, [isExpired]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -44,12 +57,19 @@ const Login = () => {
 
             if (response.data && response.data.success) {
                 toast.success('Login successful! Welcome back!');
-                // Store tokens if needed
-                if (response.data.data?.tokens) {
-                    localStorage.setItem('accessToken', response.data.data.tokens.accessToken);
-                    localStorage.setItem('refreshToken', response.data.data.tokens.refreshToken);
+
+                // Store authentication data using the utility function
+                if (response.data.data?.tokens && response.data.data?.user) {
+                    saveAuthData(
+                        response.data.data.tokens.accessToken,
+                        response.data.data.tokens.refreshToken,
+                        response.data.data.user
+                    );
                 }
-                router.push('/dashboard');
+
+                // Validate redirect URL is internal (prevent open redirect attacks)
+                const redirectUrl = redirect.startsWith('/') ? redirect : '/dashboard';
+                router.push(redirectUrl);
             }
         } catch (err) {
             const axiosError = err as AxiosError;
