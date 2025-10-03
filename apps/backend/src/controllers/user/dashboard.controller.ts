@@ -221,9 +221,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             SELECT
                 DATE_TRUNC('month', date) as month,
                 SUM(amount) as earnings
-            FROM "Payout"
+            FROM "payouts"
             WHERE "investmentId" IN (
-                SELECT id FROM "Investment" WHERE "userId" = ${userId}
+                SELECT id FROM "investments" WHERE "userId" = ${userId}
             )
             AND date >= NOW() - INTERVAL '12 months'
             GROUP BY DATE_TRUNC('month', date)

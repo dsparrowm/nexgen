@@ -1,110 +1,79 @@
 "use client"
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import {
     History,
     Download,
-    Filter,
     Search,
     ArrowUpRight,
     ArrowDownRight,
-    Calendar,
     Bitcoin,
     Coins,
-    Zap,
-    DollarSign
+    DollarSign,
+    ChevronLeft,
+    ChevronRight,
+    AlertCircle,
+    RefreshCw,
+    TrendingUp,
+    TrendingDown
 } from 'lucide-react'
+import { useTransactions } from '@/hooks/useTransactions'
+import { formatCurrency } from '@/utils/formatters'
+import { exportTransactionsToCSV } from '@/utils/api/transactionApi'
 
 const TransactionHistory = () => {
-    const [filter, setFilter] = useState('all')
-    const [searchTerm, setSearchTerm] = useState('')
+    const {
+        transactions,
+        summary,
+        pagination,
+        loading,
+        error,
+        filters,
+        setFilters,
+        refetch,
+        nextPage,
+        prevPage
+    } = useTransactions()
 
-    const transactions = [
-        {
-            id: 1,
-            type: 'mining_reward',
-            description: 'Bitcoin Mining Reward',
-            amount: '+0.0024 BTC',
-            usdValue: '+$144.00',
-            date: '2024-01-20',
-            time: '14:30',
-            status: 'completed',
-            txHash: '0x1234...5678',
-            icon: Bitcoin,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500/20'
-        },
-        {
-            id: 2,
-            type: 'gold_purchase',
-            description: 'Gold Investment',
-            amount: '+2.5 oz',
-            usdValue: '-$5,200.00',
-            date: '2024-01-18',
-            time: '10:15',
-            status: 'completed',
-            txHash: '0xabcd...efgh',
-            icon: Coins,
-            color: 'text-gold-500',
-            bgColor: 'bg-gold-500/20'
-        },
-        {
-            id: 3,
-            type: 'hashpower_rental',
-            description: 'Hashpower Upgrade',
-            amount: '+50 TH/s',
-            usdValue: '-$125.00',
-            date: '2024-01-15',
-            time: '16:45',
-            status: 'completed',
-            txHash: '0x9876...5432',
-            icon: Zap,
-            color: 'text-blue-500',
-            bgColor: 'bg-blue-500/20'
-        },
-        {
-            id: 4,
-            type: 'withdrawal',
-            description: 'Bitcoin Withdrawal',
-            amount: '-0.1 BTC',
-            usdValue: '-$6,000.00',
-            date: '2024-01-10',
-            time: '09:20',
-            status: 'completed',
-            txHash: '0xfedc...ba98',
-            icon: ArrowUpRight,
-            color: 'text-red-500',
-            bgColor: 'bg-red-500/20'
-        },
-        {
-            id: 5,
-            type: 'deposit',
-            description: 'USD Deposit',
-            amount: '+$10,000.00',
-            usdValue: '+$10,000.00',
-            date: '2024-01-05',
-            time: '11:30',
-            status: 'completed',
-            txHash: '0x1111...2222',
-            icon: DollarSign,
-            color: 'text-green-500',
-            bgColor: 'bg-green-500/20'
-        },
-    ]
+    const getTypeIcon = (type: string) => {
+        switch (type) {
+            case 'DEPOSIT': return DollarSign
+            case 'WITHDRAWAL': return ArrowUpRight
+            case 'INVESTMENT': return Coins
+            case 'PAYOUT': return Bitcoin
+            default: return DollarSign
+        }
+    }
 
-    const filteredTransactions = transactions.filter(tx => {
-        const matchesFilter = filter === 'all' || tx.type === filter
-        const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase())
-        return matchesFilter && matchesSearch
-    })
+    const getTypeColor = (type: string) => {
+        switch (type) {
+            case 'DEPOSIT': return { text: 'text-green-500', bg: 'bg-green-500/20' }
+            case 'WITHDRAWAL': return { text: 'text-red-500', bg: 'bg-red-500/20' }
+            case 'INVESTMENT': return { text: 'text-gold-500', bg: 'bg-gold-500/20' }
+            case 'PAYOUT': return { text: 'text-orange-500', bg: 'bg-orange-500/20' }
+            default: return { text: 'text-gray-500', bg: 'bg-gray-500/20' }
+        }
+    }
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'completed': return 'text-green-500 bg-green-500/20'
-            case 'pending': return 'text-yellow-500 bg-yellow-500/20'
-            case 'failed': return 'text-red-500 bg-red-500/20'
+            case 'COMPLETED': return 'text-green-500 bg-green-500/20'
+            case 'PENDING': return 'text-yellow-500 bg-yellow-500/20'
+            case 'FAILED': return 'text-red-500 bg-red-500/20'
             default: return 'text-gray-500 bg-gray-500/20'
+        }
+    }
+
+    const getAmountDisplay = (transaction: any) => {
+        const sign = transaction.type === 'DEPOSIT' || transaction.type === 'PAYOUT' ? '+' : '-'
+        const amount = Math.abs(transaction.amount)
+        return `${sign}${formatCurrency(amount)}`
+    }
+
+    const handleExport = () => {
+        if (transactions.length > 0) {
+            exportTransactionsToCSV(transactions, 'transactions')
         }
     }
 
@@ -120,43 +89,47 @@ const TransactionHistory = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-white mb-2">Transaction History</h2>
-                        <p className="text-gray-400">Track all your mining rewards, investments, and transfers</p>
+                        <p className="text-gray-400">Track all your investments, payouts, deposits, and withdrawals</p>
                     </div>
                     <div className="flex items-center space-x-3 mt-4 sm:mt-0">
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="flex items-center px-4 py-2 bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors"
+                            onClick={handleExport}
+                            disabled={transactions.length === 0}
+                            className="flex items-center px-4 py-2 bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Download className="w-4 h-4 mr-2" />
-                            Export
+                            Export CSV
                         </motion.button>
                     </div>
                 </div>
 
-                {/* Filters and Search */}
+                {/* Filters */}
                 <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                            type="text"
-                            placeholder="Search transactions..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-gold-500"
-                        />
-                    </div>
                     <select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        className="px-4 py-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white focus:outline-none focus:border-gold-500"
+                        value={filters.type}
+                        onChange={(e) => setFilters({ type: e.target.value })}
+                        disabled={loading}
+                        className="px-4 py-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white focus:outline-none focus:border-gold-500 disabled:opacity-50"
                     >
-                        <option value="all">All Transactions</option>
-                        <option value="mining_reward">Mining Rewards</option>
-                        <option value="gold_purchase">Gold Purchases</option>
-                        <option value="hashpower_rental">Hashpower</option>
-                        <option value="deposit">Deposits</option>
-                        <option value="withdrawal">Withdrawals</option>
+                        <option value="all">All Types</option>
+                        <option value="DEPOSIT">Deposits</option>
+                        <option value="WITHDRAWAL">Withdrawals</option>
+                        <option value="INVESTMENT">Investments</option>
+                        <option value="PAYOUT">Payouts</option>
+                    </select>
+
+                    <select
+                        value={filters.status}
+                        onChange={(e) => setFilters({ status: e.target.value })}
+                        disabled={loading}
+                        className="px-4 py-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white focus:outline-none focus:border-gold-500 disabled:opacity-50"
+                    >
+                        <option value="all">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="FAILED">Failed</option>
                     </select>
                 </div>
             </motion.div>
@@ -168,19 +141,93 @@ const TransactionHistory = () => {
                 transition={{ delay: 0.2, duration: 0.6 }}
                 className="grid grid-cols-1 md:grid-cols-4 gap-6"
             >
-                {[
-                    { label: 'Total Deposits', value: '$45,000', change: '+12.5%', color: 'text-green-500' },
-                    { label: 'Total Withdrawals', value: '$8,500', change: '-2.3%', color: 'text-red-500' },
-                    { label: 'Mining Rewards', value: '0.247 BTC', change: '+15.8%', color: 'text-orange-500' },
-                    { label: 'Gold Holdings', value: '12.5 oz', change: '+8.4%', color: 'text-gold-500' },
-                ].map((stat, index) => (
-                    <div key={index} className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20">
-                        <p className="text-gray-400 text-sm mb-1">{stat.label}</p>
-                        <p className="text-xl font-bold text-white mb-1">{stat.value}</p>
-                        <p className={`text-sm ${stat.color}`}>{stat.change}</p>
-                    </div>
-                ))}
+                {loading ? (
+                    // Loading skeletons
+                    [1, 2, 3, 4].map((i) => (
+                        <div key={i} className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20 animate-pulse">
+                            <div className="h-4 bg-gray-700/50 rounded w-24 mb-2"></div>
+                            <div className="h-6 bg-gray-700/50 rounded w-32 mb-2"></div>
+                            <div className="h-3 bg-gray-700/50 rounded w-16"></div>
+                        </div>
+                    ))
+                ) : (
+                    <>
+                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-400 text-sm">Total Deposits</p>
+                                <TrendingUp className="w-4 h-4 text-green-500" />
+                            </div>
+                            <p className="text-2xl font-bold text-white mb-1">
+                                {formatCurrency(summary?.deposits || 0)}
+                            </p>
+                            <p className="text-sm text-green-500">Funds added</p>
+                        </div>
+
+                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-400 text-sm">Total Withdrawals</p>
+                                <TrendingDown className="w-4 h-4 text-red-500" />
+                            </div>
+                            <p className="text-2xl font-bold text-white mb-1">
+                                {formatCurrency(summary?.withdrawals || 0)}
+                            </p>
+                            <p className="text-sm text-red-500">Funds withdrawn</p>
+                        </div>
+
+                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-400 text-sm">Total Investments</p>
+                                <Coins className="w-4 h-4 text-gold-500" />
+                            </div>
+                            <p className="text-2xl font-bold text-white mb-1">
+                                {formatCurrency(summary?.investments || 0)}
+                            </p>
+                            <p className="text-sm text-gold-500">Invested</p>
+                        </div>
+
+                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-4 border border-gold-500/20">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-400 text-sm">Total Payouts</p>
+                                <Bitcoin className="w-4 h-4 text-orange-500" />
+                            </div>
+                            <p className="text-2xl font-bold text-white mb-1">
+                                {formatCurrency(summary?.payouts || 0)}
+                            </p>
+                            <p className="text-sm text-orange-500">Earnings paid</p>
+                        </div>
+                    </>
+                )}
             </motion.div>
+
+            {/* Error State */}
+            {error && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <div className="p-3 bg-red-500/20 rounded-xl">
+                                <AlertCircle className="w-6 h-6 text-red-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-semibold text-lg">Failed to load transactions</h3>
+                                <p className="text-gray-400 text-sm mt-1">{error}</p>
+                            </div>
+                        </div>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={refetch}
+                            className="flex items-center px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Retry
+                        </motion.button>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Transaction List */}
             <motion.div
@@ -190,49 +237,130 @@ const TransactionHistory = () => {
                 className="bg-dark-800/50 backdrop-blur-sm rounded-2xl border border-gold-500/20 overflow-hidden"
             >
                 <div className="p-6 border-b border-gold-500/20">
-                    <h3 className="text-lg font-semibold text-white">Recent Transactions</h3>
+                    <h3 className="text-lg font-semibold text-white">
+                        Transactions {pagination && `(${pagination.total})`}
+                    </h3>
                 </div>
 
-                <div className="divide-y divide-gold-500/10">
-                    {filteredTransactions.map((transaction) => (
-                        <motion.div
-                            key={transaction.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="p-6 hover:bg-navy-800/30 transition-colors"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <div className={`p-3 rounded-xl ${transaction.bgColor}`}>
-                                        <transaction.icon className={`w-5 h-5 ${transaction.color}`} />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-white font-medium">{transaction.description}</h4>
-                                        <div className="flex items-center space-x-4 mt-1">
-                                            <p className="text-gray-400 text-sm">{transaction.date} at {transaction.time}</p>
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(transaction.status)}`}>
-                                                {transaction.status}
-                                            </span>
+                {loading ? (
+                    // Loading skeletons
+                    <div className="divide-y divide-gold-500/10">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="p-6 animate-pulse">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="w-12 h-12 bg-gray-700/50 rounded-xl"></div>
+                                        <div>
+                                            <div className="h-4 bg-gray-700/50 rounded w-40 mb-2"></div>
+                                            <div className="h-3 bg-gray-700/50 rounded w-32"></div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="text-right">
-                                    <p className="text-white font-medium">{transaction.amount}</p>
-                                    <p className="text-gray-400 text-sm">{transaction.usdValue}</p>
-                                    <p className="text-gray-500 text-xs mt-1">
-                                        {transaction.txHash}
-                                    </p>
+                                    <div className="text-right">
+                                        <div className="h-4 bg-gray-700/50 rounded w-24 mb-2 ml-auto"></div>
+                                        <div className="h-3 bg-gray-700/50 rounded w-20 ml-auto"></div>
+                                    </div>
                                 </div>
                             </div>
-                        </motion.div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : transactions.length > 0 ? (
+                    <div className="divide-y divide-gold-500/10">
+                        {transactions.map((transaction) => {
+                            const Icon = getTypeIcon(transaction.type)
+                            const colors = getTypeColor(transaction.type)
 
-                {filteredTransactions.length === 0 && (
+                            return (
+                                <motion.div
+                                    key={transaction.id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="p-6 hover:bg-navy-800/30 transition-colors cursor-pointer"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-4">
+                                            <div className={`p-3 rounded-xl ${colors.bg}`}>
+                                                <Icon className={`w-5 h-5 ${colors.text}`} />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-white font-medium">
+                                                    {transaction.description || transaction.type}
+                                                </h4>
+                                                <div className="flex items-center space-x-4 mt-1">
+                                                    <p className="text-gray-400 text-sm">
+                                                        {new Date(transaction.createdAt).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </p>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                                                        {transaction.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="text-right">
+                                            <p className={`font-medium text-lg ${transaction.type === 'DEPOSIT' || transaction.type === 'PAYOUT'
+                                                ? 'text-green-500'
+                                                : 'text-red-500'
+                                                }`}>
+                                                {getAmountDisplay(transaction)}
+                                            </p>
+                                            <p className="text-gray-400 text-sm">
+                                                {transaction.currency}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )
+                        })}
+                    </div>
+                ) : (
                     <div className="p-12 text-center">
                         <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-400">No transactions found matching your criteria</p>
+                        <p className="text-gray-400 text-lg mb-2">No transactions found</p>
+                        <p className="text-gray-500 text-sm">
+                            {filters.type !== 'all' || filters.status !== 'all'
+                                ? 'Try adjusting your filters'
+                                : 'Your transactions will appear here'}
+                        </p>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {pagination && pagination.pages > 1 && (
+                    <div className="p-6 border-t border-gold-500/20 flex items-center justify-between">
+                        <div className="text-sm text-gray-400">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                            {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                            {pagination.total} transactions
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={prevPage}
+                                disabled={pagination.page === 1 || loading}
+                                className="p-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white hover:bg-navy-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </motion.button>
+                            <span className="text-white px-4">
+                                Page {pagination.page} of {pagination.pages}
+                            </span>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={nextPage}
+                                disabled={pagination.page === pagination.pages || loading}
+                                className="p-2 bg-navy-800/50 border border-gold-500/30 rounded-lg text-white hover:bg-navy-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </motion.button>
+                        </div>
                     </div>
                 )}
             </motion.div>
