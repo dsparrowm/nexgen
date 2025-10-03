@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Component Classes */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-gold-500 to-gold-600 text-navy-900 font-semibold py-3 px-6 rounded-xl hover:from-gold-400 hover:to-gold-500 transition-all duration-300 flex items-center justify-center;
+  }
+
+  .btn-secondary {
+    @apply bg-navy-800 text-white border border-gold-500/30 font-semibold py-3 px-6 rounded-xl hover:bg-navy-700 hover:border-gold-500 transition-all duration-300 flex items-center justify-center;
+  }
+
+  .card-hover {
+    @apply hover:scale-105 hover:shadow-xl hover:shadow-gold-500/10 transition-all duration-300;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+}

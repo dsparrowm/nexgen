@@ -1,0 +1,311 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                @id @default(cuid())
+  email                 String                @unique
+  username              String                @unique
+  firstName             String?
+  lastName              String?
+  password              String
+  role                  UserRole              @default(USER)
+  isActive              Boolean               @default(true)
+  isVerified            Boolean               @default(false)
+  emailVerificationToken String?
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean               @default(false)
+  profileImage          String?
+  phoneNumber           String?
+  country               String?
+  state                 String?
+  city                  String?
+  address               String?
+  zipCode               String?
+  dateOfBirth           DateTime?
+  kycStatus             KycStatus             @default(PENDING)
+  kycDocuments          KycDocument[]
+  balance               Decimal               @default(0.00) @db.Decimal(15, 2)
+  totalInvested         Decimal               @default(0.00) @db.Decimal(15, 2)
+  totalEarnings         Decimal               @default(0.00) @db.Decimal(15, 2)
+  referralCode          String                @unique
+  referredBy            String?
+  referrer              User?                 @relation("UserReferrals", fields: [referredBy], references: [id])
+  referrals             User[]                @relation("UserReferrals")
+  investments           Investment[]
+  transactions          Transaction[]
+  notifications         Notification[]
+  sessions              Session[]
+  auditLogs             AuditLog[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@map("users")
+}
+
+model KycDocument {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      DocumentType
+  fileName  String
+  filePath  String
+  fileSize  Int
+  mimeType  String
+  status    DocumentStatus @default(PENDING)
+  rejectionReason String?
+  uploadedAt DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+
+  @@map("kyc_documents")
+}
+
+model MiningOperation {
+  id              String       @id @default(cuid())
+  name            String
+  description     String?
+  minInvestment   Decimal      @db.Decimal(15, 2)
+  maxInvestment   Decimal      @db.Decimal(15, 2)
+  dailyReturn     Decimal      @db.Decimal(5, 4) // Percentage as decimal (e.g., 0.0150 for 1.5%)
+  duration        Int          // Duration in days
+  riskLevel       RiskLevel    @default(LOW)
+  status          OperationStatus @default(ACTIVE)
+  totalCapacity   Decimal      @db.Decimal(15, 2)
+  currentCapacity Decimal      @default(0.00) @db.Decimal(15, 2)
+  startDate       DateTime
+  endDate         DateTime?
+  imageUrl        String?
+  features        String[]     // JSON array of features
+  investments     Investment[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("mining_operations")
+}
+
+model Investment {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  miningOperationId String
+  miningOperation   MiningOperation @relation(fields: [miningOperationId], references: [id])
+  amount            Decimal         @db.Decimal(15, 2)
+  status            InvestmentStatus @default(ACTIVE)
+  startDate         DateTime        @default(now())
+  endDate           DateTime
+  dailyReturn       Decimal         @db.Decimal(5, 4)
+  totalEarnings     Decimal         @default(0.00) @db.Decimal(15, 2)
+  lastPayout        DateTime?
+  isCompleted       Boolean         @default(false)
+  completedAt       DateTime?
+  transactions      Transaction[]
+  payouts           Payout[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("investments")
+}
+
+model Transaction {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investmentId     String?
+  investment       Investment?       @relation(fields: [investmentId], references: [id])
+  type             TransactionType
+  amount           Decimal           @db.Decimal(15, 2)
+  status           TransactionStatus @default(PENDING)
+  description      String?
+  reference        String            @unique
+  paymentMethod    PaymentMethod?
+  paymentId        String?           // External payment ID (Stripe, Coinbase, etc.)
+  fee              Decimal           @default(0.00) @db.Decimal(15, 2)
+  netAmount        Decimal           @db.Decimal(15, 2)
+  processedAt      DateTime?
+  failureReason    String?
+  metadata         Json?             // Additional payment metadata
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@map("transactions")
+}
+
+model Payout {
+  id           String        @id @default(cuid())
+  investmentId String
+  investment   Investment    @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  amount       Decimal       @db.Decimal(15, 2)
+  date         DateTime      @default(now())
+  status       PayoutStatus  @default(COMPLETED)
+  description  String?
+  createdAt    DateTime      @default(now())
+
+  @@map("payouts")
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean            @default(false)
+  metadata  Json?              // Additional notification data
+  createdAt DateTime           @default(now())
+
+  @@map("notifications")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String?  @unique
+  userAgent    String?
+  ipAddress    String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  lastUsed     DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@map("sessions")
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  action      String
+  resource    String
+  resourceId  String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime  @default(now())
+
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+// Enums
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum DocumentType {
+  PASSPORT
+  DRIVER_LICENSE
+  NATIONAL_ID
+  UTILITY_BILL
+  BANK_STATEMENT
+  SELFIE
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum OperationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum InvestmentStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INVESTMENT
+  PAYOUT
+  FEE
+  REFUND
+  BONUS
+  REFERRAL_BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  STRIPE_CARD
+  STRIPE_BANK
+  COINBASE_CRYPTO
+  BANK_TRANSFER
+  MANUAL
+}
+
+enum PayoutStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum NotificationType {
+  INVESTMENT_CREATED
+  INVESTMENT_COMPLETED
+  PAYOUT_RECEIVED
+  DEPOSIT_CONFIRMED
+  WITHDRAWAL_PROCESSED
+  KYC_APPROVED
+  KYC_REJECTED
+  SYSTEM_ANNOUNCEMENT
+  SECURITY_ALERT
+}
