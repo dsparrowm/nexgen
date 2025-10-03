@@ -2,18 +2,21 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Shield, AlertCircle } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Inline NexgenLogo component
-const NexgenLogo = ({ size = "lg" }) => {
-    const sizeClasses = {
+type LogoSize = 'sm' | 'md' | 'lg' | 'xl';
+
+const NexgenLogo = ({ size = "lg" }: { size?: LogoSize }) => {
+    const sizeClasses: Record<LogoSize, string> = {
         sm: "w-8 h-8",
         md: "w-10 h-10",
         lg: "w-16 h-16",
         xl: "w-20 h-20"
     }
 
-    const textSizeClasses = {
+    const textSizeClasses: Record<LogoSize, string> = {
         sm: "text-lg",
         md: "text-xl",
         lg: "text-3xl",
@@ -36,17 +39,19 @@ const NexgenLogo = ({ size = "lg" }) => {
 }
 
 interface LoginProps {
-    onLogin: (credentials: { email: string; password: string }) => void
+    // No props needed - using context
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = () => {
+    const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
     })
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
+    const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
+    const [rememberMe, setRememberMe] = useState(false)
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -88,12 +93,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         if (!validateForm()) return
 
         setIsLoading(true)
+        setErrors({}) // Clear previous errors
 
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const result = await login(formData.email, formData.password)
+
+            if (!result.success) {
+                setErrors({ general: result.error || 'Login failed. Please try again.' })
+            }
+            // On success, the AuthContext will handle state and the page will redirect
+        } catch (error) {
+            console.error('Login error:', error)
+            setErrors({ general: 'An unexpected error occurred. Please try again.' })
+        } finally {
             setIsLoading(false)
-            onLogin(formData)
-        }, 1500)
+        }
     }
 
     return (
@@ -123,6 +137,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                     {/* Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* General Error Message */}
+                        {errors.general && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"
+                            >
+                                <div className="flex items-center">
+                                    <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+                                    <p className="text-sm text-red-500">{errors.general}</p>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Email Field */}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -203,6 +231,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     id="remember-me"
                                     name="remember-me"
                                     type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
                                     className="h-4 w-4 text-gold-500 focus:ring-gold-500 border-gray-600 rounded bg-navy-800"
                                 />
                                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
