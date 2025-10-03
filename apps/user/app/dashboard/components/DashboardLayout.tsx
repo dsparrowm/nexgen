@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import {
     LayoutDashboard,
     Pickaxe,
@@ -19,6 +20,7 @@ import {
 import { confirmLogout } from '../../../utils/auth'
 import { DashboardSidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem } from '../../../lib/sidebar'
 import NexgenLogo from '../../../utils/NexgenLogo'
+import { useDashboardData } from '@/hooks/useDashboardData'
 
 interface DashboardLayoutProps {
     children: React.ReactNode
@@ -26,10 +28,16 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSection = 'dashboard' }) => {
+    const router = useRouter()
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
+    const { data } = useDashboardData()
 
-
+    const user = data?.user
+    const displayName = user?.firstName && user?.lastName
+        ? `${user.firstName} ${user.lastName}`
+        : user?.username || 'User'
+    const userEmail = user?.email || 'user@example.com'
 
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', href: '/dashboard' },
@@ -92,15 +100,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
 
                         {/* User Profile Section */}
                         <div className="mt-auto px-3 py-4 border-t border-gold-500/20">
-                            <div className="flex items-center px-3 py-2 rounded-lg bg-navy-800/50 mb-2">
+                            <button
+                                onClick={() => router.push('/dashboard/settings')}
+                                className="w-full flex items-center px-3 py-2 rounded-lg bg-navy-800/50 hover:bg-navy-700/50 mb-2 transition-colors text-left"
+                            >
                                 <div className="w-8 h-8 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center mr-3">
                                     <User className="w-4 h-4 text-navy-900" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">John Doe</p>
-                                    <p className="text-xs text-gray-400 truncate">Premium Member</p>
+                                    <p className="text-sm font-medium text-white truncate">{displayName}</p>
+                                    <p className="text-xs text-gray-400 truncate">View Profile</p>
                                 </div>
-                            </div>
+                            </button>
                             <button
                                 onClick={confirmLogout}
                                 className="w-full flex items-center px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors group"
@@ -132,7 +143,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
 
                         <div className="flex items-center space-x-4">
                             {/* Notifications */}
-                            <button className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
+                            <button
+                                onClick={() => router.push('/dashboard/notifications')}
+                                className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors"
+                                title="Notifications"
+                            >
                                 <Bell className="w-5 h-5" />
                                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
                             </button>
@@ -151,11 +166,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
 
                                 {/* Dropdown Menu */}
                                 {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-dark-800 rounded-lg shadow-lg border border-gold-500/20 py-2 z-50">
+                                    <div className="absolute right-0 mt-2 w-56 bg-dark-800 rounded-lg shadow-lg border border-gold-500/20 py-2 z-50">
                                         <div className="px-4 py-2 border-b border-gold-500/10">
-                                            <p className="text-sm font-medium text-white">John Doe</p>
-                                            <p className="text-xs text-gray-400">john.doe@example.com</p>
+                                            <p className="text-sm font-medium text-white truncate">{displayName}</p>
+                                            <p className="text-xs text-gray-400 truncate">{userEmail}</p>
                                         </div>
+                                        <button
+                                            onClick={() => {
+                                                setUserMenuOpen(false)
+                                                router.push('/dashboard/settings')
+                                            }}
+                                            className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-navy-700/50 transition-colors"
+                                        >
+                                            <Settings className="w-4 h-4 mr-3" />
+                                            <span>Account Settings</span>
+                                        </button>
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false)
