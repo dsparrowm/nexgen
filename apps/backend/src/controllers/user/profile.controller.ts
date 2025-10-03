@@ -477,13 +477,19 @@ export const updateProfileValidation = [
 
 export const changePasswordValidation = [
     body('currentPassword')
-        .isLength({ min: 6 })
+        .notEmpty()
         .withMessage('Current password is required'),
     body('newPassword')
         .isLength({ min: 8 })
         .withMessage('New password must be at least 8 characters long')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-        .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
+        .matches(/[A-Z]/)
+        .withMessage('New password must contain at least one uppercase letter')
+        .matches(/[a-z]/)
+        .withMessage('New password must contain at least one lowercase letter')
+        .matches(/[0-9]/)
+        .withMessage('New password must contain at least one number')
+        .matches(/[@$!%*?&#]/)
+        .withMessage('New password must contain at least one special character (@$!%*?&#)')
 ];
 
 export const uploadKycDocumentValidation = [
