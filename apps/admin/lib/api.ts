@@ -356,10 +356,14 @@ class ApiClient {
     /**
      * Add credits to user
      */
-    async addCredits(userId: string, amount: number, reason: string): Promise<ApiResponse<any>> {
+    async addCredits(userId: string, data: {
+        amount: number;
+        reason: string;
+        reference?: string;
+    }): Promise<ApiResponse<any>> {
         return this.request('/admin/credits/add', {
             method: 'POST',
-            body: JSON.stringify({ userId, amount, reason }),
+            body: JSON.stringify({ userId, ...data }),
         });
     }
 

@@ -6,7 +6,7 @@ import Login from '../components/Login'
 import Dashboard from '../components/Dashboard'
 
 const AdminPage = () => {
-  const { admin, isAuthenticated, isLoading, logout } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -26,7 +26,7 @@ const AdminPage = () => {
   }
 
   // Show dashboard if authenticated
-  return <Dashboard onLogout={logout} />
+  return <Dashboard />
 }
 
 export default AdminPage

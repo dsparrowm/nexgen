@@ -2,17 +2,17 @@
 
 import React from 'react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
-import AdminLayout from './components/AdminLayout'
-import AdminOverview from './components/AdminOverview'
+import AdminLayout from '../components/AdminLayout'
+import ReportsAnalytics from './components/ReportsAnalytics'
 
-const AdminDashboard: React.FC = () => {
+const ReportsPage: React.FC = () => {
     return (
         <ProtectedRoute>
             <AdminLayout>
-                <AdminOverview />
+                <ReportsAnalytics />
             </AdminLayout>
         </ProtectedRoute>
     )
 }
 
-export default AdminDashboard
+export default ReportsPage

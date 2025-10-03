@@ -1,16 +1,17 @@
+'use client'
+
 import React from 'react'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../components/AdminLayout'
 import SystemSettings from './components/SystemSettings'
 
-interface SystemSettingsPageProps {
-    onLogout: () => void
-}
-
-const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ onLogout }) => {
+const SystemSettingsPage: React.FC = () => {
     return (
-        <AdminLayout onLogout={onLogout}>
-            <SystemSettings />
-        </AdminLayout>
+        <ProtectedRoute requiredRole="SUPER_ADMIN">
+            <AdminLayout>
+                <SystemSettings />
+            </AdminLayout>
+        </ProtectedRoute>
     )
 }
 

@@ -1,16 +1,17 @@
+'use client'
+
 import React from 'react'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../components/AdminLayout'
 import UserManagement from './components/UserManagement'
 
-interface UserManagementPageProps {
-    onLogout: () => void
-}
-
-const UserManagementPage: React.FC<UserManagementPageProps> = ({ onLogout }) => {
+const UserManagementPage: React.FC = () => {
     return (
-        <AdminLayout onLogout={onLogout}>
-            <UserManagement />
-        </AdminLayout>
+        <ProtectedRoute>
+            <AdminLayout>
+                <UserManagement />
+            </AdminLayout>
+        </ProtectedRoute>
     )
 }
 

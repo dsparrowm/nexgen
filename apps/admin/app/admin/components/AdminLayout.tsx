@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import { usePermission } from '@/components/ProtectedRoute'
 import {
     LayoutDashboard,
     Users,
@@ -22,8 +24,10 @@ import {
 } from 'lucide-react'
 
 // Inline NexgenLogo component
-const NexgenLogo = ({ size = "md" }) => {
-    const sizeClasses = {
+type LogoSize = 'sm' | 'md' | 'lg';
+
+const NexgenLogo = ({ size = "md" }: { size?: LogoSize }) => {
+    const sizeClasses: Record<LogoSize, string> = {
         sm: "w-6 h-6",
         md: "w-8 h-8",
         lg: "w-10 h-10"
@@ -41,21 +45,30 @@ const NexgenLogo = ({ size = "md" }) => {
 
 interface AdminLayoutProps {
     children: React.ReactNode
-    onLogout: () => void
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children, onLogout }) => {
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const pathname = usePathname()
+    const { admin, logout } = useAuth()
+    const { canManageSettings, isSuperAdmin } = usePermission()
 
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/admin', exact: true },
         { name: 'User Management', icon: Users, href: '/admin/users' },
         { name: 'Credit Management', icon: CreditCard, href: '/admin/credits' },
         { name: 'Reports & Analytics', icon: BarChart3, href: '/admin/reports' },
-        { name: 'System Settings', icon: Settings, href: '/admin/settings' },
-        { name: 'Security & Audit', icon: Shield, href: '/admin/security' },
+        ...(canManageSettings() ? [{ name: 'System Settings', icon: Settings, href: '/admin/settings' }] : []),
+        ...(isSuperAdmin() ? [{ name: 'Security & Audit', icon: Shield, href: '/admin/security' }] : []),
     ]
+
+    const handleLogout = async () => {
+        try {
+            await logout()
+        } catch (error) {
+            console.error('Logout error:', error)
+        }
+    }
 
     const isActive = (href: string, exact = false) => {
         if (exact) {
@@ -122,12 +135,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, onLogout }) => {
                                 <Shield className="w-4 h-4 text-navy-900" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">Admin User</p>
-                                <p className="text-xs text-gray-400 truncate">Super Administrator</p>
+                                <p className="text-sm font-medium text-white truncate">
+                                    {admin?.firstName} {admin?.lastName}
+                                </p>
+                                <p className="text-xs text-gray-400 truncate">
+                                    {admin?.role === 'SUPER_ADMIN' ? 'Super Administrator' : 'Administrator'}
+                                </p>
                             </div>
                         </div>
                         <button
-                            onClick={onLogout}
+                            onClick={handleLogout}
                             className="w-full flex items-center px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors group"
                         >
                             <LogOut className="w-4 h-4 mr-3 group-hover:text-red-300" />

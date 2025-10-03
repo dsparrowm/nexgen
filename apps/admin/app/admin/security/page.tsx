@@ -3,16 +3,16 @@
 import React from 'react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../components/AdminLayout'
-import CreditManagement from './components/CreditManagement'
+import SecurityAudit from './components/SecurityAudit'
 
-const CreditManagementPage: React.FC = () => {
+const SecurityPage: React.FC = () => {
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="SUPER_ADMIN">
             <AdminLayout>
-                <CreditManagement />
+                <SecurityAudit />
             </AdminLayout>
         </ProtectedRoute>
     )
 }
 
-export default CreditManagementPage
+export default SecurityPage
