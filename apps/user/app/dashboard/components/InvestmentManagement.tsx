@@ -1,421 +1,316 @@
 "use client"
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 import {
-    Coins,
-    TrendingUp,
-    TrendingDown,
-    ShoppingCart,
-    DollarSign,
-    Calendar,
-    ArrowUpRight,
-    ArrowDownRight,
-    Eye,
-    EyeOff,
-    Plus,
-    Minus,
-    BarChart3,
-    PieChart as PieChartIcon,
-    Wallet
+    Coins, TrendingUp, DollarSign, ArrowUpRight, Eye, EyeOff, Plus, Minus, BarChart3,
+    PieChart as PieChartIcon, Wallet, AlertCircle, RefreshCw, X, Check, Timer, Calendar, ShoppingCart
 } from 'lucide-react'
+import { useInvestmentData } from '@/hooks/useInvestmentData'
+import { useMiningData } from '@/hooks/useMiningData'
+import { formatCurrency, formatPercentage, formatDate } from '@/utils/api/formatters'
+import { formatInvestment, getInvestmentStatusBadgeColor, getTransactionTypeBgColor, getTransactionTypeColor } from '@/utils/api/investmentApi'
 
 const InvestmentManagement = () => {
     const [showBalance, setShowBalance] = useState(true)
-    const [selectedAsset, setSelectedAsset] = useState('gold')
-    const [buyAmount, setBuyAmount] = useState('')
-    const [sellAmount, setSellAmount] = useState('')
+    const [selectedMiningOperationId, setSelectedMiningOperationId] = useState<string>('')
+    const [investAmount, setInvestAmount] = useState('')
+    const [withdrawInvestmentId, setWithdrawInvestmentId] = useState<string>('')
+    const [isInvesting, setIsInvesting] = useState(false)
+    const [isWithdrawing, setIsWithdrawing] = useState(false)
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+    const [showInvestModal, setShowInvestModal] = useState(false)
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false)
 
-    // Mock data
-    const goldPriceData = [
-        { name: 'Jan', price: 1850, volume: 120 },
-        { name: 'Feb', price: 1920, volume: 140 },
-        { name: 'Mar', price: 1980, volume: 160 },
-        { name: 'Apr', price: 1950, volume: 130 },
-        { name: 'May', price: 2020, volume: 180 },
-        { name: 'Jun', price: 2080, volume: 200 },
-    ]
+    const {
+        investments, investmentSummary, investmentsLoading, investmentsError,
+        transactions, transactionsPagination, transactionsLoading, transactionsError,
+        investmentStatus, setInvestmentStatus, transactionPage, setTransactionPage,
+        createNewInvestment, withdrawExistingInvestment, refetchInvestments, refetchTransactions
+    } = useInvestmentData()
 
-    const portfolioData = [
-        { name: 'Gold', value: 65, amount: '$32,450', color: '#FFD700' },
-        { name: 'Bitcoin', value: 25, amount: '$12,500', color: '#F59E0B' },
-        { name: 'Ethereum', value: 10, amount: '$5,000', color: '#8B5CF6' },
-    ]
+    const { operations: miningOperations, operationsLoading: miningLoading } = useMiningData()
 
-    const transactions = [
-        { id: 1, type: 'buy', asset: 'Gold', amount: '2.5 oz', value: '$5,000', date: '2024-01-15', status: 'completed' },
-        { id: 2, type: 'sell', asset: 'Bitcoin', amount: '0.1 BTC', value: '$6,000', date: '2024-01-10', status: 'completed' },
-        { id: 3, type: 'buy', asset: 'Gold', amount: '1.8 oz', value: '$3,600', date: '2024-01-05', status: 'completed' },
-        { id: 4, type: 'buy', asset: 'Ethereum', amount: '2 ETH', value: '$5,000', date: '2023-12-28', status: 'completed' },
-    ]
+    const portfolioData = investments.filter(inv => inv.status === 'ACTIVE').reduce((acc: any[], inv) => {
+        const existingOperation = acc.find(item => item.name === inv.miningOperation.name)
+        const amount = Number(inv.amount)
+        if (existingOperation) {
+            existingOperation.value += amount
+        } else {
+            const colors = ['#FFD700', '#F59E0B', '#8B5CF6', '#10B981', '#3B82F6', '#EF4444']
+            const hash = inv.miningOperation.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+            acc.push({ name: inv.miningOperation.name, value: amount, color: colors[hash % colors.length] })
+        }
+        return acc
+    }, [])
 
-    const currentPrices = {
-        gold: { price: 2080, change: '+2.4%', changeType: 'positive' },
-        bitcoin: { price: 67500, change: '-1.2%', changeType: 'negative' },
-        ethereum: { price: 2450, change: '+5.8%', changeType: 'positive' },
+    const totalPortfolioValue = portfolioData.reduce((sum, item) => sum + item.value, 0)
+    const portfolioDataWithPercentages = portfolioData.map(item => ({
+        ...item, percentage: totalPortfolioValue > 0 ? (item.value / totalPortfolioValue) * 100 : 0
+    }))
+
+    const handleInvest = async () => {
+        if (!selectedMiningOperationId || !investAmount) return
+        setIsInvesting(true)
+        setActionError(null)
+        setActionSuccess(null)
+        try {
+            await createNewInvestment({ miningOperationId: selectedMiningOperationId, amount: Number(investAmount) })
+            setActionSuccess('Investment created successfully!')
+            setInvestAmount('')
+            setSelectedMiningOperationId('')
+            setShowInvestModal(false)
+            setTimeout(() => setActionSuccess(null), 3000)
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : 'Failed to create investment')
+        } finally {
+            setIsInvesting(false)
+        }
     }
 
-    const holdings = {
-        gold: { amount: '12.5 oz', value: '$26,000', allocation: '65%' },
-        bitcoin: { amount: '0.185 BTC', value: '$12,487.50', allocation: '25%' },
-        ethereum: { amount: '2.04 ETH', value: '$4,998', allocation: '10%' },
+    const handleWithdraw = async () => {
+        if (!withdrawInvestmentId) return
+        setIsWithdrawing(true)
+        setActionError(null)
+        setActionSuccess(null)
+        try {
+            const result = await withdrawExistingInvestment(withdrawInvestmentId)
+            setActionSuccess(`Withdrawal successful! You received ${formatCurrency(result.withdrawalAmount)} (Penalty: ${formatCurrency(result.penalty)})`)
+            setWithdrawInvestmentId('')
+            setShowWithdrawModal(false)
+            setTimeout(() => setActionSuccess(null), 5000)
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : 'Failed to withdraw investment')
+        } finally {
+            setIsWithdrawing(false)
+        }
     }
 
-    const handleBuy = () => {
-        console.log(`Buying ${buyAmount} of ${selectedAsset}`)
-        setBuyAmount('')
-    }
+    const selectedOperation = miningOperations.find(op => op.id === selectedMiningOperationId)
+    const estimatedDailyReturn = selectedOperation && investAmount ? Number(investAmount) * (Number(selectedOperation.dailyReturn) / 100) : 0
+    const estimatedTotalReturn = selectedOperation ? estimatedDailyReturn * selectedOperation.duration : 0
 
-    const handleSell = () => {
-        console.log(`Selling ${sellAmount} of ${selectedAsset}`)
-        setSellAmount('')
-    }
+    const SkeletonCard = () => (
+        <div className="animate-pulse"><div className="h-4 bg-gray-700 rounded w-3/4 mb-3"></div><div className="h-8 bg-gray-700 rounded w-1/2 mb-2"></div><div className="h-3 bg-gray-700 rounded w-2/3"></div></div>
+    )
 
     return (
         <div className="space-y-6">
-            {/* Portfolio Overview */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-            >
+            <AnimatePresence>
+                {actionSuccess && (
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 flex items-center">
+                        <Check className="w-5 h-5 text-green-500 mr-3" /><span className="text-green-500">{actionSuccess}</span>
+                    </motion.div>
+                )}
+                {actionError && (
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center"><AlertCircle className="w-5 h-5 text-red-500 mr-3" /><span className="text-red-500">{actionError}</span></div>
+                        <button onClick={() => setActionError(null)} className="text-red-500 hover:text-red-400"><X className="w-4 h-4" /></button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-white">Investment Portfolio</h2>
                     <div className="flex items-center space-x-4">
-                        <button
-                            onClick={() => setShowBalance(!showBalance)}
-                            className="p-2 rounded-lg text-gray-400 hover:text-gold-500 transition-colors"
-                        >
+                        <button onClick={() => setShowBalance(!showBalance)} className="p-2 rounded-lg text-gray-400 hover:text-gold-500 transition-colors">
                             {showBalance ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                        </button>
+                        <button onClick={() => refetchInvestments()} className="p-2 rounded-lg text-gray-400 hover:text-gold-500 transition-colors" disabled={investmentsLoading}>
+                            <RefreshCw className={`w-5 h-5 ${investmentsLoading ? 'animate-spin' : ''}`} />
                         </button>
                         <div className="text-right">
                             <p className="text-sm text-gray-400">Total Portfolio Value</p>
                             <p className="text-2xl font-bold text-white">
-                                {showBalance ? '$49,985.50' : '****'}
+                                {investmentsLoading ? <span className="animate-pulse">Loading...</span> : showBalance ? formatCurrency(investmentSummary.currentValue) : '****'}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {Object.entries(holdings).map(([asset, data]) => (
-                        <div key={asset} className="bg-navy-800/50 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center">
-                                    <Coins className="w-6 h-6 text-gold-500 mr-2" />
-                                    <h3 className="text-white font-semibold capitalize">{asset}</h3>
-                                </div>
-                                <span className="text-sm text-gray-400">{data.allocation}</span>
-                            </div>
-                            <p className="text-lg font-bold text-white mb-1">
-                                {showBalance ? data.value : '****'}
-                            </p>
-                            <p className="text-sm text-gray-400">{data.amount}</p>
-                            <div className={`flex items-center mt-2 text-sm ${currentPrices[asset as keyof typeof currentPrices].changeType === 'positive'
-                                    ? 'text-green-500'
-                                    : 'text-red-500'
-                                }`}>
-                                {currentPrices[asset as keyof typeof currentPrices].changeType === 'positive' ? (
-                                    <ArrowUpRight className="w-4 h-4 mr-1" />
-                                ) : (
-                                    <ArrowDownRight className="w-4 h-4 mr-1" />
-                                )}
-                                {currentPrices[asset as keyof typeof currentPrices].change}
-                            </div>
-                        </div>
-                    ))}
+                {investmentsError && (
+                    <div className="mb-6 bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center"><AlertCircle className="w-5 h-5 text-red-500 mr-3" /><span className="text-red-500">{investmentsError}</span></div>
+                        <button onClick={() => refetchInvestments()} className="text-red-500 hover:text-red-400 flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Retry</button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-navy-800/50 rounded-xl p-4">
+                        <div className="flex items-center mb-3"><Coins className="w-6 h-6 text-gold-500 mr-2" /><h3 className="text-white font-semibold">Total Invested</h3></div>
+                        {investmentsLoading ? <SkeletonCard /> : (<><p className="text-lg font-bold text-white mb-1">{showBalance ? formatCurrency(investmentSummary.totalInvested) : '****'}</p><p className="text-sm text-gray-400">{investmentSummary.activeInvestments} active</p></>)}
+                    </div>
+                    <div className="bg-navy-800/50 rounded-xl p-4">
+                        <div className="flex items-center mb-3"><TrendingUp className="w-6 h-6 text-green-500 mr-2" /><h3 className="text-white font-semibold">Total Returns</h3></div>
+                        {investmentsLoading ? <SkeletonCard /> : (<><p className="text-lg font-bold text-white mb-1">{showBalance ? formatCurrency(investmentSummary.totalReturns) : '****'}</p><div className="flex items-center text-sm text-green-500"><ArrowUpRight className="w-4 h-4 mr-1" />{formatPercentage(investmentSummary.roi)}</div></>)}
+                    </div>
+                    <div className="bg-navy-800/50 rounded-xl p-4">
+                        <div className="flex items-center mb-3"><DollarSign className="w-6 h-6 text-blue-500 mr-2" /><h3 className="text-white font-semibold">Current Value</h3></div>
+                        {investmentsLoading ? <SkeletonCard /> : (<><p className="text-lg font-bold text-white mb-1">{showBalance ? formatCurrency(investmentSummary.currentValue) : '****'}</p><p className="text-sm text-gray-400">Portfolio value</p></>)}
+                    </div>
+                    <div className="bg-navy-800/50 rounded-xl p-4">
+                        <div className="flex items-center mb-3"><BarChart3 className="w-6 h-6 text-purple-500 mr-2" /><h3 className="text-white font-semibold">Avg Return</h3></div>
+                        {investmentsLoading ? <SkeletonCard /> : (<><p className="text-lg font-bold text-white mb-1">{formatPercentage(investmentSummary.averageReturn)}</p><p className="text-sm text-gray-400">Per investment</p></>)}
+                    </div>
                 </div>
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Price Chart */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2, duration: 0.6 }}
-                    className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-                >
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-white">Gold Price Chart</h3>
-                        <div className="flex items-center space-x-2">
-                            <select className="bg-navy-800 text-white border border-gold-500/30 rounded-lg px-3 py-1 text-sm">
-                                <option>1M</option>
-                                <option>3M</option>
-                                <option>6M</option>
-                                <option>1Y</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="mb-4">
-                        <p className="text-3xl font-bold text-white">$2,080.00</p>
-                        <div className="flex items-center text-green-500">
-                            <ArrowUpRight className="w-4 h-4 mr-1" />
-                            <span className="text-sm">+2.4% ($48.50)</span>
-                        </div>
-                    </div>
-
-                    <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={goldPriceData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis dataKey="name" stroke="#9CA3AF" />
-                            <YAxis stroke="#9CA3AF" />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: '#1F2937',
-                                    border: '1px solid #F59E0B',
-                                    borderRadius: '8px',
-                                    color: '#fff'
-                                }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="price"
-                                stroke="#FFD700"
-                                strokeWidth={3}
-                                dot={{ fill: '#FFD700', strokeWidth: 2, r: 4 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.6 }} className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20">
+                    <h3 className="text-xl font-bold text-white mb-4">Portfolio Allocation</h3>
+                    {investmentsLoading ? (
+                        <div className="flex justify-center items-center h-[250px]"><RefreshCw className="w-8 h-8 text-gold-500 animate-spin" /></div>
+                    ) : portfolioDataWithPercentages.length > 0 ? (
+                        <><ResponsiveContainer width="100%" height={200}>
+                            <PieChart><Pie data={portfolioDataWithPercentages} cx="50%" cy="50%" outerRadius={60} innerRadius={30} dataKey="value" startAngle={90} endAngle={450}>
+                                {portfolioDataWithPercentages.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+                            </Pie><Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #F59E0B', borderRadius: '8px', color: '#fff' }} /></PieChart>
+                        </ResponsiveContainer>
+                            <div className="space-y-2 mt-4">{portfolioDataWithPercentages.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between"><div className="flex items-center"><div className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: item.color }}></div><span className="text-gray-300 text-sm">{item.name}</span></div><div className="text-right"><p className="text-white font-medium text-sm">{item.percentage.toFixed(1)}%</p><p className="text-gray-400 text-xs">{formatCurrency(item.value)}</p></div></div>
+                            ))}</div></>
+                    ) : (
+                        <div className="flex flex-col justify-center items-center h-[250px] text-gray-400"><PieChartIcon className="w-12 h-12 mb-3 opacity-50" /><p>No active investments yet</p></div>
+                    )}
                 </motion.div>
 
-                {/* Portfolio Allocation */}
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4, duration: 0.6 }}
-                    className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-                >
-                    <h3 className="text-xl font-bold text-white mb-6">Portfolio Allocation</h3>
-
-                    <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                            <Pie
-                                data={portfolioData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                innerRadius={40}
-                                dataKey="value"
-                                startAngle={90}
-                                endAngle={450}
-                            >
-                                {portfolioData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: '#1F2937',
-                                    border: '1px solid #F59E0B',
-                                    borderRadius: '8px',
-                                    color: '#fff'
-                                }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
-
-                    <div className="space-y-3">
-                        {portfolioData.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between">
-                                <div className="flex items-center">
-                                    <div
-                                        className="w-3 h-3 rounded-full mr-3"
-                                        style={{ backgroundColor: item.color }}
-                                    ></div>
-                                    <span className="text-gray-300">{item.name}</span>
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.6 }} className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20">
+                    <h3 className="text-xl font-bold text-white mb-6">Your Investments</h3>
+                    {investmentsLoading ? (
+                        <div className="space-y-4">{[1, 2].map((i) => (<div key={i} className="bg-navy-800/50 rounded-lg p-4 animate-pulse"><div className="h-4 bg-gray-700 rounded w-1/2 mb-3"></div></div>))}</div>
+                    ) : investments.length > 0 ? (
+                        <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2">{investments.slice(0, 3).map((investment) => {
+                            const formatted = formatInvestment(investment)
+                            const amount = Number(investment.amount)
+                            const dailyReturn = Number(investment.dailyReturn)
+                            const currentReturn = amount * (dailyReturn / 100) * formatted.daysElapsed
+                            return (
+                                <div key={investment.id} className="bg-navy-800/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-white font-semibold text-sm">{investment.miningOperation.name}</h4>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getInvestmentStatusBadgeColor(investment.status)}`}>{investment.status}</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                        <div><p className="text-gray-400">Invested</p><p className="text-white font-medium">{formatCurrency(amount)}</p></div>
+                                        <div><p className="text-gray-400">Returns</p><p className="text-green-500 font-medium">{formatCurrency(currentReturn)}</p></div>
+                                        <div><p className="text-gray-400">Progress</p><p className="text-white font-medium">{formatted.progress.toFixed(0)}%</p></div>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-white font-medium">{item.value}%</p>
-                                    <p className="text-gray-400 text-sm">{item.amount}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            )
+                        })}</div>
+                    ) : (
+                        <div className="flex flex-col justify-center items-center py-8 text-gray-400"><Wallet className="w-12 h-12 mb-3 opacity-50" /><p>No investments yet</p></div>
+                    )}
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowInvestModal(true)} className="btn-primary flex items-center justify-center w-full mt-4">
+                        <Plus className="w-5 h-5 mr-2" />New Investment
+                    </motion.button>
                 </motion.div>
             </div>
 
-            {/* Trading Interface */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
-                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-            >
-                <h3 className="text-xl font-bold text-white mb-6">Trade Assets</h3>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Buy Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-green-500 flex items-center">
-                            <Plus className="w-5 h-5 mr-2" />
-                            Buy Assets
-                        </h4>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Asset</label>
-                                <select
-                                    value={selectedAsset}
-                                    onChange={(e) => setSelectedAsset(e.target.value)}
-                                    className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold-500"
-                                >
-                                    <option value="gold">Gold (Au)</option>
-                                    <option value="bitcoin">Bitcoin (BTC)</option>
-                                    <option value="ethereum">Ethereum (ETH)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Amount ($)</label>
-                                <input
-                                    type="number"
-                                    value={buyAmount}
-                                    onChange={(e) => setBuyAmount(e.target.value)}
-                                    placeholder="Enter amount"
-                                    className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-gold-500"
-                                />
-                            </div>
-
-                            <div className="bg-navy-800/30 rounded-lg p-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Current Price:</span>
-                                    <span className="text-white">
-                                        ${currentPrices[selectedAsset as keyof typeof currentPrices].price.toLocaleString()}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Estimated Amount:</span>
-                                    <span className="text-white">
-                                        {buyAmount && !isNaN(Number(buyAmount))
-                                            ? `${(Number(buyAmount) / currentPrices[selectedAsset as keyof typeof currentPrices].price).toFixed(6)} ${selectedAsset.toUpperCase()}`
-                                            : '0'
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={handleBuy}
-                                disabled={!buyAmount}
-                                className="w-full btn-primary bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <ShoppingCart className="w-5 h-5 mr-2" />
-                                Buy {selectedAsset.charAt(0).toUpperCase() + selectedAsset.slice(1)}
-                            </motion.button>
-                        </div>
-                    </div>
-
-                    {/* Sell Section */}
-                    <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-red-500 flex items-center">
-                            <Minus className="w-5 h-5 mr-2" />
-                            Sell Assets
-                        </h4>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Asset</label>
-                                <select
-                                    value={selectedAsset}
-                                    onChange={(e) => setSelectedAsset(e.target.value)}
-                                    className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold-500"
-                                >
-                                    <option value="gold">Gold (Au)</option>
-                                    <option value="bitcoin">Bitcoin (BTC)</option>
-                                    <option value="ethereum">Ethereum (ETH)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
-                                <input
-                                    type="number"
-                                    value={sellAmount}
-                                    onChange={(e) => setSellAmount(e.target.value)}
-                                    placeholder="Enter amount"
-                                    className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-gold-500"
-                                />
-                            </div>
-
-                            <div className="bg-navy-800/30 rounded-lg p-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Available:</span>
-                                    <span className="text-white">
-                                        {holdings[selectedAsset as keyof typeof holdings].amount}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Estimated Value:</span>
-                                    <span className="text-white">
-                                        {sellAmount && !isNaN(Number(sellAmount))
-                                            ? `$${(Number(sellAmount) * currentPrices[selectedAsset as keyof typeof currentPrices].price).toLocaleString()}`
-                                            : '$0'
-                                        }
-                                    </span>
-                                </div>
-                            </div>
-
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={handleSell}
-                                disabled={!sellAmount}
-                                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                            >
-                                <DollarSign className="w-5 h-5 mr-2" />
-                                Sell {selectedAsset.charAt(0).toUpperCase() + selectedAsset.slice(1)}
-                            </motion.button>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Transaction History */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.6 }} className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-white">Recent Transactions</h3>
-                    <button className="text-gold-500 hover:text-gold-400 transition-colors text-sm">
-                        View All
+                    <button onClick={() => refetchTransactions()} className="text-gold-500 hover:text-gold-400 transition-colors text-sm flex items-center" disabled={transactionsLoading}>
+                        <RefreshCw className={`w-4 h-4 mr-1 ${transactionsLoading ? 'animate-spin' : ''}`} />Refresh
                     </button>
                 </div>
 
-                <div className="space-y-3">
-                    {transactions.map((transaction) => (
+                {transactionsLoading ? (
+                    <div className="space-y-3">{[1, 2, 3].map((i) => (<div key={i} className="bg-navy-800/50 rounded-lg p-4 animate-pulse"><div className="flex items-center space-x-4"><div className="w-8 h-8 bg-gray-700 rounded-lg"></div><div className="flex-1"><div className="h-4 bg-gray-700 rounded w-1/3 mb-2"></div></div></div></div>))}</div>
+                ) : transactions.length > 0 ? (
+                    <div className="space-y-3">{transactions.map((transaction) => (
                         <div key={transaction.id} className="bg-navy-800/50 rounded-lg p-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4">
-                                    <div className={`p-2 rounded-lg ${transaction.type === 'buy'
-                                            ? 'bg-green-500/20 text-green-500'
-                                            : 'bg-red-500/20 text-red-500'
-                                        }`}>
-                                        {transaction.type === 'buy' ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                                    <div className={`p-2 rounded-lg ${getTransactionTypeBgColor(transaction.type)}`}>
+                                        {transaction.type === 'INVESTMENT' || transaction.type === 'DEPOSIT' ? (<Plus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />) : (<Minus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />)}
                                     </div>
-                                    <div>
-                                        <p className="text-white font-medium">
-                                            {transaction.type === 'buy' ? 'Bought' : 'Sold'} {transaction.asset}
-                                        </p>
-                                        <p className="text-gray-400 text-sm">{transaction.amount}</p>
-                                    </div>
+                                    <div><p className="text-white font-medium">{transaction.type.replace(/_/g, ' ')}</p><p className="text-gray-400 text-sm">{transaction.description}</p></div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-white font-medium">{transaction.value}</p>
-                                    <p className="text-gray-400 text-sm">{transaction.date}</p>
-                                </div>
+                                <div className="text-right"><p className="text-white font-medium">{formatCurrency(transaction.amount)}</p><p className="text-gray-400 text-sm">{formatDate(transaction.createdAt)}</p></div>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    ))}</div>
+                ) : (
+                    <div className="flex flex-col justify-center items-center py-12 text-gray-400"><Calendar className="w-12 h-12 mb-3 opacity-50" /><p>No transactions yet</p></div>
+                )}
             </motion.div>
+
+            <AnimatePresence>
+                {showInvestModal && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isInvesting && setShowInvestModal(false)}>
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className="bg-dark-800 rounded-2xl p-6 border border-gold-500/20 max-w-md w-full">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-white">New Investment</h3>
+                                <button onClick={() => !isInvesting && setShowInvestModal(false)} className="text-gray-400 hover:text-white" disabled={isInvesting}><X className="w-5 h-5" /></button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Mining Operation</label>
+                                    {miningLoading ? (<div className="animate-pulse h-12 bg-gray-700 rounded-lg"></div>) : (
+                                        <select value={selectedMiningOperationId} onChange={(e) => setSelectedMiningOperationId(e.target.value)} className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold-500" disabled={isInvesting}>
+                                            <option value="">Select operation...</option>
+                                            {miningOperations.map(op => (<option key={op.id} value={op.id}>{op.name} - {formatPercentage(Number(op.dailyReturn))} daily</option>))}
+                                        </select>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Investment Amount ($)</label>
+                                    <input type="number" value={investAmount} onChange={(e) => setInvestAmount(e.target.value)} placeholder="Enter amount" className="w-full bg-navy-800/50 border border-gold-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-gold-500" disabled={isInvesting} />
+                                    {selectedOperation && (<p className="text-gray-400 text-sm mt-1">Min: {formatCurrency(Number(selectedOperation.minInvestment))} - Max: {formatCurrency(Number(selectedOperation.maxInvestment))}</p>)}
+                                </div>
+
+                                {selectedOperation && investAmount && (
+                                    <div className="bg-navy-800/30 rounded-lg p-4 space-y-2">
+                                        <div className="flex justify-between text-sm"><span className="text-gray-400">Daily Return:</span><span className="text-white font-medium">{formatCurrency(estimatedDailyReturn)}</span></div>
+                                        <div className="flex justify-between text-sm"><span className="text-gray-400">Duration:</span><span className="text-white font-medium">{selectedOperation.duration} days</span></div>
+                                        <div className="flex justify-between text-sm"><span className="text-gray-400">Total Estimated Return:</span><span className="text-green-500 font-medium">{formatCurrency(estimatedTotalReturn)}</span></div>
+                                    </div>
+                                )}
+
+                                <div className="flex space-x-3 pt-4">
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isInvesting && setShowInvestModal(false)} disabled={isInvesting} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleInvest} disabled={!selectedMiningOperationId || !investAmount || isInvesting} className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                                        {isInvesting ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Creating...</>) : (<><ShoppingCart className="w-5 h-5 mr-2" />Invest Now</>)}
+                                    </motion.button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showWithdrawModal && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isWithdrawing && setShowWithdrawModal(false)}>
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className="bg-dark-800 rounded-2xl p-6 border border-gold-500/20 max-w-md w-full">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-white">Confirm Withdrawal</h3>
+                                <button onClick={() => !isWithdrawing && setShowWithdrawModal(false)} className="text-gray-400 hover:text-white" disabled={isWithdrawing}><X className="w-5 h-5" /></button>
+                            </div>
+
+                            <div className="mb-6">
+                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 mb-4">
+                                    <div className="flex items-start"><AlertCircle className="w-5 h-5 text-yellow-500 mr-3 mt-0.5" /><div><p className="text-yellow-500 font-medium mb-1">Early Withdrawal Penalty</p><p className="text-yellow-500/80 text-sm">A 10% penalty will be deducted from your investment amount if you withdraw early.</p></div></div>
+                                </div>
+                                <p className="text-gray-400 text-sm">Are you sure you want to withdraw this investment? This action cannot be undone.</p>
+                            </div>
+
+                            <div className="flex space-x-3">
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isWithdrawing && setShowWithdrawModal(false)} disabled={isWithdrawing} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleWithdraw} disabled={isWithdrawing} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                                    {isWithdrawing ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Withdrawing...</>) : (<><DollarSign className="w-5 h-5 mr-2" />Confirm Withdrawal</>)}
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

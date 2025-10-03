@@ -224,7 +224,7 @@ export async function stopMiningOperation(investmentId: string): Promise<{
     message: string;
 }> {
     return apiFetch(`/user/mining/${investmentId}/stop`, {
-        method: 'POST',
+        method: 'PUT',
     });
 }
 
