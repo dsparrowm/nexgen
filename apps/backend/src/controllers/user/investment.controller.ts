@@ -533,7 +533,8 @@ export const getTransactions = async (req: AuthRequest, res: Response): Promise<
 // Validation rules
 export const createInvestmentValidation = [
     body('miningOperationId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid mining operation ID is required'),
     body('amount')
         .isFloat({ min: 0.01 })
@@ -542,6 +543,7 @@ export const createInvestmentValidation = [
 
 export const investmentIdValidation = [
     param('investmentId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid investment ID is required')
 ];

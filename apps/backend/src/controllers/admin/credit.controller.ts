@@ -339,7 +339,8 @@ export const getCreditHistory = async (req: AuthRequest, res: Response): Promise
 // Validation rules
 export const addCreditsValidation = [
     body('userId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid user ID is required'),
     body('amount')
         .isFloat({ min: 0.01 })
@@ -352,7 +353,8 @@ export const addCreditsValidation = [
 
 export const deductCreditsValidation = [
     body('userId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid user ID is required'),
     body('amount')
         .isFloat({ min: 0.01 })
@@ -365,6 +367,7 @@ export const deductCreditsValidation = [
 
 export const userIdValidation = [
     param('userId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid user ID is required')
 ];

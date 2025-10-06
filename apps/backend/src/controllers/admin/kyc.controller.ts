@@ -386,6 +386,7 @@ export const reviewKycValidation = [
 
 export const documentIdValidation = [
     param('documentId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid document ID is required')
 ];

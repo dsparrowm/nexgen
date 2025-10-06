@@ -182,6 +182,14 @@ export const getUser = async (req: AuthRequest, res: Response): Promise<void> =>
                 sessions: {
                     where: { isActive: true },
                     select: { id: true, createdAt: true, lastUsed: true, userAgent: true, ipAddress: true }
+                },
+                _count: {
+                    select: {
+                        investments: true,
+                        transactions: true,
+                        kycDocuments: true,
+                        referrals: true
+                    }
                 }
             }
         });
@@ -246,6 +254,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
             zipCode,
             isActive,
             isVerified,
+            kycStatus,
             role,
             balance
         } = req.body;
@@ -294,6 +303,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
         if (isVerified !== undefined) updateData.isVerified = isVerified;
         if (role && Object.values(UserRole).includes(role)) updateData.role = role;
         if (balance !== undefined) updateData.balance = balance;
+        if (kycStatus !== undefined) updateData.kycStatus = kycStatus;
 
         const updatedUser = await db.prisma.user.update({
             where: { id: userId },
@@ -307,7 +317,15 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
                 role: true,
                 isActive: true,
                 isVerified: true,
+                isEmailVerified: true,
+                kycStatus: true,
                 balance: true,
+                phoneNumber: true,
+                country: true,
+                state: true,
+                city: true,
+                address: true,
+                zipCode: true,
                 updatedAt: true
             }
         });
@@ -575,84 +593,89 @@ export const createUserValidation = [
         .isLength({ min: 8 })
         .withMessage('Password must be at least 8 characters long'),
     body('firstName')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 1, max: 50 })
         .trim()
         .withMessage('First name must be 1-50 characters'),
     body('lastName')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 1, max: 50 })
         .trim()
         .withMessage('Last name must be 1-50 characters'),
     body('role')
-        .optional()
+        .optional({ nullable: true })
         .isIn(Object.values(UserRole))
         .withMessage('Invalid role'),
     body('balance')
-        .optional()
+        .optional({ nullable: true })
         .isFloat({ min: 0 })
         .withMessage('Balance must be a positive number')
 ];
 
 export const updateUserValidation = [
     body('firstName')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 1, max: 50 })
         .trim()
         .withMessage('First name must be 1-50 characters'),
     body('lastName')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 1, max: 50 })
         .trim()
         .withMessage('Last name must be 1-50 characters'),
     body('phoneNumber')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 10, max: 15 })
         .withMessage('Phone number must be 10-15 characters'),
     body('country')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 2, max: 100 })
         .trim()
         .withMessage('Country must be 2-100 characters'),
     body('state')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 2, max: 100 })
         .trim()
         .withMessage('State must be 2-100 characters'),
     body('city')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 2, max: 100 })
         .trim()
         .withMessage('City must be 2-100 characters'),
     body('address')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 5, max: 255 })
         .trim()
         .withMessage('Address must be 5-255 characters'),
     body('zipCode')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isLength({ min: 3, max: 10 })
         .withMessage('ZIP code must be 3-10 characters'),
     body('isActive')
-        .optional()
+        .optional({ nullable: true })
         .isBoolean()
         .withMessage('isActive must be a boolean'),
     body('isVerified')
-        .optional()
+        .optional({ nullable: true })
         .isBoolean()
         .withMessage('isVerified must be a boolean'),
     body('role')
-        .optional()
+        .optional({ nullable: true })
         .isIn(Object.values(UserRole))
         .withMessage('Invalid role'),
+    body('kycStatus')
+        .optional({ nullable: true })
+        .isIn(['PENDING', 'VERIFIED', 'REJECTED'])
+        .withMessage('Invalid KYC status'),
     body('balance')
-        .optional()
+        .optional({ nullable: true })
         .isFloat({ min: 0 })
         .withMessage('Balance must be a positive number')
 ];
 
 export const userIdValidation = [
     param('userId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid user ID is required')
 ];

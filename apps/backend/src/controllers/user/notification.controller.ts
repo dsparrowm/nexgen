@@ -284,6 +284,7 @@ export const getNotificationStats = async (req: AuthRequest, res: Response): Pro
 // Validation rules
 export const notificationIdValidation = [
     param('notificationId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid notification ID is required')
 ];

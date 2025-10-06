@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ interface LoginFormData {
     password: string;
 }
 
-const Login = () => {
+const LoginContent = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [formData, setFormData] = useState<LoginFormData>({
@@ -268,6 +268,14 @@ const Login = () => {
                 </motion.div>
             </div>
         </AuthLayout>
+    );
+};
+
+const Login = () => {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 };
 

@@ -31,7 +31,7 @@ export function formatCurrency(
 
     const formatted = numAmount.toFixed(decimals);
     const parts = formatted.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    parts[0] = (parts[0] ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
     return showSymbol ? `$${parts.join('.')}` : parts.join('.');
 }

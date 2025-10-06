@@ -566,6 +566,7 @@ export const updateMiningOperationValidation = [
 
 export const operationIdValidation = [
     param('operationId')
-        .isUUID()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid operation ID is required')
 ];

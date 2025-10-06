@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import AuthLayout from '@/app/components/AuthLayout';
 
-const Verification = () => {
+
+function VerificationContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -348,6 +349,12 @@ const Verification = () => {
             </div>
         </AuthLayout>
     );
-};
+}
 
-export default Verification;
+export default function Verification() {
+    return (
+        <Suspense>
+            <VerificationContent />
+        </Suspense>
+    );
+}
