@@ -242,7 +242,7 @@ export async function getTransactions(params: {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
 
-    const url = `${API_BASE_URL}/user/transactions?${queryParams.toString()}`;
+    const url = `${API_BASE_URL}user/transactions?${queryParams.toString()}`;
 
     const response = await fetch(url, {
         method: 'GET',
