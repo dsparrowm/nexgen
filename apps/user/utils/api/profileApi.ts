@@ -3,7 +3,9 @@
  * Handles all user profile and settings-related API communications
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:8000/api';
+import { getApiBase } from '@/lib/axiosInstance';
+
+const API_BASE_URL = getApiBase(true);
 
 // ==================== TypeScript Interfaces ====================
 
@@ -87,7 +89,7 @@ export async function getProfile(): Promise<User> {
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/auth/user/profile`, {
+    const response = await fetch(`${API_BASE_URL}auth/user/profile`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -113,7 +115,7 @@ export async function updateProfile(payload: ProfileUpdatePayload): Promise<User
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/profile/profile`, {
+    const response = await fetch(`${API_BASE_URL}user/profile/profile`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -148,7 +150,7 @@ export async function changePassword(payload: PasswordChangePayload): Promise<vo
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/profile/password`, {
+    const response = await fetch(`${API_BASE_URL}user/profile/password`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -180,7 +182,7 @@ export async function getKycDocuments(): Promise<KycDocument[]> {
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/profile/kyc/documents`, {
+    const response = await fetch(`${API_BASE_URL}user/profile/kyc/documents`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -213,7 +215,7 @@ export async function uploadKycDocument(payload: KycUploadPayload): Promise<KycD
         formData.append('documentNumber', payload.documentNumber);
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/profile/kyc/upload`, {
+    const response = await fetch(`${API_BASE_URL}user/profile/kyc/upload`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${authToken}`,

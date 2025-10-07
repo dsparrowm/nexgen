@@ -84,6 +84,7 @@ export default function Settings() {
     });
 
     const handleSaveProfile = async () => {
+        console.log("handleSaveProfile called");
         try {
             clearErrors();
             const payload: ProfileUpdatePayload = {
@@ -97,13 +98,17 @@ export default function Settings() {
                 zipCode,
                 dateOfBirth,
             };
+            console.log("Payload:", payload);
 
             await updateUserProfile(payload);
+            console.log("updateUserProfile succeeded");
             setSuccessMessage("Profile updated successfully!");
             setTimeout(() => setSuccessMessage(""), 3000);
         } catch (error) {
+            console.log("updateUserProfile failed:", error);
             // Extract error message from the caught error
             const message = error instanceof Error ? error.message : updateError || "Failed to update profile";
+            console.log("Setting error message:", message);
             setErrorMessage(message);
             setTimeout(() => setErrorMessage(""), 5000);
         }

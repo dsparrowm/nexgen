@@ -3,7 +3,9 @@
  * Handles all API requests with authentication, error handling, and token management
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// Normalize NEXT_PUBLIC_API_URL for admin app (ensure no trailing slash, include /api)
+const rawAdminBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = `${rawAdminBase.replace(/\/+$/, '')}/api`;
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'nexgen_admin_access_token';

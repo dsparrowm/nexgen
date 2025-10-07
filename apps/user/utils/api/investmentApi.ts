@@ -3,7 +3,9 @@
  * Handles all investment-related API communications
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:8000/api';
+import { getApiBase } from '@/lib/axiosInstance';
+
+const API_BASE_URL = getApiBase(true);
 
 // ==================== TypeScript Interfaces ====================
 
@@ -122,7 +124,7 @@ export async function getInvestments(params: {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
 
-    const url = `${API_BASE_URL}/user/investments?${queryParams.toString()}`;
+    const url = `${API_BASE_URL}user/investments?${queryParams.toString()}`;
 
     const response = await fetch(url, {
         method: 'GET',
@@ -150,7 +152,7 @@ export async function getInvestment(investmentId: string): Promise<Investment> {
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/investments/${investmentId}`, {
+    const response = await fetch(`${API_BASE_URL}user/investments/${investmentId}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -176,7 +178,7 @@ export async function createInvestment(payload: CreateInvestmentPayload): Promis
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/investments`, {
+    const response = await fetch(`${API_BASE_URL}user/investments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -203,7 +205,7 @@ export async function withdrawInvestment(investmentId: string): Promise<Withdraw
         throw new Error('Authentication token not found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/user/investments/${investmentId}/withdraw`, {
+    const response = await fetch(`${API_BASE_URL}user/investments/${investmentId}/withdraw`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

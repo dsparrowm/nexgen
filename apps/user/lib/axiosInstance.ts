@@ -1,8 +1,20 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
+// Normalize NEXT_PUBLIC_API_URL: strip trailing slash if present
+const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const NORMALIZED_BASE = rawBase.replace(/\/+$/, ''); // remove trailing slashes
+
+// Export helper so other modules can build consistent API_BASE_URLs
+export function getApiBase(includeApiSegment = false) {
+    if (!includeApiSegment) return NORMALIZED_BASE + '/';
+    // If the normalized base already ends with /api, don't append again
+    if (NORMALIZED_BASE.endsWith('/api')) return NORMALIZED_BASE + '/';
+    return `${NORMALIZED_BASE}/api/`;
+}
+
+// Create axios instance with base configuration (no trailing slash)
 const axiosInstance = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    baseURL: NORMALIZED_BASE,
     headers: {
         'Content-Type': 'application/json',
     },

@@ -31,6 +31,7 @@ interface UseProfileDataReturn {
     // Action states
     updating: boolean;
     updateError: string | null;
+    updateSuccess: string | null;
     changingPassword: boolean;
     passwordError: string | null;
     uploading: boolean;
@@ -60,6 +61,7 @@ export function useProfileData(): UseProfileDataReturn {
     // Action states
     const [updating, setUpdating] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
+    const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
     const [changingPassword, setChangingPassword] = useState(false);
     const [passwordError, setPasswordError] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -114,6 +116,9 @@ export function useProfileData(): UseProfileDataReturn {
         try {
             const updatedUser = await updateProfile(payload);
             setUser(updatedUser);
+            setUpdateSuccess('Profile updated successfully');
+            // auto-clear success after a short delay
+            setTimeout(() => setUpdateSuccess(null), 3000);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
             setUpdateError(errorMessage);
@@ -204,6 +209,7 @@ export function useProfileData(): UseProfileDataReturn {
         setProfileError(null);
         setKycError(null);
         setUpdateError(null);
+        setUpdateSuccess(null);
         setPasswordError(null);
         setUploadError(null);
     }, []);
@@ -230,6 +236,7 @@ export function useProfileData(): UseProfileDataReturn {
         // Action states
         updating,
         updateError,
+        updateSuccess,
         changingPassword,
         passwordError,
         uploading,

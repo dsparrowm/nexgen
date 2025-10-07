@@ -3,7 +3,9 @@
  * Handles all mining-related API calls
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:8000/api';
+import { getApiBase } from '@/lib/axiosInstance';
+
+const API_BASE_URL = getApiBase(true);
 
 // ==================== Types ====================
 
@@ -158,7 +160,7 @@ export async function getMiningOperations(
     limit: number = 20,
     riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
 ): Promise<MiningOperationsResponse> {
-    let endpoint = `/public/mining?page=${page}&limit=${limit}`;
+    let endpoint = `public/mining?page=${page}&limit=${limit}`;
 
     if (riskLevel) {
         endpoint += `&riskLevel=${riskLevel}`;
@@ -174,14 +176,14 @@ export async function getMiningOperationById(operationId: string): Promise<{
     success: boolean;
     data: { operation: MiningOperation };
 }> {
-    return apiFetch(`/public/mining/${operationId}`);
+    return apiFetch(`public/mining/${operationId}`);
 }
 
 /**
  * Get global mining statistics
  */
 export async function getMiningStats(): Promise<MiningStatsResponse> {
-    return apiFetch('/public/mining/stats');
+    return apiFetch('public/mining/stats');
 }
 
 // ==================== User Mining Operations ====================
@@ -194,7 +196,7 @@ export async function getUserMiningInvestments(
     limit: number = 20,
     status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
 ): Promise<UserInvestmentsResponse> {
-    let endpoint = `/user/mining?page=${page}&limit=${limit}`;
+    let endpoint = `user/mining?page=${page}&limit=${limit}`;
 
     if (status) {
         endpoint += `&status=${status}`;
@@ -210,7 +212,7 @@ export async function startMiningOperation(
     operationId: string,
     amount: number
 ): Promise<StartMiningResponse> {
-    return apiFetch('/user/mining/start', {
+    return apiFetch('user/mining/start', {
         method: 'POST',
         body: JSON.stringify({ operationId, amount }),
     });
@@ -223,7 +225,7 @@ export async function stopMiningOperation(investmentId: string): Promise<{
     success: boolean;
     message: string;
 }> {
-    return apiFetch(`/user/mining/${investmentId}/stop`, {
+    return apiFetch(`user/mining/${investmentId}/stop`, {
         method: 'PUT',
     });
 }

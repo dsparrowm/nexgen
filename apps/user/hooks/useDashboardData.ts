@@ -5,6 +5,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDashboardData, getDashboardStats } from '@/utils/api/dashboardApi';
 
+// Module-level cache and inflight promise to prevent duplicate network calls
+let cachedDashboardData: DashboardData | null = null;
+let cachedDashboardStats: DashboardStats | null = null;
+let inflightDashboardFetch: Promise<void> | null = null;
+
 interface DashboardData {
     user: any;
     stats?: {
@@ -62,28 +67,52 @@ export function useDashboardData(): UseDashboardDataReturn {
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
+        // Prevent multiple simultaneous fetches from different hook instances
         try {
             setLoading(true);
             setError(null);
 
-            // Fetch both dashboard data and stats in parallel
-            const [dashboardResponse, statsResponse] = await Promise.all([
-                getDashboardData(),
-                getDashboardStats()
-            ]);
-
-            if (dashboardResponse.success && dashboardResponse.data) {
-                setData(dashboardResponse.data);
-            } else {
-                setError(dashboardResponse.error?.message || 'Failed to fetch dashboard data');
+            // If there's an inflight shared fetch, wait for it and reuse cached results
+            if (inflightDashboardFetch) {
+                await inflightDashboardFetch;
+                // populate local state from cache
+                setData(cachedDashboardData);
+                setStats(cachedDashboardStats);
+                return;
             }
 
-            if (statsResponse.success && statsResponse.data) {
-                setStats(statsResponse.data);
-            }
+            // Start shared fetch and store the promise so other instances can await it
+            inflightDashboardFetch = (async () => {
+                const [dashboardResponse, statsResponse] = await Promise.all([
+                    getDashboardData(),
+                    getDashboardStats(),
+                ]);
+
+                if (dashboardResponse.success && dashboardResponse.data) {
+                    cachedDashboardData = dashboardResponse.data;
+                } else {
+                    // keep previous cache if any and surface error
+                    cachedDashboardData = cachedDashboardData || null;
+                    throw new Error(dashboardResponse.error?.message || 'Failed to fetch dashboard data');
+                }
+
+                if (statsResponse.success && statsResponse.data) {
+                    cachedDashboardStats = statsResponse.data;
+                }
+
+                // clear inflight after success
+                inflightDashboardFetch = null;
+            })();
+
+            // Wait for shared fetch to finish
+            await inflightDashboardFetch;
+
+            // Populate local state from cache
+            setData(cachedDashboardData);
+            setStats(cachedDashboardStats);
         } catch (err) {
             console.error('Dashboard data fetch error:', err);
-            setError('An unexpected error occurred');
+            setError((err as Error).message || 'An unexpected error occurred');
         } finally {
             setLoading(false);
         }

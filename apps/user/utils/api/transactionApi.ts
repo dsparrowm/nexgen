@@ -3,7 +3,9 @@
  * Centralized API calls for transaction data
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getApiBase } from '@/lib/axiosInstance';
+
+const API_BASE_URL = getApiBase(true);
 
 interface ApiResponse<T> {
     success: boolean;
@@ -130,7 +132,7 @@ export async function getTransactions(filters: TransactionFilters = {}) {
     if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
     const queryString = queryParams.toString();
-    const endpoint = `/user/transactions${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `user/transactions${queryString ? `?${queryString}` : ''}`;
 
     return apiFetch<TransactionsResponse>(endpoint);
 }
@@ -139,7 +141,7 @@ export async function getTransactions(filters: TransactionFilters = {}) {
  * Get a specific transaction by ID
  */
 export async function getTransactionById(transactionId: string) {
-    return apiFetch<Transaction>(`/user/transactions/${transactionId}`);
+    return apiFetch<Transaction>(`user/transactions/${transactionId}`);
 }
 
 /**
@@ -150,7 +152,7 @@ export async function createDeposit(data: {
     currency: string;
     paymentMethod: string;
 }) {
-    return apiFetch<Transaction>('/user/transactions/deposit', {
+    return apiFetch<Transaction>('user/transactions/deposit', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -164,7 +166,7 @@ export async function createWithdrawal(data: {
     currency: string;
     withdrawalAddress: string;
 }) {
-    return apiFetch<Transaction>('/user/transactions/withdraw', {
+    return apiFetch<Transaction>('user/transactions/withdraw', {
         method: 'POST',
         body: JSON.stringify(data),
     });

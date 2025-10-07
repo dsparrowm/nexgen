@@ -16,12 +16,12 @@ const router = Router();
 router.use(authenticateUser);
 
 // Investment management
-router.get('/investments', getInvestments);
-router.get('/investments/:investmentId', investmentIdValidation, getInvestment);
-router.post('/investments', createInvestmentValidation, createInvestment);
-router.post('/investments/:investmentId/withdraw', investmentIdValidation, withdrawInvestment);
+router.get('/', getInvestments);
+router.get('/:investmentId', investmentIdValidation, getInvestment);
+router.post('/', createInvestmentValidation, createInvestment);
+router.post('/:investmentId/withdraw', investmentIdValidation, withdrawInvestment);
 
 // Transaction history
-router.get('/transactions', getTransactions);
+// Transaction routes are mounted separately under /transactions
 
 export default router;

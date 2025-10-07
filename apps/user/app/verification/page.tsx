@@ -107,7 +107,7 @@ function VerificationContent() {
         setError('');
 
         try {
-            const response = await axiosInstance.post('/api/auth/verify-email', {
+            const response = await axiosInstance.post('/api/auth/user/verify-email', {
                 email,
                 code: codeToSubmit,
             });
@@ -144,7 +144,7 @@ function VerificationContent() {
         setError('');
 
         try {
-            const response = await axiosInstance.post('/api/auth/resend-verification', {
+            const response = await axiosInstance.post('/api/auth/user/resend-verification', {
                 email,
             });
 

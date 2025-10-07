@@ -61,7 +61,9 @@ const InvestmentManagement = () => {
             setActionSuccess('Investment created successfully!')
             setInvestAmount('')
             setSelectedMiningOperationId('')
-            setShowInvestModal(false)
+            // keep the modal open briefly so the user can see the success message inside it,
+            // then close it after a short delay
+            setTimeout(() => closeInvestModal(), 900)
             setTimeout(() => setActionSuccess(null), 3000)
         } catch (error) {
             setActionError(error instanceof Error ? error.message : 'Failed to create investment')
@@ -79,13 +81,28 @@ const InvestmentManagement = () => {
             const result = await withdrawExistingInvestment(withdrawInvestmentId)
             setActionSuccess(`Withdrawal successful! You received ${formatCurrency(result.withdrawalAmount)} (Penalty: ${formatCurrency(result.penalty)})`)
             setWithdrawInvestmentId('')
-            setShowWithdrawModal(false)
+            // keep modal visible briefly so message is seen inside the modal
+            setTimeout(() => closeWithdrawModal(), 900)
             setTimeout(() => setActionSuccess(null), 5000)
         } catch (error) {
             setActionError(error instanceof Error ? error.message : 'Failed to withdraw investment')
         } finally {
             setIsWithdrawing(false)
         }
+    }
+
+    // Helper to close invest modal and clear modal-specific messages
+    const closeInvestModal = () => {
+        setShowInvestModal(false)
+        setActionError(null)
+        setActionSuccess(null)
+    }
+
+    // Helper to close withdraw modal and clear modal-specific messages
+    const closeWithdrawModal = () => {
+        setShowWithdrawModal(false)
+        setActionError(null)
+        setActionSuccess(null)
     }
 
     const selectedOperation = miningOperations.find(op => op.id === selectedMiningOperationId)
@@ -99,12 +116,14 @@ const InvestmentManagement = () => {
     return (
         <div className="space-y-6">
             <AnimatePresence>
-                {actionSuccess && (
+                {/* Show top-level banners only when no modal is open to avoid duplicates */}
+                {!showInvestModal && !showWithdrawModal && actionSuccess && (
                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 flex items-center">
                         <Check className="w-5 h-5 text-green-500 mr-3" /><span className="text-green-500">{actionSuccess}</span>
                     </motion.div>
                 )}
-                {actionError && (
+
+                {!showInvestModal && !showWithdrawModal && actionError && (
                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-center justify-between">
                         <div className="flex items-center"><AlertCircle className="w-5 h-5 text-red-500 mr-3" /><span className="text-red-500">{actionError}</span></div>
                         <button onClick={() => setActionError(null)} className="text-red-500 hover:text-red-400"><X className="w-4 h-4" /></button>
@@ -241,14 +260,25 @@ const InvestmentManagement = () => {
 
             <AnimatePresence>
                 {showInvestModal && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isInvesting && setShowInvestModal(false)}>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isInvesting && closeInvestModal()}>
                         <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className="bg-dark-800 rounded-2xl p-6 border border-gold-500/20 max-w-md w-full">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-xl font-bold text-white">New Investment</h3>
-                                <button onClick={() => !isInvesting && setShowInvestModal(false)} className="text-gray-400 hover:text-white" disabled={isInvesting}><X className="w-5 h-5" /></button>
+                                <button onClick={() => !isInvesting && closeInvestModal()} className="text-gray-400 hover:text-white" disabled={isInvesting}><X className="w-5 h-5" /></button>
                             </div>
 
                             <div className="space-y-4">
+                                {/* Show action messages inside modal for better context */}
+                                {actionSuccess && (
+                                    <div className="mb-2 bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-green-300 text-sm">
+                                        {actionSuccess}
+                                    </div>
+                                )}
+                                {actionError && (
+                                    <div className="mb-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-300 text-sm">
+                                        {actionError}
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">Mining Operation</label>
                                     {miningLoading ? (<div className="animate-pulse h-12 bg-gray-700 rounded-lg"></div>) : (
@@ -274,7 +304,7 @@ const InvestmentManagement = () => {
                                 )}
 
                                 <div className="flex space-x-3 pt-4">
-                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isInvesting && setShowInvestModal(false)} disabled={isInvesting} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isInvesting && closeInvestModal()} disabled={isInvesting} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleInvest} disabled={!selectedMiningOperationId || !investAmount || isInvesting} className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
                                         {isInvesting ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Creating...</>) : (<><ShoppingCart className="w-5 h-5 mr-2" />Invest Now</>)}
                                     </motion.button>
@@ -287,14 +317,25 @@ const InvestmentManagement = () => {
 
             <AnimatePresence>
                 {showWithdrawModal && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isWithdrawing && setShowWithdrawModal(false)}>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !isWithdrawing && closeWithdrawModal()}>
                         <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className="bg-dark-800 rounded-2xl p-6 border border-gold-500/20 max-w-md w-full">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-xl font-bold text-white">Confirm Withdrawal</h3>
-                                <button onClick={() => !isWithdrawing && setShowWithdrawModal(false)} className="text-gray-400 hover:text-white" disabled={isWithdrawing}><X className="w-5 h-5" /></button>
+                                <button onClick={() => !isWithdrawing && closeWithdrawModal()} className="text-gray-400 hover:text-white" disabled={isWithdrawing}><X className="w-5 h-5" /></button>
                             </div>
 
                             <div className="mb-6">
+                                {/* show messages inside withdraw modal as well */}
+                                {actionSuccess && (
+                                    <div className="mb-2 bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-green-300 text-sm">
+                                        {actionSuccess}
+                                    </div>
+                                )}
+                                {actionError && (
+                                    <div className="mb-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-300 text-sm">
+                                        {actionError}
+                                    </div>
+                                )}
                                 <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 mb-4">
                                     <div className="flex items-start"><AlertCircle className="w-5 h-5 text-yellow-500 mr-3 mt-0.5" /><div><p className="text-yellow-500 font-medium mb-1">Early Withdrawal Penalty</p><p className="text-yellow-500/80 text-sm">A 10% penalty will be deducted from your investment amount if you withdraw early.</p></div></div>
                                 </div>
@@ -302,7 +343,7 @@ const InvestmentManagement = () => {
                             </div>
 
                             <div className="flex space-x-3">
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isWithdrawing && setShowWithdrawModal(false)} disabled={isWithdrawing} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => !isWithdrawing && closeWithdrawModal()} disabled={isWithdrawing} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50">Cancel</motion.button>
                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleWithdraw} disabled={isWithdrawing} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
                                     {isWithdrawing ? (<><RefreshCw className="w-5 h-5 mr-2 animate-spin" />Withdrawing...</>) : (<><DollarSign className="w-5 h-5 mr-2" />Confirm Withdrawal</>)}
                                 </motion.button>

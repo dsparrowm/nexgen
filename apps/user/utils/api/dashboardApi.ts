@@ -3,7 +3,9 @@
  * Centralized API calls for dashboard data
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getApiBase } from '@/lib/axiosInstance';
+
+const API_BASE_URL = getApiBase(true);
 
 interface ApiResponse<T> {
     success: boolean;
@@ -121,21 +123,21 @@ async function apiFetch<T>(
  * Get dashboard data for the authenticated user
  */
 export async function getDashboardData() {
-    return apiFetch<DashboardData>('/user/profile/dashboard');
+    return apiFetch<DashboardData>('user/profile/dashboard');
 }
 
 /**
  * Get dashboard statistics including historical data
  */
 export async function getDashboardStats() {
-    return apiFetch<DashboardStats>('/user/dashboard/stats');
+    return apiFetch<DashboardStats>('user/dashboard/stats');
 }
 
 /**
  * Get user's mining operations
  */
 export async function getMiningOperations() {
-    return apiFetch<any>('/user/mining', {
+    return apiFetch<any>('user/mining', {
         method: 'GET',
     });
 }
@@ -144,7 +146,7 @@ export async function getMiningOperations() {
  * Get user's investments
  */
 export async function getInvestments() {
-    return apiFetch<any>('/user/investments', {
+    return apiFetch<any>('user/investments', {
         method: 'GET',
     });
 }
@@ -192,7 +194,7 @@ export async function getNotifications(params?: { page?: number; limit?: number 
  * Get notification stats
  */
 export async function getNotificationStats() {
-    return apiFetch<any>('/user/notifications/stats', {
+    return apiFetch<any>('user/notifications/stats', {
         method: 'GET',
     });
 }
@@ -210,7 +212,7 @@ export async function markNotificationAsRead(notificationId: string) {
  * Mark all notifications as read
  */
 export async function markAllNotificationsAsRead() {
-    return apiFetch<any>('/user/notifications/read-all', {
+    return apiFetch<any>('user/notifications/read-all', {
         method: 'PUT',
     });
 }

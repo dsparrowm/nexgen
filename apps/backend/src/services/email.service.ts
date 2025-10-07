@@ -4,6 +4,9 @@ import { logger } from '@/utils/logger';
 const supportEmail = process.env.NAMECHEAP_SUPPORT_EMAIL;
 const supportEmailPassword = process.env.NAMECHEAP_SUPPORT_PASSWORD;
 
+// Ensure we have a fallback FRONTEND_URL when the env var is not set
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.USER_APP_URL || 'http://localhost:3000';
+
 // Configure the transporter
 const transporter = nodemailer.createTransport({
     host: 'mail.privateemail.com', // Namecheap SMTP host
@@ -52,7 +55,7 @@ export const sendPasswordResetEmail = async (
     resetToken: string,
     userName?: string
 ): Promise<void> => {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     const html = `
         <!DOCTYPE html>
@@ -311,7 +314,7 @@ export const sendWelcomeEmail = async (
     email: string,
     userName: string
 ): Promise<void> => {
-    const loginUrl = `${process.env.FRONTEND_URL}/login`;
+    const loginUrl = `${FRONTEND_URL}/login`;
 
     const html = `
         <!DOCTYPE html>
