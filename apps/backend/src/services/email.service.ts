@@ -10,7 +10,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || process.env.USER_APP_URL || 'ht
 // Configure the transporter
 const transporter = nodemailer.createTransport({
     host: 'mail.privateemail.com', // Namecheap SMTP host
-    port: 465, // Use 587 for TLS/STARTTLS, or 465 for SSL
+    port: 587, // Use 587 for TLS/STARTTLS, or 465 for SSL
     secure: true, // Set to true for port 465, false for other ports
     auth: {
         user: supportEmail, // Your email address
