@@ -53,9 +53,15 @@ async function testEmails() {
     console.log('\n🧪 Starting Email Service Tests...\n');
 
     // Check if required environment variables are set
-    if (!process.env.NAMECHEAP_SUPPORT_EMAIL || !process.env.NAMECHEAP_SUPPORT_PASSWORD) {
-        console.error('❌ Error: Email credentials not configured');
-        console.error('Please set NAMECHEAP_SUPPORT_EMAIL and NAMECHEAP_SUPPORT_PASSWORD in .env file');
+    if (!process.env.RESEND_API_KEY) {
+        console.error('❌ Error: Resend API key not configured');
+        console.error('Please set RESEND_API_KEY in .env file');
+        process.exit(1);
+    }
+
+    if (!process.env.FROM_EMAIL) {
+        console.error('❌ Error: FROM_EMAIL not configured');
+        console.error('Please set FROM_EMAIL in .env file');
         process.exit(1);
     }
 
@@ -75,7 +81,7 @@ async function testEmails() {
     }
 
     console.log('📧 Email Configuration:');
-    console.log(`   From: ${process.env.NAMECHEAP_SUPPORT_EMAIL}`);
+    console.log(`   From: ${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`);
     console.log(`   Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
     console.log(`   Test recipient: ${TEST_EMAIL}\n`);
 

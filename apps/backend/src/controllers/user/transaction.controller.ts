@@ -39,7 +39,7 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        const { amount, paymentMethod, paymentId } = req.body;
+        const { amount, currency, paymentMethod } = req.body;
         const depositAmount = Number(amount);
 
         if (depositAmount <= 0) {
@@ -50,7 +50,7 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        // Create deposit transaction
+        // Create deposit transaction with cryptocurrency metadata
         const transaction = await db.prisma.transaction.create({
             data: {
                 userId,
@@ -58,10 +58,14 @@ export const createDeposit = async (req: AuthRequest, res: Response): Promise<vo
                 amount: depositAmount,
                 netAmount: depositAmount,
                 status: TransactionStatus.PENDING, // Will be completed after payment processing
-                paymentMethod: paymentMethod || PaymentMethod.MANUAL,
-                paymentId,
-                description: `Deposit of $${depositAmount.toFixed(2)}`,
-                reference: `DEP-${userId}-${Date.now()}`
+                paymentMethod: PaymentMethod.CRYPTO,
+                description: `Cryptocurrency deposit of $${depositAmount.toFixed(2)} (${currency || 'USD'})`,
+                reference: `DEP-${userId}-${Date.now()}`,
+                metadata: {
+                    currency: currency || 'USD',
+                    transactionType: 'crypto_deposit',
+                    createdAt: new Date().toISOString()
+                }
             }
         });
 
@@ -108,13 +112,22 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
             return;
         }
 
-        const { amount, paymentMethod } = req.body;
+        const { amount, currency, withdrawalAddress } = req.body;
         const withdrawalAmount = Number(amount);
 
         if (withdrawalAmount <= 0) {
             res.status(400).json({
                 success: false,
                 error: { message: 'Withdrawal amount must be greater than 0', code: 'INVALID_AMOUNT' }
+            });
+            return;
+        }
+
+        // Validate withdrawal address for crypto withdrawals
+        if (!withdrawalAddress || withdrawalAddress.trim().length === 0) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Withdrawal address is required for cryptocurrency withdrawals', code: 'MISSING_ADDRESS' }
             });
             return;
         }
@@ -133,7 +146,7 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
             return;
         }
 
-        // Create withdrawal transaction
+        // Create withdrawal transaction with cryptocurrency metadata
         const transaction = await db.prisma.transaction.create({
             data: {
                 userId,
@@ -141,9 +154,15 @@ export const createWithdrawal = async (req: AuthRequest, res: Response): Promise
                 amount: withdrawalAmount,
                 netAmount: -withdrawalAmount, // Negative for withdrawal
                 status: TransactionStatus.PENDING, // Will be processed later
-                paymentMethod: paymentMethod || PaymentMethod.BANK_TRANSFER,
-                description: `Withdrawal of $${withdrawalAmount.toFixed(2)}`,
-                reference: `WD-${userId}-${Date.now()}`
+                paymentMethod: PaymentMethod.CRYPTO,
+                description: `Cryptocurrency withdrawal of $${withdrawalAmount.toFixed(2)} (${currency || 'USD'})`,
+                reference: `WD-${userId}-${Date.now()}`,
+                metadata: {
+                    currency: currency || 'USD',
+                    withdrawalAddress: withdrawalAddress.trim(),
+                    transactionType: 'crypto_withdrawal',
+                    createdAt: new Date().toISOString()
+                }
             }
         });
 
@@ -313,22 +332,26 @@ export const createDepositValidation = [
     body('amount')
         .isFloat({ min: 0.01 })
         .withMessage('Amount must be greater than 0'),
+    body('currency')
+        .optional()
+        .isIn(['BTC', 'ETH', 'USDT', 'USD'])
+        .withMessage('Invalid currency'),
     body('paymentMethod')
         .optional()
-        .isIn(Object.values(PaymentMethod))
-        .withMessage('Invalid payment method'),
-    body('paymentId')
-        .optional()
         .isString()
-        .withMessage('Payment ID must be a string')
+        .withMessage('Payment method must be a string')
 ];
 
 export const createWithdrawalValidation = [
     body('amount')
         .isFloat({ min: 0.01 })
         .withMessage('Amount must be greater than 0'),
-    body('paymentMethod')
+    body('currency')
         .optional()
-        .isIn(Object.values(PaymentMethod))
-        .withMessage('Invalid payment method')
+        .isIn(['BTC', 'ETH', 'USDT', 'USD'])
+        .withMessage('Invalid currency'),
+    body('withdrawalAddress')
+        .isString()
+        .isLength({ min: 10, max: 100 })
+        .withMessage('Withdrawal address must be between 10 and 100 characters')
 ];

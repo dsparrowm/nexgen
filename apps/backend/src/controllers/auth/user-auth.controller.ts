@@ -317,14 +317,17 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
         });
 
         // Send verification email
+        console.log('📧 About to send verification email to:', user.email, 'with code:', verificationCode);
         try {
             await sendEmailVerificationCode(
                 user.email,
                 verificationCode,
                 user.firstName || undefined
             );
+            console.log('✅ Verification email sent successfully to:', user.email);
             logger.info(`Verification email sent to: ${user.email}`);
         } catch (emailError) {
+            console.error('❌ Failed to send verification email:', emailError);
             logger.error('Failed to send verification email:', emailError);
             // Don't fail registration if email sending fails
         }
@@ -916,14 +919,17 @@ export const resendVerification = async (req: Request, res: Response): Promise<v
             });
 
             // Send verification email
+            console.log('📧 RESEND: About to send verification email to:', user.email, 'with code:', verificationCode);
             try {
                 await sendEmailVerificationCode(
                     user.email,
                     verificationCode,
                     user.firstName || undefined
                 );
+                console.log('✅ RESEND: Verification email sent successfully to:', user.email);
                 logger.info(`Verification code resent to: ${user.email}`);
             } catch (emailError) {
+                console.error('❌ RESEND: Failed to resend verification email:', emailError);
                 logger.error('Failed to resend verification email:', emailError);
                 // Don't throw error - still return success to prevent email enumeration
             }

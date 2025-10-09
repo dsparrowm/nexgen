@@ -15,7 +15,9 @@ import {
     Menu,
     X,
     LogOut,
-    ChevronDown
+    ChevronDown,
+    ArrowDownLeft,
+    ArrowUpRight
 } from 'lucide-react'
 import { confirmLogout } from '../../../utils/auth'
 import { DashboardSidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem } from '../../../lib/sidebar'
@@ -43,6 +45,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
         { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', href: '/dashboard' },
         { name: 'Mining', icon: Pickaxe, id: 'mining', href: '/dashboard/mining' },
         { name: 'Investments', icon: TrendingUp, id: 'investments', href: '/dashboard/investments' },
+        { name: 'Deposit', icon: ArrowDownLeft, id: 'deposit', href: '/dashboard/deposit' },
+        { name: 'Withdrawal', icon: ArrowUpRight, id: 'withdrawal', href: '/dashboard/withdrawal' },
         { name: 'Transactions', icon: History, id: 'transactions', href: '/dashboard/transactions' },
         { name: 'Settings', icon: Settings, id: 'settings', href: '/dashboard/settings' },
         { name: 'Support', icon: HelpCircle, id: 'support', href: '/dashboard/support' },
