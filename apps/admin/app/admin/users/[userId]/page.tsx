@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../../components/AdminLayout'
+import { useToast } from '@/components/ToastContext'
 import {
     ArrowLeft,
     Mail,
@@ -55,6 +56,7 @@ const UserDetailsPage = () => {
     const router = useRouter()
     const params = useParams()
     const userId = params?.userId as string
+    const { addToast } = useToast()
 
     const [user, setUser] = useState<UserDetails | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -130,13 +132,13 @@ const UserDetailsPage = () => {
 
             if (response.success) {
                 setUser({ ...user, isActive: newStatus })
-                alert(`User ${action}d successfully`)
+                addToast('success', `User ${action}d successfully`)
             } else {
-                alert(response.error?.message || `Failed to ${action} user`)
+                addToast('error', `Failed to ${action} user`, response.error?.message)
             }
         } catch (error) {
             console.error('Toggle status error:', error)
-            alert(`An error occurred while ${action}ing the user`)
+            addToast('error', `An error occurred while ${action}ing the user`)
         }
     }
 
@@ -170,8 +172,8 @@ const UserDetailsPage = () => {
                                 <button
                                     onClick={handleToggleStatus}
                                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${user.isActive
-                                            ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                                            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                                        ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                                        : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                                         }`}
                                 >
                                     {user.isActive ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
@@ -237,8 +239,8 @@ const UserDetailsPage = () => {
                                             </div>
                                             <div className="flex items-center space-x-3 mt-3">
                                                 <span className={`px-3 py-1 rounded-full text-sm font-medium border ${user.isActive
-                                                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                        : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                    : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
                                                     }`}>
                                                     {user.isActive ? 'Active' : 'Inactive'}
                                                 </span>

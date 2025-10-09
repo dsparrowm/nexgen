@@ -5,28 +5,42 @@ import { logger } from './utils/logger';
 import db from './services/database';
 
 const startServer = async () => {
+    console.log('Starting NexGen Backend Server...');
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Port:', process.env.PORT);
+    console.log('Database URL exists:', !!process.env.DATABASE_URL);
     try {
+        console.log('Testing database connection...');
         // Test database connection
         const isHealthy = await db.healthCheck();
         if (!isHealthy) {
             throw new Error('Database connection failed');
         }
+        console.log('Database connection established');
         logger.info('✅ Database connection established');
 
         // Create HTTP server
-        const server = app.listen(config.port, () => {
+        const server = app.listen(config.port, '0.0.0.0', () => {
+            console.log(`Server is listening on port ${config.port}`);
             logger.info(`
 🚀 NexGen Backend Server Started!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 Server: http://localhost:${config.port}
+📍 Server: http://0.0.0.0:${config.port}
 🌍 Environment: ${config.nodeEnv}
 💾 Database: Connected
 📱 User App: ${config.userAppUrl}
 🔧 Admin App: ${config.adminAppUrl}
-🏥 Health Check: http://localhost:${config.port}/health
-📋 API Info: http://localhost:${config.port}/api
+🏥 Health Check: http://0.0.0.0:${config.port}/health
+📋 API Info: http://0.0.0.0:${config.port}/api
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         `);
+        });
+
+        // Handle server errors
+        server.on('error', (error) => {
+            console.error('Server error:', error);
+            logger.error('Server error:', error);
+            process.exit(1);
         });
 
         // Graceful shutdown handlers

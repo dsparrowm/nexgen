@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
+import { useToast } from '@/components/ToastContext'
 import {
     Users,
     Search,
@@ -58,6 +59,7 @@ interface PaginationInfo {
 
 const UserManagement = () => {
     const router = useRouter()
+    const { addToast } = useToast()
     const [users, setUsers] = useState<User[]>([])
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
@@ -242,14 +244,14 @@ const UserManagement = () => {
                     totalBalance: prev.totalBalance - Number(user.balance)
                 }))
 
-                // Show success message (you could use a toast notification here)
-                alert('User deleted successfully')
+                // Show success message
+                addToast('success', 'User deleted successfully')
             } else {
-                alert(response.error?.message || 'Failed to delete user')
+                addToast('error', 'Failed to delete user', response.error?.message)
             }
         } catch (error) {
             console.error('Delete user error:', error)
-            alert('An error occurred while deleting the user')
+            addToast('error', 'An error occurred while deleting the user')
         }
     }
 
@@ -282,13 +284,13 @@ const UserManagement = () => {
                 }))
 
                 // Show success message
-                alert(`User ${action}d successfully`)
+                addToast('success', `User ${action}d successfully`)
             } else {
-                alert(response.error?.message || `Failed to ${action} user`)
+                addToast('error', `Failed to ${action} user`, response.error?.message)
             }
         } catch (error) {
             console.error(`Toggle user status error:`, error)
-            alert(`An error occurred while ${action}ing the user`)
+            addToast('error', `An error occurred while ${action}ing the user`)
         }
     }
 
@@ -341,13 +343,13 @@ const UserManagement = () => {
 
             // Show result
             if (failCount === 0) {
-                alert(`Successfully ${action}d ${successCount} user(s)`)
+                addToast('success', `Successfully ${action}d ${successCount} user(s)`)
             } else {
-                alert(`${action} completed: ${successCount} succeeded, ${failCount} failed`)
+                addToast('warning', `${action} completed: ${successCount} succeeded, ${failCount} failed`)
             }
         } catch (error) {
             console.error('Bulk action error:', error)
-            alert('An error occurred during bulk operation')
+            addToast('error', 'An error occurred during bulk operation')
         }
     }
 
