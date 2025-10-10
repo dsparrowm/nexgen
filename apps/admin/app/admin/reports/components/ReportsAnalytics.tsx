@@ -9,7 +9,6 @@ import {
     DollarSign,
     Activity,
     Download,
-    Calendar,
     BarChart3,
     PieChart,
     LineChart,
@@ -64,16 +63,6 @@ const ReportsAnalytics = () => {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
         }).format(amount)
-    }
-
-    // Calculate percentage change (mock for now - would need previous period data)
-    const calculateChange = (current: number, previous: number) => {
-        if (previous === 0) return { change: '+100%', type: 'increase' }
-        const change = ((current - previous) / previous) * 100
-        return {
-            change: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-            type: change >= 0 ? 'increase' : 'decrease'
-        }
     }
 
     // Generate key metrics based on report type and data

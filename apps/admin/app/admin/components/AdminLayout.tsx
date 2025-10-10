@@ -17,10 +17,9 @@ import {
     LogOut,
     Menu,
     X,
-    UserCheck,
-    Wallet,
     Activity,
-    DollarSign
+    DollarSign,
+    ArrowLeftRight
 } from 'lucide-react'
 
 // Inline NexgenLogo component
@@ -56,6 +55,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/admin', exact: true },
         { name: 'User Management', icon: Users, href: '/admin/users' },
+        { name: 'Transaction Management', icon: ArrowLeftRight, href: '/admin/transactions' },
         { name: 'Credit Management', icon: CreditCard, href: '/admin/credits' },
         { name: 'Reports & Analytics', icon: BarChart3, href: '/admin/reports' },
         ...(canManageSettings() ? [{ name: 'System Settings', icon: Settings, href: '/admin/settings' }] : []),

@@ -4,6 +4,7 @@ import {
     addCredits,
     deductCredits,
     getCreditHistory,
+    getAllCreditHistory,
     addCreditsValidation,
     deductCreditsValidation,
     userIdValidation
@@ -17,6 +18,7 @@ router.use(authenticateAdmin);
 // Credit management
 router.post('/add', addCreditsValidation, addCredits);
 router.post('/deduct', deductCreditsValidation, deductCredits);
+router.get('/history', getAllCreditHistory);
 router.get('/history/:userId', userIdValidation, getCreditHistory);
 
 export default router;

@@ -278,6 +278,116 @@ export const deductCredits = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 /**
+ * Get all credit transaction history
+ */
+export const getAllCreditHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const adminId = req.user?.userId;
+        if (!adminId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+            res.status(403).json({
+                success: false,
+                error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
+            });
+            return;
+        }
+
+        const {
+            page = 1,
+            limit = 20,
+            userId,
+            type,
+            search
+        } = req.query;
+
+        const skip = (Number(page) - 1) * Number(limit);
+
+        // Build where clause
+        const whereClause: any = {
+            type: { in: [TransactionType.BONUS, TransactionType.FEE] }
+        };
+
+        if (userId) {
+            whereClause.userId = userId;
+        }
+
+        if (type && (type === 'credit' || type === 'debit')) {
+            // Map frontend type to database transaction type
+            whereClause.type = type === 'credit' ? TransactionType.BONUS : TransactionType.FEE;
+        }
+
+        if (search) {
+            whereClause.OR = [
+                { user: { email: { contains: search as string, mode: 'insensitive' } } },
+                { user: { username: { contains: search as string, mode: 'insensitive' } } },
+                { user: { firstName: { contains: search as string, mode: 'insensitive' } } },
+                { user: { lastName: { contains: search as string, mode: 'insensitive' } } }
+            ];
+        }
+
+        const [transactions, total] = await Promise.all([
+            db.prisma.transaction.findMany({
+                where: whereClause,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            username: true,
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: Number(limit)
+            }),
+            db.prisma.transaction.count({
+                where: whereClause
+            })
+        ]);
+
+        // Transform transactions to match frontend interface
+        const transformedTransactions = transactions.map(transaction => ({
+            id: transaction.id,
+            userId: transaction.userId,
+            userName: `${transaction.user.firstName || ''} ${transaction.user.lastName || ''}`.trim() || transaction.user.username,
+            userEmail: transaction.user.email,
+            type: transaction.type === TransactionType.BONUS ? 'credit' : 'debit',
+            amount: Math.abs(Number(transaction.amount)),
+            previousBalance: 0, // Not stored in transaction model
+            newBalance: 0, // Not stored in transaction model
+            reason: transaction.description || '',
+            adminUser: 'System', // TODO: Add admin tracking
+            timestamp: transaction.createdAt.toISOString(),
+            status: transaction.status === TransactionStatus.COMPLETED ? 'completed' :
+                transaction.status === TransactionStatus.PENDING ? 'pending' : 'failed',
+            transactionId: transaction.id
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                transactions: transformedTransactions,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    pages: Math.ceil(total / Number(limit))
+                }
+            }
+        });
+
+    } catch (error) {
+        logger.error('Get all credit history error:', error);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Internal server error', code: 'GET_ALL_CREDIT_HISTORY_FAILED' }
+        });
+    }
+};
+
+/**
  * Get credit transaction history for a user
  */
 export const getCreditHistory = async (req: AuthRequest, res: Response): Promise<void> => {

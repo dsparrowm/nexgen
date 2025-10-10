@@ -228,8 +228,50 @@ export const approveTransaction = async (req: AuthRequest, res: Response): Promi
                     }
                 });
             }
-            // For withdrawals, balance was already checked during creation
-            // The negative netAmount represents the deduction
+            // For withdrawals, subtract from user balance
+            else if (transaction.type === 'WITHDRAWAL') {
+                await prisma.user.update({
+                    where: { id: transaction.userId },
+                    data: {
+                        balance: {
+                            decrement: transaction.amount
+                        }
+                    }
+                });
+            }
+            // For refunds, add to user balance
+            else if (transaction.type === 'REFUND') {
+                await prisma.user.update({
+                    where: { id: transaction.userId },
+                    data: {
+                        balance: {
+                            increment: transaction.amount
+                        }
+                    }
+                });
+            }
+            // For fees, subtract from user balance
+            else if (transaction.type === 'FEE') {
+                await prisma.user.update({
+                    where: { id: transaction.userId },
+                    data: {
+                        balance: {
+                            decrement: transaction.amount
+                        }
+                    }
+                });
+            }
+            // For bonuses, add to user balance
+            else if (transaction.type === 'BONUS' || transaction.type === 'REFERRAL_BONUS') {
+                await prisma.user.update({
+                    where: { id: transaction.userId },
+                    data: {
+                        balance: {
+                            increment: transaction.amount
+                        }
+                    }
+                });
+            }
 
             logger.info(`Transaction ${id} approved by admin ${userId}`, {
                 transactionId: id,

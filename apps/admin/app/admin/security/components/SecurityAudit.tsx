@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { apiClient } from '@/lib/api'
+import { useToast } from '@/components/ToastContext'
 import {
     Shield,
     Activity,
@@ -9,16 +11,20 @@ import {
     AlertTriangle,
     CheckCircle,
     Clock,
-    Eye,
-    Lock,
-    Server,
-    Key,
     Search,
-    Download,
-    Filter
+    Download
 } from 'lucide-react'
-import { useApi } from '@/hooks/useApi'
-import { toast } from 'react-hot-toast'
+
+interface AuditLog {
+    id: string
+    action: string
+    admin: string
+    resource: string
+    ipAddress: string
+    timestamp: string
+    status: string
+    details: string
+}
 
 const SecurityAudit = () => {
     const [searchTerm, setSearchTerm] = useState('')
@@ -30,13 +36,13 @@ const SecurityAudit = () => {
         activeSessions: 0,
         blockedIPs: 0
     })
-    const [auditLogs, setAuditLogs] = useState([])
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
     const [totalLogs, setTotalLogs] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
     const [isLoadingMetrics, setIsLoadingMetrics] = useState(true)
     const [isLoadingLogs, setIsLoadingLogs] = useState(true)
 
-    const { apiClient } = useApi()
+    const { addToast } = useToast()
 
     // Fetch security metrics
     useEffect(() => {
@@ -47,12 +53,11 @@ const SecurityAudit = () => {
                 if (response.success) {
                     setSecurityMetrics(response.data)
                 } else {
-                    toast.error('Failed to load security metrics')
+                    addToast('error', 'Failed to load security metrics')
                 }
-            } catch (error) {
-                toast.error('Failed to load security metrics')
-                console.error('Error fetching security metrics:', error)
-            } finally {
+            } catch (err) {
+                addToast('error', 'Failed to load security metrics')
+                console.error('Error fetching security metrics:', err)
                 setIsLoadingMetrics(false)
             }
         }
@@ -78,10 +83,10 @@ const SecurityAudit = () => {
                     setTotalLogs(response.data.pagination.total)
                     setTotalPages(response.data.pagination.totalPages)
                 } else {
-                    toast.error('Failed to load audit logs')
+                    addToast('error', 'Failed to load audit logs')
                 }
             } catch (error) {
-                toast.error('Failed to load audit logs')
+                addToast('error', 'Failed to load audit logs')
                 console.error('Error fetching audit logs:', error)
             } finally {
                 setIsLoadingLogs(false)
@@ -270,7 +275,7 @@ const SecurityAudit = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center text-sm text-gray-300">
                                             <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                                            {formatRelativeTime(log.timestamp)}
+                                            {formatRelativeTime(new Date(log.timestamp))}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">

@@ -299,6 +299,43 @@ class ApiClient {
     }
 
     /**
+     * Get all transactions with filtering and pagination
+     */
+    async getTransactions(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        type?: string;
+        userId?: string;
+        search?: string;
+    }): Promise<ApiResponse<any>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.type) queryParams.append('type', params.type);
+        if (params?.userId) queryParams.append('userId', params.userId);
+        if (params?.search) queryParams.append('search', params.search);
+
+        const query = queryParams.toString();
+        return this.request(`/admin/transactions${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Approve a transaction
+     */
+    async approveTransaction(transactionId: string, notes?: string): Promise<ApiResponse<any>> {
+        return this.post(`/admin/transactions/${transactionId}/approve`, { notes });
+    }
+
+    /**
+     * Reject a transaction
+     */
+    async rejectTransaction(transactionId: string, reason?: string, notes?: string): Promise<ApiResponse<any>> {
+        return this.post(`/admin/transactions/${transactionId}/reject`, { reason, notes });
+    }
+
+    /**
      * Get all users (with pagination)
      */
     async getUsers(params?: {

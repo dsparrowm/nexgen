@@ -61,8 +61,20 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
             whereClause.isActive = isActive === 'true';
         }
 
-        if (kycStatus && Object.values(KycStatus).includes(kycStatus as KycStatus)) {
-            whereClause.kycStatus = kycStatus;
+        if (kycStatus) {
+            // Map frontend kycStatus values to database enum values
+            const kycStatusMapping: { [key: string]: string } = {
+                'PENDING': 'PENDING',
+                'VERIFIED': 'APPROVED',
+                'APPROVED': 'APPROVED',
+                'REJECTED': 'REJECTED',
+                'UNDER_REVIEW': 'UNDER_REVIEW'
+            };
+
+            const mappedStatus = kycStatusMapping[kycStatus as string];
+            if (mappedStatus && Object.values(KycStatus).includes(mappedStatus as KycStatus)) {
+                whereClause.kycStatus = mappedStatus;
+            }
         }
 
         // Build order clause
@@ -103,10 +115,16 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
             db.prisma.user.count({ where: whereClause })
         ]);
 
+        // Transform kycStatus to frontend format
+        const transformedUsers = users.map(user => ({
+            ...user,
+            kycStatus: user.kycStatus === 'APPROVED' ? 'VERIFIED' : user.kycStatus
+        }));
+
         res.status(200).json({
             success: true,
             data: {
-                users,
+                users: transformedUsers,
                 pagination: {
                     page: Number(page),
                     limit: Number(limit),
@@ -202,9 +220,15 @@ export const getUser = async (req: AuthRequest, res: Response): Promise<void> =>
             return;
         }
 
+        // Transform kycStatus to frontend format
+        const transformedUser = {
+            ...user,
+            kycStatus: user.kycStatus === 'APPROVED' ? 'VERIFIED' : user.kycStatus
+        };
+
         res.status(200).json({
             success: true,
-            data: { user }
+            data: { user: transformedUser }
         });
 
     } catch (error) {
@@ -303,7 +327,26 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
         if (isVerified !== undefined) updateData.isVerified = isVerified;
         if (role && Object.values(UserRole).includes(role)) updateData.role = role;
         if (balance !== undefined) updateData.balance = balance;
-        if (kycStatus !== undefined) updateData.kycStatus = kycStatus;
+        if (kycStatus !== undefined) {
+            // Map frontend values to Prisma enum values
+            const kycStatusMapping: { [key: string]: KycStatus } = {
+                'PENDING': KycStatus.PENDING,
+                'VERIFIED': KycStatus.APPROVED,
+                'APPROVED': KycStatus.APPROVED,
+                'REJECTED': KycStatus.REJECTED,
+                'UNDER_REVIEW': KycStatus.UNDER_REVIEW
+            };
+
+            const mappedStatus = kycStatusMapping[kycStatus];
+            if (!mappedStatus) {
+                res.status(400).json({
+                    success: false,
+                    error: { message: 'Invalid KYC status', code: 'INVALID_KYC_STATUS' }
+                });
+                return;
+            }
+            updateData.kycStatus = mappedStatus;
+        }
 
         const updatedUser = await db.prisma.user.update({
             where: { id: userId },
@@ -346,9 +389,15 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
 
         logger.info(`User updated by admin: ${updatedUser.email}`, { adminId, userId });
 
+        // Transform kycStatus back to frontend format
+        const transformedUser = {
+            ...updatedUser,
+            kycStatus: updatedUser.kycStatus === 'APPROVED' ? 'VERIFIED' : updatedUser.kycStatus
+        };
+
         res.status(200).json({
             success: true,
-            data: { user: updatedUser },
+            data: { user: transformedUser },
             message: 'User updated successfully'
         });
 
