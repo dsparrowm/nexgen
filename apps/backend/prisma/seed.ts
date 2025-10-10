@@ -53,12 +53,12 @@ async function main() {
     console.log('✅ System configuration seeded');
 
     // Create admin user
-    const hashedPassword = await bcrypt.hash('admin123', 12);
+    const hashedPassword = await bcrypt.hash('admin123456', 12);
     const adminUser = await prisma.user.upsert({
-        where: { email: 'admin@nexgen.com' },
+        where: { email: 'admin@nexgencrypto.live' },
         update: {},
         create: {
-            email: 'admin@nexgen.com',
+            email: 'admin@nexgencrypto.live',
             username: 'admin',
             firstName: 'System',
             lastName: 'Administrator',
@@ -74,35 +74,35 @@ async function main() {
         },
     });
 
-    console.log('✅ Admin user created');
+    // console.log('✅ Admin user created');
 
-    // Create demo user
-    const demoPassword = await bcrypt.hash('demo123', 12);
-    const demoUser = await prisma.user.upsert({
-        where: { email: 'demo@nexgen.com' },
-        update: {},
-        create: {
-            email: 'demo@nexgen.com',
-            username: 'demo_user',
-            firstName: 'Demo',
-            lastName: 'User',
-            password: demoPassword,
-            role: UserRole.USER,
-            isActive: true,
-            isVerified: true,
-            kycStatus: KycStatus.APPROVED,
-            referralCode: randomUUID().substring(0, 8).toUpperCase(),
-            balance: 1000,
-            totalInvested: 0,
-            totalEarnings: 0,
-            phoneNumber: '+1234567890',
-            country: 'United States',
-            state: 'California',
-            city: 'San Francisco',
-        },
-    });
+    // // Create demo user - COMMENTED OUT FOR PRODUCTION
+    // const demoPassword = await bcrypt.hash('demo123', 12);
+    // const demoUser = await prisma.user.upsert({
+    //     where: { email: 'demo@nexgen.com' },
+    //     update: {},
+    //     create: {
+    //         email: 'demo@nexgen.com',
+    //         username: 'demo_user',
+    //         firstName: 'Demo',
+    //         lastName: 'User',
+    //         password: demoPassword,
+    //         role: UserRole.USER,
+    //         isActive: true,
+    //         isVerified: true,
+    //         kycStatus: KycStatus.APPROVED,
+    //         referralCode: randomUUID().substring(0, 8).toUpperCase(),
+    //         balance: 1000,
+    //         totalInvested: 0,
+    //         totalEarnings: 0,
+    //         phoneNumber: '+1234567890',
+    //         country: 'United States',
+    //         state: 'California',
+    //         city: 'San Francisco',
+    //     },
+    // });
 
-    console.log('✅ Demo user created');
+    // console.log('✅ Demo user created');
 
     // Create mining operations
     const miningOperations = [
@@ -204,105 +204,105 @@ async function main() {
 
     console.log('✅ Mining operations seeded');
 
-    // Create sample investment for demo user
-    const btcOperation = await prisma.miningOperation.findFirst({
-        where: { name: 'Bitcoin Mining Pool Alpha' }
-    });
+    // // Create sample investment for demo user - COMMENTED OUT FOR PRODUCTION
+    // const btcOperation = await prisma.miningOperation.findFirst({
+    //     where: { name: 'Bitcoin Mining Pool Alpha' }
+    // });
 
-    if (btcOperation) {
-        const investment = await prisma.investment.create({
-            data: {
-                userId: demoUser.id,
-                miningOperationId: btcOperation.id,
-                amount: 500,
-                dailyReturn: btcOperation.dailyReturn,
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            }
-        });
+    // if (btcOperation) {
+    //     const investment = await prisma.investment.create({
+    //         data: {
+    //             userId: demoUser.id,
+    //             miningOperationId: btcOperation.id,
+    //             amount: 500,
+    //             dailyReturn: btcOperation.dailyReturn,
+    //             startDate: new Date(),
+    //             endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    //         }
+    //     });
 
-        // Create some sample payouts
-        const payoutDates = [
-            new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-            new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-            new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-            new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-            new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-        ];
+    //     // Create some sample payouts
+    //     const payoutDates = [
+    //         new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+    //         new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+    //         new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    //         new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+    //         new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+    //     ];
 
-        for (const date of payoutDates) {
-            const payoutAmount = 500 * 0.015; // 1.5% of investment
-            await prisma.payout.create({
-                data: {
-                    investmentId: investment.id,
-                    amount: payoutAmount,
-                    date: date,
-                    description: `Daily mining payout for ${date.toDateString()}`,
-                }
-            });
-        }
+    //     for (const date of payoutDates) {
+    //         const payoutAmount = 500 * 0.015; // 1.5% of investment
+    //         await prisma.payout.create({
+    //             data: {
+    //                 investmentId: investment.id,
+    //                 amount: payoutAmount,
+    //                 date: date,
+    //                 description: `Daily mining payout for ${date.toDateString()}`,
+    //             }
+    //         });
+    //     }
 
-        // Update investment total earnings
-        await prisma.investment.update({
-            where: { id: investment.id },
-            data: {
-                totalEarnings: 500 * 0.015 * 5, // 5 days of payouts
-                lastPayout: payoutDates[payoutDates.length - 1],
-            }
-        });
+    //     // Update investment total earnings
+    //     await prisma.investment.update({
+    //         where: { id: investment.id },
+    //         data: {
+    //             totalEarnings: 500 * 0.015 * 5, // 5 days of payouts
+    //             lastPayout: payoutDates[payoutDates.length - 1],
+    //         }
+    //     });
 
-        // Update user's total earnings and balance
-        await prisma.user.update({
-            where: { id: demoUser.id },
-            data: {
-                totalInvested: 500,
-                totalEarnings: 500 * 0.015 * 5,
-                balance: 1000 + (500 * 0.015 * 5), // Initial balance + earnings
-            }
-        });
+    //     // Update user's total earnings and balance
+    //     await prisma.user.update({
+    //         where: { id: demoUser.id },
+    //         data: {
+    //             totalInvested: 500,
+    //             totalEarnings: 500 * 0.015 * 5,
+    //             balance: 1000 + (500 * 0.015 * 5), // Initial balance + earnings
+    //         }
+    //     });
 
-        console.log('✅ Sample investment and payouts created');
-    }
+    //     console.log('✅ Sample investment and payouts created');
+    // }
 
-    // Create sample notifications
-    const notifications = [
-        {
-            userId: demoUser.id,
-            type: NotificationType.INVESTMENT_CREATED,
-            title: 'Investment Created',
-            message: 'Your investment in Bitcoin Mining Pool Alpha has been successfully created.',
-            metadata: { investmentAmount: 500, miningOperation: 'Bitcoin Mining Pool Alpha' }
-        },
-        {
-            userId: demoUser.id,
-            type: NotificationType.PAYOUT_RECEIVED,
-            title: 'Daily Payout Received',
-            message: 'You have received $7.50 from your Bitcoin mining investment.',
-            metadata: { amount: 7.50, source: 'Bitcoin Mining Pool Alpha' }
-        },
-        {
-            userId: demoUser.id,
-            type: NotificationType.KYC_APPROVED,
-            title: 'KYC Verification Approved',
-            message: 'Your KYC verification has been approved. You can now make withdrawals.',
-            metadata: { approvalDate: new Date().toISOString() }
-        }
-    ];
+    // // Create sample notifications - COMMENTED OUT FOR PRODUCTION
+    // const notifications = [
+    //     {
+    //         userId: demoUser.id,
+    //         type: NotificationType.INVESTMENT_CREATED,
+    //         title: 'Investment Created',
+    //         message: 'Your investment in Bitcoin Mining Pool Alpha has been successfully created.',
+    //         metadata: { investmentAmount: 500, miningOperation: 'Bitcoin Mining Pool Alpha' }
+    //     },
+    //     {
+    //         userId: demoUser.id,
+    //         type: NotificationType.PAYOUT_RECEIVED,
+    //         title: 'Daily Payout Received',
+    //         message: 'You have received $7.50 from your Bitcoin mining investment.',
+    //         metadata: { amount: 7.50, source: 'Bitcoin Mining Pool Alpha' }
+    //     },
+    //     {
+    //         userId: demoUser.id,
+    //         type: NotificationType.KYC_APPROVED,
+    //         title: 'KYC Verification Approved',
+    //         message: 'Your KYC verification has been approved. You can now make withdrawals.',
+    //         metadata: { approvalDate: new Date().toISOString() }
+    //     }
+    // ];
 
-    for (const notification of notifications) {
-        await prisma.notification.create({ data: notification });
-    }
+    // for (const notification of notifications) {
+    //     await prisma.notification.create({ data: notification });
+    // }
 
-    console.log('✅ Sample notifications created');
+    // console.log('✅ Sample notifications created');
 
     console.log('🎉 Database seeding completed successfully!');
     console.log('\n📊 Seeded data summary:');
     console.log('- System configurations: 6 items');
-    console.log('- Admin user: admin@nexgen.com (password: admin123)');
-    console.log('- Demo user: demo@nexgen.com (password: demo123)');
+    console.log('- Admin user: admin@nexgencrypto.live (password: admin123456)');
+    console.log('- Demo user: COMMENTED OUT FOR PRODUCTION');
     console.log('- Mining operations: 4 items');
-    console.log('- Sample investment with 5 payouts');
-    console.log('- Sample notifications: 3 items');
+    console.log('- Sample investment and payouts: COMMENTED OUT FOR PRODUCTION');
+    console.log('- Sample notifications: COMMENTED OUT FOR PRODUCTION');
 }
 
 main()
