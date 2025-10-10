@@ -19,6 +19,7 @@ import {
     Plus,
     X
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useMiningData } from '@/hooks/useMiningData'
 import {
     getRiskLevelColor,
@@ -50,6 +51,8 @@ const MiningManagement = () => {
     const [showInvestmentModal, setShowInvestmentModal] = useState(false)
     const [actionLoading, setActionLoading] = useState(false)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [showStopConfirmModal, setShowStopConfirmModal] = useState(false)
+    const [investmentToStop, setInvestmentToStop] = useState<string | null>(null)
 
     // Handle investment modal
     const handleStartInvestment = (operation: MiningOperationType) => {
@@ -87,18 +90,27 @@ const MiningManagement = () => {
         }
     }
 
-    const handleStopInvestment = async (investmentId: string) => {
-        if (!confirm('Are you sure you want to stop this mining operation?')) {
-            return
-        }
+    const handleStopInvestment = (investmentId: string) => {
+        setInvestmentToStop(investmentId)
+        setShowStopConfirmModal(true)
+    }
 
+    const confirmStopInvestment = async () => {
+        if (!investmentToStop) return
+
+        setShowStopConfirmModal(false)
         setActionLoading(true)
-        const result = await stopOperation(investmentId)
+
+        const result = await stopOperation(investmentToStop)
         setActionLoading(false)
 
         if (!result.success) {
-            alert(result.error || 'Failed to stop investment')
+            toast.error(result.error || 'Failed to stop investment')
+        } else {
+            toast.success('Investment stopped successfully')
         }
+
+        setInvestmentToStop(null)
     }
 
     // Loading skeleton
@@ -393,8 +405,8 @@ const MiningManagement = () => {
                                         onClick={() => handleStartInvestment(operation)}
                                         disabled={!isAvailable}
                                         className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center ${isAvailable
-                                                ? 'btn-primary'
-                                                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                            ? 'btn-primary'
+                                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                             }`}
                                     >
                                         <Plus className="w-4 h-4 mr-2" />
@@ -482,6 +494,60 @@ const MiningManagement = () => {
                                     </>
                                 ) : (
                                     'Confirm Investment'
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Stop Investment Confirmation Modal */}
+            {showStopConfirmModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-dark-800 rounded-2xl p-6 max-w-md w-full border border-gold-500/30"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-white">Stop Investment</h3>
+                            <button
+                                onClick={() => setShowStopConfirmModal(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="mb-6">
+                            <div className="flex items-center mb-4">
+                                <AlertTriangle className="w-6 h-6 text-yellow-500 mr-3" />
+                                <h4 className="text-white font-semibold">Confirm Action</h4>
+                            </div>
+                            <p className="text-gray-400 text-sm">
+                                Are you sure you want to stop this mining operation? This action cannot be undone and you may lose any remaining returns.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowStopConfirmModal(false)}
+                                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmStopInvestment}
+                                disabled={actionLoading}
+                                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white rounded-xl transition-colors font-medium flex items-center justify-center"
+                            >
+                                {actionLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Stopping...
+                                    </>
+                                ) : (
+                                    'Stop Investment'
                                 )}
                             </button>
                         </div>

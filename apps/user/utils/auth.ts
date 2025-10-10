@@ -213,11 +213,3 @@ export const logout = async () => {
         window.location.href = '/'
     }
 }
-
-export const confirmLogout = () => {
-    const confirmed = window.confirm('Are you sure you want to log out?')
-    if (confirmed) {
-        logout()
-    }
-    return confirmed
-}

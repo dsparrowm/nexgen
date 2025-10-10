@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     Shield,
@@ -17,15 +17,84 @@ import {
     Download,
     Filter
 } from 'lucide-react'
+import { useApi } from '@/hooks/useApi'
+import { toast } from 'react-hot-toast'
 
 const SecurityAudit = () => {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedFilter, setSelectedFilter] = useState('all')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [securityMetrics, setSecurityMetrics] = useState({
+        loginAttempts: 0,
+        failedLogins: 0,
+        activeSessions: 0,
+        blockedIPs: 0
+    })
+    const [auditLogs, setAuditLogs] = useState([])
+    const [totalLogs, setTotalLogs] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
+    const [isLoadingMetrics, setIsLoadingMetrics] = useState(true)
+    const [isLoadingLogs, setIsLoadingLogs] = useState(true)
 
-    const securityMetrics = [
+    const { apiClient } = useApi()
+
+    // Fetch security metrics
+    useEffect(() => {
+        const fetchSecurityMetrics = async () => {
+            try {
+                setIsLoadingMetrics(true)
+                const response = await apiClient.getSecurityMetrics()
+                if (response.success) {
+                    setSecurityMetrics(response.data)
+                } else {
+                    toast.error('Failed to load security metrics')
+                }
+            } catch (error) {
+                toast.error('Failed to load security metrics')
+                console.error('Error fetching security metrics:', error)
+            } finally {
+                setIsLoadingMetrics(false)
+            }
+        }
+
+        fetchSecurityMetrics()
+    }, [apiClient])
+
+    // Fetch audit logs
+    useEffect(() => {
+        const fetchAuditLogs = async () => {
+            try {
+                setIsLoadingLogs(true)
+                const params = {
+                    page: currentPage,
+                    limit: 20,
+                    search: searchTerm || undefined,
+                    action: selectedFilter !== 'all' ? selectedFilter : undefined
+                }
+
+                const response = await apiClient.getAuditLogs(params)
+                if (response.success) {
+                    setAuditLogs(response.data.logs)
+                    setTotalLogs(response.data.pagination.total)
+                    setTotalPages(response.data.pagination.totalPages)
+                } else {
+                    toast.error('Failed to load audit logs')
+                }
+            } catch (error) {
+                toast.error('Failed to load audit logs')
+                console.error('Error fetching audit logs:', error)
+            } finally {
+                setIsLoadingLogs(false)
+            }
+        }
+
+        fetchAuditLogs()
+    }, [apiClient, currentPage, searchTerm, selectedFilter])
+
+    const metricsData = [
         {
             title: 'Login Attempts',
-            value: '1,247',
+            value: isLoadingMetrics ? '...' : securityMetrics.loginAttempts.toString(),
             status: 'success',
             description: 'Last 24 hours',
             icon: UserCheck,
@@ -34,7 +103,7 @@ const SecurityAudit = () => {
         },
         {
             title: 'Failed Logins',
-            value: '23',
+            value: isLoadingMetrics ? '...' : securityMetrics.failedLogins.toString(),
             status: 'warning',
             description: 'Requires attention',
             icon: AlertTriangle,
@@ -43,7 +112,7 @@ const SecurityAudit = () => {
         },
         {
             title: 'Active Sessions',
-            value: '847',
+            value: isLoadingMetrics ? '...' : securityMetrics.activeSessions.toString(),
             status: 'info',
             description: 'Currently online',
             icon: Activity,
@@ -52,66 +121,12 @@ const SecurityAudit = () => {
         },
         {
             title: 'Blocked IPs',
-            value: '12',
+            value: isLoadingMetrics ? '...' : securityMetrics.blockedIPs.toString(),
             status: 'danger',
             description: 'Suspicious activity',
             icon: Shield,
             color: 'text-red-500',
             bgColor: 'bg-red-500/10'
-        }
-    ]
-
-    // Mock audit log data - will be fetched from API
-    const auditLogs = [
-        {
-            id: '1',
-            action: 'ADMIN_LOGIN',
-            admin: 'Admin User',
-            resource: 'Authentication',
-            ipAddress: '192.168.1.1',
-            timestamp: new Date(Date.now() - 1000 * 60 * 5),
-            status: 'success',
-            details: 'Successful admin login'
-        },
-        {
-            id: '2',
-            action: 'USER_UPDATED',
-            admin: 'Admin User',
-            resource: 'User Management',
-            ipAddress: '192.168.1.1',
-            timestamp: new Date(Date.now() - 1000 * 60 * 15),
-            status: 'success',
-            details: 'Updated user profile: john@example.com'
-        },
-        {
-            id: '3',
-            action: 'CREDIT_ADDED',
-            admin: 'Super Admin',
-            resource: 'Credit Management',
-            ipAddress: '192.168.1.5',
-            timestamp: new Date(Date.now() - 1000 * 60 * 30),
-            status: 'success',
-            details: 'Added $500 credits to user account'
-        },
-        {
-            id: '4',
-            action: 'LOGIN_FAILED',
-            admin: 'Unknown',
-            resource: 'Authentication',
-            ipAddress: '45.123.45.67',
-            timestamp: new Date(Date.now() - 1000 * 60 * 45),
-            status: 'failure',
-            details: 'Failed login attempt - invalid credentials'
-        },
-        {
-            id: '5',
-            action: 'SETTINGS_CHANGED',
-            admin: 'Super Admin',
-            resource: 'System Settings',
-            ipAddress: '192.168.1.5',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60),
-            status: 'success',
-            details: 'Updated platform settings'
         }
     ]
 
@@ -170,7 +185,7 @@ const SecurityAudit = () => {
                 transition={{ duration: 0.6 }}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
             >
-                {securityMetrics.map((metric, index) => {
+                {metricsData.map((metric, index) => {
                     const Icon = metric.icon
                     return (
                         <div
@@ -284,19 +299,35 @@ const SecurityAudit = () => {
                 {/* Pagination */}
                 <div className="p-4 border-t border-gold-500/20 flex items-center justify-between">
                     <p className="text-sm text-gray-400">
-                        Showing <span className="text-white font-medium">1-5</span> of <span className="text-white font-medium">127</span> logs
+                        Showing <span className="text-white font-medium">{(currentPage - 1) * 20 + 1}-{Math.min(currentPage * 20, totalLogs)}</span> of <span className="text-white font-medium">{totalLogs}</span> logs
                     </p>
                     <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1 || isLoadingLogs}
+                            className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Previous
                         </button>
-                        <button className="px-3 py-1 bg-gold-500 text-navy-900 rounded-lg font-medium">
-                            1
+                        <button
+                            className="px-3 py-1 bg-gold-500 text-navy-900 rounded-lg font-medium"
+                        >
+                            {currentPage}
                         </button>
-                        <button className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors">
-                            2
-                        </button>
-                        <button className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors">
+                        {totalPages > 1 && currentPage < totalPages && (
+                            <button
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                disabled={isLoadingLogs}
+                                className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {currentPage + 1}
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || isLoadingLogs}
+                            className="px-3 py-1 bg-navy-800/50 border border-gold-500/20 rounded-lg text-gray-400 hover:text-white hover:border-gold-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Next
                         </button>
                     </div>
@@ -308,14 +339,14 @@ const SecurityAudit = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="bg-gold-500/10 border border-gold-500/20 rounded-xl p-4"
+                className="bg-green-500/10 border border-green-500/20 rounded-xl p-4"
             >
                 <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-gold-500 mt-0.5" />
+                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
                     <div>
-                        <h4 className="text-sm font-semibold text-gold-400 mb-1">Audit Log Integration</h4>
+                        <h4 className="text-sm font-semibold text-green-400 mb-1">Backend Integration Complete</h4>
                         <p className="text-xs text-gray-400">
-                            Currently showing mock data. Backend integration will fetch real audit logs from the database with full filtering and pagination support.
+                            Security metrics and audit logs are now fetched from the backend with real-time data, filtering, and pagination support.
                         </p>
                     </div>
                 </div>

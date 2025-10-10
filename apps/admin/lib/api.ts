@@ -399,6 +399,63 @@ class ApiClient {
     }
 
     /**
+     * Get report data
+     */
+    async getReports(type: 'overview' | 'revenue' | 'users' | 'activity', params?: {
+        period?: string;
+    }): Promise<ApiResponse<any>> {
+        const queryParams = params ? new URLSearchParams(params).toString() : '';
+        const endpoint = `/auth/admin/reports/${type}${queryParams ? `?${queryParams}` : ''}`;
+        return this.request(endpoint);
+    }
+
+    /**
+     * Get system settings
+     */
+    async getSystemSettings(): Promise<ApiResponse<any>> {
+        return this.request('/auth/admin/settings');
+    }
+
+    /**
+     * Update system settings
+     */
+    async updateSystemSettings(settings: any): Promise<ApiResponse<any>> {
+        return this.request('/auth/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
+    }
+
+    /**
+     * Get system health
+     */
+    async getSystemHealth(): Promise<ApiResponse<any>> {
+        return this.request('/auth/admin/settings/health');
+    }
+
+    /**
+     * Get security metrics
+     */
+    async getSecurityMetrics(): Promise<ApiResponse<any>> {
+        return this.request('/auth/admin/security/metrics');
+    }
+
+    /**
+     * Get audit logs
+     */
+    async getAuditLogs(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        action?: string;
+        resource?: string;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }): Promise<ApiResponse<any>> {
+        const queryParams = params ? new URLSearchParams(params as any).toString() : '';
+        const endpoint = `/auth/admin/security/audit-logs${queryParams ? `?${queryParams}` : ''}`;
+        return this.request(endpoint);
+    }
+
+    /**
      * Generic GET request
      */
     async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {

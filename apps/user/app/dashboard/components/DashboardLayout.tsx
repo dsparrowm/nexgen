@@ -19,7 +19,8 @@ import {
     ArrowDownLeft,
     ArrowUpRight
 } from 'lucide-react'
-import { confirmLogout } from '../../../utils/auth'
+import { logout } from '../../../utils/auth'
+import { toast } from 'sonner'
 import { DashboardSidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem } from '../../../lib/sidebar'
 import NexgenLogo from '../../../utils/NexgenLogo'
 import { useDashboardData } from '@/hooks/useDashboardData'
@@ -33,6 +34,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
     const router = useRouter()
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
     const { data } = useDashboardData()
 
     const user = data?.user
@@ -40,6 +42,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
         ? `${user.firstName} ${user.lastName}`
         : user?.username || 'User'
     const userEmail = user?.email || 'user@example.com'
+
+    const handleLogoutClick = () => {
+        setShowLogoutConfirm(true)
+    }
+
+    const confirmLogout = async () => {
+        setShowLogoutConfirm(false)
+        try {
+            await logout()
+            toast.success('Logged out successfully')
+        } catch (error) {
+            toast.error('Error logging out')
+        }
+    }
 
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', href: '/dashboard' },
@@ -117,7 +133,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                 </div>
                             </button>
                             <button
-                                onClick={confirmLogout}
+                                onClick={handleLogoutClick}
                                 className="w-full flex items-center px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors group"
                             >
                                 <LogOut className="w-4 h-4 mr-3 group-hover:text-red-300" />
@@ -188,7 +204,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false)
-                                                confirmLogout()
+                                                handleLogoutClick()
                                             }}
                                             className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
                                         >
@@ -213,6 +229,52 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                     </motion.div>
                 </main>
             </div>
+
+            {/* Logout Confirmation Modal */}
+            {showLogoutConfirm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-dark-800 rounded-2xl p-6 max-w-md w-full border border-gold-500/30"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-white">Sign Out</h3>
+                            <button
+                                onClick={() => setShowLogoutConfirm(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="mb-6">
+                            <div className="flex items-center mb-4">
+                                <LogOut className="w-6 h-6 text-yellow-500 mr-3" />
+                                <h4 className="text-white font-semibold">Confirm Sign Out</h4>
+                            </div>
+                            <p className="text-gray-400 text-sm">
+                                Are you sure you want to sign out of your NexGen account? You'll need to log in again to access your dashboard.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowLogoutConfirm(false)}
+                                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmLogout}
+                                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors font-medium"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     )
 }
