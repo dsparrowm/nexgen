@@ -52,14 +52,14 @@ export const getRevenueReport = async (req: Request, res: Response) => {
         // Get revenue by period (daily breakdown)
         const revenueByPeriod = await prisma.$queryRaw`
             SELECT
-                DATE(createdAt) as date,
-                SUM(amount) as revenue
+                DATE("createdAt") as date,
+                SUM("amount") as revenue
             FROM transactions
             WHERE type = 'DEPOSIT'
             AND status = 'COMPLETED'
-            AND createdAt >= ${startDate}
-            GROUP BY DATE(createdAt)
-            ORDER BY DATE(createdAt)
+            AND "createdAt" >= ${startDate}
+            GROUP BY DATE("createdAt")
+            ORDER BY DATE("createdAt")
         `;
 
         res.json({
@@ -128,12 +128,12 @@ export const getUserReport = async (req: Request, res: Response) => {
         // Get user registration by period
         const usersByPeriod = await prisma.$queryRaw`
             SELECT
-                DATE(createdAt) as date,
+                DATE("createdAt") as date,
                 COUNT(*) as newUsers
             FROM users
-            WHERE createdAt >= ${startDate}
-            GROUP BY DATE(createdAt)
-            ORDER BY DATE(createdAt)
+            WHERE "createdAt" >= ${startDate}
+            GROUP BY DATE("createdAt")
+            ORDER BY DATE("createdAt")
         `;
 
         // Get user demographics
@@ -232,14 +232,14 @@ export const getActivityReport = async (req: Request, res: Response) => {
         // Get activity by period
         const activityByPeriod = await prisma.$queryRaw`
             SELECT
-                DATE(createdAt) as date,
+                DATE("createdAt") as date,
                 COUNT(*) as transactions,
-                (SELECT COUNT(*) FROM investments WHERE DATE(createdAt) = DATE(t.createdAt)) as investments,
-                (SELECT COUNT(*) FROM users WHERE DATE(lastLogin) = DATE(t.createdAt)) as logins
+                (SELECT COUNT(*) FROM investments WHERE DATE("createdAt") = DATE(t."createdAt")) as investments,
+                0 as logins
             FROM transactions t
-            WHERE createdAt >= ${startDate}
-            GROUP BY DATE(createdAt)
-            ORDER BY DATE(createdAt)
+            WHERE "createdAt" >= ${startDate}
+            GROUP BY DATE("createdAt")
+            ORDER BY DATE("createdAt")
         `;
 
         res.json({
@@ -267,14 +267,6 @@ export const getActivityReport = async (req: Request, res: Response) => {
 export const getOverviewReport = async (req: Request, res: Response) => {
     try {
         const { period = '30d' } = req.query;
-
-        // Get data from other report functions
-        const revenueData = await getRevenueReport(req, res);
-        const userData = await getUserReport(req, res);
-        const activityData = await getActivityReport(req, res);
-
-        // Since the above functions send responses, we need to extract the data differently
-        // For now, let's implement a combined query
 
         const now = new Date();
         let startDate: Date;

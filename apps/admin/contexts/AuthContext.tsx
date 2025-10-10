@@ -30,30 +30,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check for existing session on mount
     useEffect(() => {
         const checkAuth = async () => {
-            setIsLoading(true);
+            try {
+                setIsLoading(true);
 
-            // First check if we have stored admin data
-            const storedAdmin = apiClient.getStoredAdmin();
-            const accessToken = apiClient.getAccessToken();
+                // First check if we have stored admin data
+                const storedAdmin = apiClient.getStoredAdmin();
+                const accessToken = apiClient.getAccessToken();
 
-            if (storedAdmin && accessToken) {
-                // Verify token is still valid by fetching profile
-                const response = await apiClient.getProfile();
+                if (storedAdmin && accessToken) {
+                    // Verify token is still valid by fetching profile
+                    const response = await apiClient.getProfile();
 
-                if (response.success && response.data?.admin) {
-                    setAdmin(response.data.admin);
+                    if (response.success && response.data?.admin) {
+                        setAdmin(response.data.admin);
+                    } else {
+                        // Token is invalid, clear stored data
+                        apiClient.clearAuth();
+                        setAdmin(null);
+                    }
                 } else {
-                    // Token is invalid, clear stored data
+                    // No stored auth data
                     apiClient.clearAuth();
                     setAdmin(null);
                 }
-            } else {
-                // No stored auth data
+            } catch (error) {
+                console.error('Error checking authentication:', error);
+                // Clear any potentially corrupted auth data
                 apiClient.clearAuth();
                 setAdmin(null);
+            } finally {
+                setIsLoading(false);
             }
-
-            setIsLoading(false);
         };
 
         checkAuth();

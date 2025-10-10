@@ -61,8 +61,26 @@ const AdminOverview = () => {
         try {
             const response = await apiClient.getDashboardStats()
 
-            if (response.success && response.data?.stats) {
-                setStats(response.data.stats)
+            if (response.success && response.data) {
+                // Transform API response to match component interface
+                const transformedStats: DashboardStats = {
+                    totalUsers: response.data.users?.total || 0,
+                    activeUsers: response.data.users?.active || 0,
+                    totalInvestments: parseFloat(response.data.investments?.totalAmount || '0'),
+                    totalTransactions: response.data.transactions?.total || 0,
+                    pendingKyc: response.data.kyc?.pending || 0,
+                    pendingWithdrawals: 0, // Not provided by API
+                    supportTickets: 0, // Not provided by API
+                    recentTransactions: response.data.transactions?.recent || [],
+                    changes: {
+                        users: '+0%', // Not provided by API
+                        investments: '+0%', // Not provided by API
+                        transactions: '+0%', // Not provided by API
+                        uptime: '+0%' // Not provided by API
+                    },
+                    systemUptime: '99.9%' // Not provided by API
+                }
+                setStats(transformedStats)
             } else {
                 setError(response.error?.message || 'Failed to load dashboard statistics')
             }

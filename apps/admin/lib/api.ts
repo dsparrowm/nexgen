@@ -295,7 +295,7 @@ class ApiClient {
      * Get dashboard statistics
      */
     async getDashboardStats(): Promise<ApiResponse<any>> {
-        return this.request('/auth/admin/dashboard/stats');
+        return this.request('/admin/dashboard/stats');
     }
 
     /**
@@ -436,13 +436,13 @@ class ApiClient {
     }
 
     /**
-     * Get report data
+     * Get reports data
      */
     async getReports(type: 'overview' | 'revenue' | 'users' | 'activity', params?: {
         period?: string;
     }): Promise<ApiResponse<any>> {
         const queryParams = params ? new URLSearchParams(params).toString() : '';
-        const endpoint = `/auth/admin/reports/${type}${queryParams ? `?${queryParams}` : ''}`;
+        const endpoint = `/admin/reports/${type}${queryParams ? `?${queryParams}` : ''}`;
         return this.request(endpoint);
     }
 
@@ -450,28 +450,28 @@ class ApiClient {
      * Get system settings
      */
     async getSystemSettings(): Promise<ApiResponse<any>> {
-        return this.request('/auth/admin/settings');
+        return this.request('/admin/settings');
     }
 
     /**
      * Update system settings
      */
     async updateSystemSettings(settings: any): Promise<ApiResponse<any>> {
-        return this.request('/auth/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
+        return this.request('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
     }
 
     /**
      * Get system health
      */
     async getSystemHealth(): Promise<ApiResponse<any>> {
-        return this.request('/auth/admin/settings/health');
+        return this.request('/admin/settings/health');
     }
 
     /**
      * Get security metrics
      */
     async getSecurityMetrics(): Promise<ApiResponse<any>> {
-        return this.request('/auth/admin/security/metrics');
+        return this.request('/admin/security/metrics');
     }
 
     /**
@@ -488,7 +488,7 @@ class ApiClient {
         sortOrder?: string;
     }): Promise<ApiResponse<any>> {
         const queryParams = params ? new URLSearchParams(params as any).toString() : '';
-        const endpoint = `/auth/admin/security/audit-logs${queryParams ? `?${queryParams}` : ''}`;
+        const endpoint = `/admin/security/audit-logs${queryParams ? `?${queryParams}` : ''}`;
         return this.request(endpoint);
     }
 
