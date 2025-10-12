@@ -42,6 +42,9 @@ const TransactionHistory = () => {
             case 'WITHDRAWAL': return ArrowUpRight
             case 'INVESTMENT': return Coins
             case 'PAYOUT': return Bitcoin
+            case 'BONUS': return TrendingUp
+            case 'REFUND': return RefreshCw
+            case 'REFERRAL_BONUS': return TrendingUp
             default: return DollarSign
         }
     }
@@ -52,6 +55,9 @@ const TransactionHistory = () => {
             case 'WITHDRAWAL': return { text: 'text-red-500', bg: 'bg-red-500/20' }
             case 'INVESTMENT': return { text: 'text-gold-500', bg: 'bg-gold-500/20' }
             case 'PAYOUT': return { text: 'text-orange-500', bg: 'bg-orange-500/20' }
+            case 'BONUS': return { text: 'text-green-500', bg: 'bg-green-500/20' }
+            case 'REFUND': return { text: 'text-green-500', bg: 'bg-green-500/20' }
+            case 'REFERRAL_BONUS': return { text: 'text-green-500', bg: 'bg-green-500/20' }
             default: return { text: 'text-gray-500', bg: 'bg-gray-500/20' }
         }
     }

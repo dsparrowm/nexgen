@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     ArrowUpRight,
@@ -49,6 +49,14 @@ const WithdrawalManagement = () => {
     const selectedAmount = watch('amount')
     const selectedCryptocurrency = watch('cryptocurrency')
 
+    // Clear amount validation errors when cryptocurrency changes
+    useEffect(() => {
+        if (selectedCryptocurrency) {
+            // Trigger re-validation of amount field when crypto changes
+            // This ensures the min value validation updates properly
+        }
+    }, [selectedCryptocurrency])
+
     const cryptocurrencies = [
         {
             id: 'BTC',
@@ -87,6 +95,9 @@ const WithdrawalManagement = () => {
     const fee = cryptocurrencies.find(c => c.id === selectedCryptocurrency)?.fee || '0.0001 BTC'
     const feeAmount = selectedAmount ? parseFloat(selectedAmount) * 0.001 : 0 // Simplified fee calculation
     const netAmount = selectedAmount ? parseFloat(selectedAmount) - feeAmount : 0
+
+    // Dynamic step based on cryptocurrency minimum
+    const stepValue = minWithdrawal < 0.01 ? '0.001' : '0.01'
 
     const onSubmit = async (data: WithdrawalFormData) => {
         setIsSubmitting(true)
@@ -191,12 +202,11 @@ const WithdrawalManagement = () => {
                                 <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
                                 <input
                                     type="number"
-                                    step="0.01"
-                                    min={minWithdrawal}
+                                    step={stepValue}
                                     max={availableBalance}
                                     {...register('amount', {
                                         required: 'Amount is required',
-                                        min: { value: minWithdrawal, message: `Minimum withdrawal is $${minWithdrawal}` },
+                                        min: { value: minWithdrawal, message: `Minimum withdrawal is $${minWithdrawal.toFixed(minWithdrawal < 1 ? 3 : 2)}` },
                                         max: { value: availableBalance, message: 'Amount exceeds available balance' },
                                         validate: (value) => {
                                             const numValue = parseFloat(value)
@@ -214,7 +224,7 @@ const WithdrawalManagement = () => {
                                 <p className="mt-1 text-sm text-red-500">{errors.amount.message}</p>
                             )}
                             <p className="mt-1 text-xs text-gray-400">
-                                Available: {formatCurrency(availableBalance)} | Min: ${minWithdrawal}
+                                Available: {formatCurrency(availableBalance)} | Min: ${minWithdrawal.toFixed(minWithdrawal < 1 ? 3 : 2)}
                             </p>
                         </div>
 

@@ -62,7 +62,12 @@ const AddCreditsForm = () => {
                 })
 
                 if (response.success && response.data) {
-                    setSearchResults(response.data.users)
+                    // Transform balance to number since it comes as string from Prisma Decimal
+                    const transformedUsers = response.data.users.map((user: any) => ({
+                        ...user,
+                        balance: Number(user.balance)
+                    }))
+                    setSearchResults(transformedUsers)
                     setShowResults(true)
                 }
             } catch (err) {
@@ -261,7 +266,7 @@ const AddCreditsForm = () => {
                                                     </div>
                                                     <div className="text-right">
                                                         <p className="text-sm text-gold-500 font-medium">
-                                                            ${user.balance.toFixed(2)}
+                                                            ${Number(user.balance).toFixed(2)}
                                                         </p>
                                                         <p className="text-xs text-gray-500">Current Balance</p>
                                                     </div>
@@ -299,7 +304,7 @@ const AddCreditsForm = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-bold text-gold-500">
-                                            ${selectedUser.balance.toFixed(2)}
+                                            ${Number(selectedUser.balance).toFixed(2)}
                                         </p>
                                         <p className="text-xs text-gray-400">Current Balance</p>
                                     </div>
@@ -340,7 +345,7 @@ const AddCreditsForm = () => {
                                     <p className="mt-2 text-sm text-gray-400">
                                         New balance will be:
                                         <span className="text-gold-500 font-semibold ml-1">
-                                            ${(selectedUser.balance + Number(formData.amount)).toFixed(2)}
+                                            ${(Number(selectedUser.balance) + Number(formData.amount)).toFixed(2)}
                                         </span>
                                     </p>
                                 )}

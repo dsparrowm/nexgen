@@ -222,7 +222,7 @@ const UserManagement = () => {
         if (!user) return
 
         const confirmed = window.confirm(
-            `Are you sure you want to delete ${getUserDisplayName(user)}?\n\nThis action cannot be undone.`
+            `Are you sure you want to permanently delete ${getUserDisplayName(user)}?\n\nThis action cannot be undone and will remove all user data including investments, transactions, and documents.`
         )
 
         if (!confirmed) return
@@ -245,7 +245,7 @@ const UserManagement = () => {
                 }))
 
                 // Show success message
-                addToast('success', 'User deleted successfully')
+                addToast('success', 'User permanently deleted successfully')
             } else {
                 addToast('error', 'Failed to delete user', response.error?.message)
             }
@@ -298,7 +298,7 @@ const UserManagement = () => {
         if (selectedUsers.length === 0) return
 
         const confirmed = window.confirm(
-            `Are you sure you want to ${action} ${selectedUsers.length} selected user(s)?`
+            `Are you sure you want to ${action === 'delete' ? 'permanently delete' : action} ${selectedUsers.length} selected user(s)?${action === 'delete' ? '\n\nThis action cannot be undone and will remove all user data including investments, transactions, and documents.' : ''}`
         )
 
         if (!confirmed) return
@@ -343,9 +343,9 @@ const UserManagement = () => {
 
             // Show result
             if (failCount === 0) {
-                addToast('success', `Successfully ${action}d ${successCount} user(s)`)
+                addToast('success', `Successfully ${action === 'delete' ? 'permanently deleted' : action}d ${successCount} user(s)`)
             } else {
-                addToast('warning', `${action} completed: ${successCount} succeeded, ${failCount} failed`)
+                addToast('warning', `${action === 'delete' ? 'Permanent deletion' : action} completed: ${successCount} succeeded, ${failCount} failed`)
             }
         } catch (error) {
             console.error('Bulk action error:', error)

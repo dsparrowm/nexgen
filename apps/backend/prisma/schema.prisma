@@ -190,7 +190,7 @@ model Session {
 model AuditLog {
   id          String    @id @default(cuid())
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   action      String
   resource    String
   resourceId  String?

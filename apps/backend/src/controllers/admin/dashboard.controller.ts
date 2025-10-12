@@ -57,7 +57,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             }),
 
             // KYC statistics
-            db.prisma.kycDocument.count({ where: { status: 'PENDING' } }),
+            db.prisma.user.count({ where: { kycStatus: KycStatus.PENDING } }),
 
             // Transaction statistics
             db.prisma.transaction.count(),

@@ -411,7 +411,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 /**
- * Delete user (soft delete by deactivating)
+ * Delete user (hard delete - permanently removes user and all associated data)
  */
 export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -460,41 +460,37 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
             return;
         }
 
-        // Soft delete by deactivating and clearing sensitive data
-        await db.prisma.user.update({
-            where: { id: userId },
-            data: {
-                isActive: false,
-                emailVerificationToken: null,
-                passwordResetToken: null,
-                twoFactorSecret: null
-            }
-        });
+        // Store user data for audit log before deletion
+        const userDataForAudit = {
+            id: existingUser.id,
+            email: existingUser.email,
+            username: existingUser.username,
+            role: existingUser.role
+        };
 
-        // Deactivate all user sessions
-        await db.prisma.session.updateMany({
-            where: { userId },
-            data: { isActive: false }
-        });
-
-        // Log the admin action
+        // Log the admin action BEFORE deleting the user
         await db.prisma.auditLog.create({
             data: {
                 userId,
                 action: 'USER_DELETE',
                 resource: 'user',
                 resourceId: userId,
-                oldValues: existingUser,
+                oldValues: userDataForAudit,
                 ipAddress: req.ip,
                 userAgent: req.get('User-Agent')
             }
         });
 
-        logger.info(`User deleted by admin: ${existingUser.email}`, { adminId, userId });
+        // Hard delete the user (cascade delete will handle all related records)
+        await db.prisma.user.delete({
+            where: { id: userId }
+        });
+
+        logger.info(`User permanently deleted by admin: ${existingUser.email}`, { adminId, userId });
 
         res.status(200).json({
             success: true,
-            message: 'User deleted successfully'
+            message: 'User permanently deleted successfully'
         });
 
     } catch (error) {

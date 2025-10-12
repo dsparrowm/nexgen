@@ -26,6 +26,10 @@ const DepositManagement = () => {
         type: 'success' | 'error' | null
         message: string
     }>({ type: null, message: '' })
+    const [copyStatus, setCopyStatus] = useState<{
+        type: 'success' | 'error' | null
+        message: string
+    }>({ type: null, message: '' })
 
     const {
         register,
@@ -48,7 +52,7 @@ const DepositManagement = () => {
             name: 'Bitcoin',
             symbol: 'BTC',
             icon: Bitcoin,
-            walletAddress: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            walletAddress: 'bc1qx3ruhywfrtgzh85dcs7maucufzzhsfs2qa02p7',
             network: 'Bitcoin Network',
             minDeposit: 0.0001,
             available: true
@@ -58,7 +62,7 @@ const DepositManagement = () => {
             name: 'Ethereum',
             symbol: 'ETH',
             icon: CreditCard, // Using CreditCard as placeholder, should be Ethereum icon
-            walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+            walletAddress: '0x90499F5A9d8E6832B25DC305D2ac841424a86DD0',
             network: 'Ethereum Network',
             minDeposit: 0.001,
             available: true
@@ -68,14 +72,62 @@ const DepositManagement = () => {
             name: 'Tether (USDT)',
             symbol: 'USDT',
             icon: DollarSign,
-            walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', // Same as ETH for ERC-20
-            network: 'Ethereum (ERC-20)',
+            walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+            network: 'TRON (TRC-20)',
             minDeposit: 10,
             available: true
         }
     ]
 
     const quickAmounts = [50, 100, 250, 500, 1000]
+
+    const copyToClipboard = async (text: string) => {
+        try {
+            // Try modern clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text)
+            } else {
+                // Fallback for older browsers or non-secure contexts
+                const textArea = document.createElement('textarea')
+                textArea.value = text
+                textArea.style.position = 'fixed'
+                textArea.style.left = '-999999px'
+                textArea.style.top = '-999999px'
+                document.body.appendChild(textArea)
+                textArea.focus()
+                textArea.select()
+
+                const successful = document.execCommand('copy')
+                textArea.remove()
+
+                if (!successful) {
+                    throw new Error('Copy command was unsuccessful')
+                }
+            }
+
+            setCopyStatus({
+                type: 'success',
+                message: 'Address copied to clipboard!'
+            })
+
+            // Clear success message after 3 seconds
+            setTimeout(() => {
+                setCopyStatus({ type: null, message: '' })
+            }, 3000)
+
+        } catch (error) {
+            console.error('Failed to copy text: ', error)
+            setCopyStatus({
+                type: 'error',
+                message: 'Failed to copy address. Please copy manually.'
+            })
+
+            // Clear error message after 5 seconds
+            setTimeout(() => {
+                setCopyStatus({ type: null, message: '' })
+            }, 5000)
+        }
+    }
 
     const onSubmit = async (data: DepositFormData) => {
         setIsSubmitting(true)
@@ -276,11 +328,10 @@ const DepositManagement = () => {
                                                 onClick={() => {
                                                     const address = cryptocurrencies.find(c => c.id === selectedCryptocurrency)?.walletAddress
                                                     if (address) {
-                                                        navigator.clipboard.writeText(address)
-                                                        // Could add a toast notification here
+                                                        copyToClipboard(address)
                                                     }
                                                 }}
-                                                className="px-4 py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors"
+                                                className="px-4 py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                             >
                                                 Copy
                                             </button>
@@ -288,6 +339,23 @@ const DepositManagement = () => {
                                         <p className="text-xs text-gray-400 mt-2">
                                             Send only {selectedCryptocurrency} to this address. Sending other cryptocurrencies may result in permanent loss.
                                         </p>
+                                        {copyStatus.type && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className={`mt-2 p-2 rounded text-xs flex items-center ${copyStatus.type === 'success'
+                                                    ? 'bg-green-500/20 text-green-400'
+                                                    : 'bg-red-500/20 text-red-400'
+                                                    }`}
+                                            >
+                                                {copyStatus.type === 'success' ? (
+                                                    <CheckCircle className="w-3 h-3 mr-2" />
+                                                ) : (
+                                                    <AlertCircle className="w-3 h-3 mr-2" />
+                                                )}
+                                                {copyStatus.message}
+                                            </motion.div>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>

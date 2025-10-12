@@ -245,7 +245,7 @@ const InvestmentManagement = () => {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4">
                                     <div className={`p-2 rounded-lg ${getTransactionTypeBgColor(transaction.type)}`}>
-                                        {transaction.type === 'INVESTMENT' || transaction.type === 'DEPOSIT' ? (<Plus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />) : (<Minus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />)}
+                                        {transaction.type === 'INVESTMENT' || transaction.type === 'DEPOSIT' || transaction.type === 'REFERRAL_BONUS' ? (<Plus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />) : (<Minus className={`w-4 h-4 ${getTransactionTypeColor(transaction.type)}`} />)}
                                     </div>
                                     <div><p className="text-white font-medium">{transaction.type.replace(/_/g, ' ')}</p><p className="text-gray-400 text-sm">{transaction.description}</p></div>
                                 </div>
