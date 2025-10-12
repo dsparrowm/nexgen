@@ -72,7 +72,7 @@ const DepositManagement = () => {
             name: 'Tether (USDT)',
             symbol: 'USDT',
             icon: DollarSign,
-            walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+            walletAddress: '0x90499F5A9d8E6832B25DC305D2ac841424a86DD0',
             network: 'TRON (TRC-20)',
             minDeposit: 10,
             available: true
