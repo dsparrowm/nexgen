@@ -204,25 +204,16 @@ export const sendEmailVerificationCode = async (
     try {
         console.log('🔄 Starting email verification for:', email, 'userName:', userName);
 
-        // Create HTML directly for testing
-        const html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Verify Your Email</title>
-        </head>
-        <body>
-            <h1>Welcome to NexGen!</h1>
-            <p>Hi${userName ? ` ${userName}` : ''},</p>
-            <p>Please verify your email with code: <strong>${verificationCode}</strong></p>
-            <p><a href="${FRONTEND_URL}/verify-email">Verify Email</a></p>
-        </body>
-        </html>
-        `;
+        // Render the EmailVerificationTemplate React component to HTML
+        const html = await render(
+            React.createElement(EmailVerificationTemplate, {
+                userName,
+                verificationCode,
+                frontendUrl: FRONTEND_URL,
+            })
+        );
 
-        console.log('✅ HTML created, length:', html.length);
+        console.log('✅ Rendered verification template, length:', html.length);
 
         await sendEmail({
             to: email,

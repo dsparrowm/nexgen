@@ -1,4 +1,5 @@
 import React from 'react';
+// no local image dependency for emails; using styled text logo instead
 import {
     Html,
     Head,
@@ -24,13 +25,22 @@ export const EmailVerificationTemplate: React.FC<EmailVerificationTemplateProps>
 }) => {
     const verificationUrl = `${frontendUrl}/verify-email`;
 
+    // Use a styled text wordmark for the logo so emails don't depend on external
+    // image assets (improves deliverability and avoids broken images).
+
     return (
         <Html>
             <Head />
             <Body style={main}>
                 <Container style={container}>
-                    <Section style={header}>
-                        <Heading style={logo}>NEXGEN</Heading>
+                    <Section style={headerRow}>
+                        <div style={logoWrapper}>
+                            <div style={wordLogo}>
+                                <span style={logoPart1}>Nex</span>
+                                <span style={logoPart2}>Gen</span>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1 }} />
                     </Section>
 
                     <Heading style={h1}>Welcome to NexGen!</Heading>
@@ -90,23 +100,46 @@ export const EmailVerificationTemplate: React.FC<EmailVerificationTemplateProps>
     );
 };
 
+// Using the project's Tailwind palette colors directly so emails match the landing page
+// gold.500: #FFD700, navy.800: #243B53, navy.900: #0A2540, dark.800: #1E293B
 const main = {
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#0A2540', // navy.900 - match landing page
     fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
     lineHeight: '1.6',
-    color: '#333',
+    color: '#FFFFFF', // white text on dark background
 };
 
 const container = {
     maxWidth: '600px',
     margin: '0 auto',
-    padding: '20px',
+    padding: '28px',
+    backgroundColor: 'transparent', // transparent so navy background shows through
+    borderRadius: '0',
 };
 
 const header = {
     textAlign: 'center' as const,
     marginBottom: '30px',
 };
+
+const headerRow = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: '12px',
+    marginBottom: '20px',
+} as const;
+
+const logoWrapper = {
+    display: 'flex',
+    alignItems: 'center',
+} as const;
+
+const logoImg = {
+    width: '72px',
+    height: 'auto',
+    display: 'block',
+} as const;
 
 const logo = {
     fontSize: '32px',
@@ -115,8 +148,10 @@ const logo = {
     margin: '0',
 };
 
+/* wordmark styles defined later to use the canonical brand palette */
+
 const h1 = {
-    color: '#1a1a2e',
+    color: '#FFFFFF',
     fontSize: '24px',
     marginBottom: '20px',
     textAlign: 'center' as const,
@@ -129,7 +164,7 @@ const text = {
 };
 
 const codeContainer = {
-    background: 'linear-gradient(135deg, #D4AF37 0%, #C9A02C 100%)',
+    background: 'linear-gradient(135deg, #FFD700 0%, #E6C200 100%)', // gold gradient
     padding: '20px',
     borderRadius: '8px',
     textAlign: 'center' as const,
@@ -146,8 +181,8 @@ const code = {
 };
 
 const infoBox = {
-    backgroundColor: '#e7f3ff',
-    borderLeft: '4px solid #2196F3',
+    backgroundColor: '#243B53', // navy.800
+    borderLeft: '4px solid #FFD700', // gold.500 accent
     padding: '15px',
     margin: '20px 0',
     borderRadius: '4px',
@@ -156,7 +191,7 @@ const infoBox = {
 const infoText = {
     margin: '0',
     fontSize: '14px',
-    color: '#2196F3',
+    color: '#E6F2FF', // light text for info
 };
 
 const buttonContainer = {
@@ -165,18 +200,18 @@ const buttonContainer = {
 };
 
 const button = {
-    background: 'linear-gradient(135deg, #D4AF37 0%, #C9A02C 100%)',
-    color: 'white',
+    background: 'linear-gradient(135deg, #FFD700 0%, #E6C200 100%)', // gold gradient
+    color: '#0A2540', // dark text on gold button for contrast
     padding: '14px 30px',
     borderRadius: '8px',
     textDecoration: 'none',
-    fontWeight: 'bold',
+    fontWeight: '700',
     display: 'inline-block',
 };
 
 const hr = {
     border: 'none',
-    borderTop: '1px solid #eee',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
     margin: '30px 0',
 };
 
@@ -186,13 +221,30 @@ const footer = {
 
 const footerText = {
     fontSize: '12px',
-    color: '#777',
+    color: '#94A3B8', // muted light text
     margin: '5px 0',
 };
 
 const link = {
-    color: '#D4AF37',
+    color: '#FFD700', // gold.500
     textDecoration: 'none',
 };
+
+// Wordmark logo parts use brand colors
+const wordLogo = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    fontWeight: '700',
+    fontSize: '24px',
+}
+
+const logoPart1 = {
+    color: '#FFFFFF', // white part of the wordmark
+}
+
+const logoPart2 = {
+    color: '#FFD700', // gold accent
+}
 
 export default EmailVerificationTemplate;

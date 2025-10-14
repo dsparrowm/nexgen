@@ -25,8 +25,14 @@ export const WelcomeEmailTemplate: React.FC<WelcomeEmailTemplateProps> = ({
             <Head />
             <Body style={main}>
                 <Container style={container}>
-                    <Section style={header}>
-                        <Heading style={logo}>NEXGEN</Heading>
+                    <Section style={headerRow}>
+                        <div style={logoWrapper}>
+                            <div style={wordLogo}>
+                                <span style={logoPart1}>Nex</span>
+                                <span style={logoPart2}>Gen</span>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1 }} />
                     </Section>
 
                     <Heading style={h1}>Welcome to NexGen! 🎉</Heading>
@@ -101,17 +107,20 @@ export const WelcomeEmailTemplate: React.FC<WelcomeEmailTemplateProps> = ({
     );
 };
 
+// Dark theme to match landing page
 const main = {
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#0A2540', // navy.900
     fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
     lineHeight: '1.6',
-    color: '#333',
+    color: '#FFFFFF',
 };
 
 const container = {
     maxWidth: '600px',
     margin: '0 auto',
     padding: '20px',
+    backgroundColor: 'transparent',
+    borderRadius: '0',
 };
 
 const header = {
@@ -122,12 +131,12 @@ const header = {
 const logo = {
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: '#FFD700',
     margin: '0',
 };
 
 const h1 = {
-    color: '#1a1a2e',
+    color: '#FFFFFF',
     fontSize: '24px',
     marginBottom: '20px',
     textAlign: 'center' as const,
@@ -140,7 +149,7 @@ const text = {
 };
 
 const featuresList = {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     padding: '20px',
     borderRadius: '8px',
     margin: '20px 0',
@@ -157,18 +166,18 @@ const buttonContainer = {
 };
 
 const button = {
-    background: 'linear-gradient(135deg, #D4AF37 0%, #C9A02C 100%)',
-    color: 'white',
+    background: 'linear-gradient(135deg, #FFD700 0%, #E6C200 100%)',
+    color: '#0A2540',
     padding: '14px 30px',
     borderRadius: '8px',
     textDecoration: 'none',
-    fontWeight: 'bold',
+    fontWeight: '700',
     display: 'inline-block',
 };
 
 const securityBox = {
-    backgroundColor: '#fff3cd',
-    borderLeft: '4px solid #ffc107',
+    backgroundColor: '#243B53', // navy.800
+    borderLeft: '4px solid #FFD700',
     padding: '15px',
     margin: '20px 0',
     borderRadius: '4px',
@@ -177,7 +186,7 @@ const securityBox = {
 const securityText = {
     margin: '0',
     fontSize: '14px',
-    color: '#856404',
+    color: '#E6F2FF',
 };
 
 const hr = {
@@ -192,13 +201,51 @@ const footer = {
 
 const footerText = {
     fontSize: '12px',
-    color: '#777',
+    color: '#94A3B8',
     margin: '5px 0',
 };
 
 const link = {
-    color: '#D4AF37',
+    color: '#FFD700',
     textDecoration: 'none',
 };
+
+// Reuse same wordmark styles used by verification template
+const headerRow = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: '12px',
+    marginBottom: '20px',
+} as const;
+
+const logoWrapper = {
+    display: 'flex',
+    alignItems: 'center',
+} as const;
+
+const wordLogo = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    fontWeight: '700',
+    fontSize: '24px',
+}
+
+const logoPart1 = {
+    color: '#FFFFFF',
+}
+
+const logoPart2 = {
+    color: '#FFD700',
+}
+
+const transparentContainer = {
+    backgroundColor: 'transparent',
+}
+
+const darkThemeText = {
+    color: '#FFFFFF',
+}
 
 export default WelcomeEmailTemplate;
