@@ -1,4 +1,5 @@
 import React from 'react'
+import LiveChatButton from './LiveChatButton'
 import DashboardLayout from '../components/DashboardLayout'
 import AuthGuard from '@/components/auth/AuthGuard'
 import { Mail, MessageCircle, Phone, HelpCircle } from 'lucide-react'
@@ -44,9 +45,7 @@ export default function SupportPage() {
                                 </div>
                             </div>
                             <p className="text-gray-300 mb-4">Chat with our support team in real-time.</p>
-                            <button className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                                Start Chat
-                            </button>
+                            <LiveChatButton />
                         </div>
 
                         <div className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20">

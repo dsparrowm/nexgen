@@ -7,7 +7,9 @@ import { EmailVerificationTemplate, WelcomeEmailTemplate } from '@/templates/ema
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Ensure we have a fallback FRONTEND_URL when the env var is not set
-const FRONTEND_URL = process.env.FRONTEND_URL || process.env.USER_APP_URL || 'http://localhost:3000';
+// Prefer the production site as a safe default for email links; dev can still
+// override with FRONTEND_URL in their environment.
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.USER_APP_URL || 'https://nexgencrypto.live';
 
 interface EmailOptions {
     from?: string;
