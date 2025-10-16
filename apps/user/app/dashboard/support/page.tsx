@@ -3,6 +3,7 @@ import LiveChatButton from './LiveChatButton'
 import DashboardLayout from '../components/DashboardLayout'
 import AuthGuard from '@/components/auth/AuthGuard'
 import { Mail, MessageCircle, Phone, HelpCircle } from 'lucide-react'
+import FAQ from './FAQ'
 
 export default function SupportPage() {
     return (
@@ -78,9 +79,7 @@ export default function SupportPage() {
                                 </div>
                             </div>
                             <p className="text-gray-300 mb-4">Browse our knowledge base for quick answers.</p>
-                            <button className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors">
-                                View FAQs
-                            </button>
+                            <FAQ />
                         </div>
                     </div>
                 </div>
