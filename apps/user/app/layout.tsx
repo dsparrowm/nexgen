@@ -54,6 +54,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning={true}>
         {children}
         <Toaster position="top-right" richColors />
+        <script src="//code.tidio.co/kjoq3614ehzzyczrpszkhgqqo4j8tgp8.js" async></script>
       </body>
     </html>
   );
