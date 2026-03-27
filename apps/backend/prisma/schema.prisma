@@ -46,6 +46,7 @@ model User {
   referrer              User?                 @relation("UserReferrals", fields: [referredBy], references: [id])
   referrals             User[]                @relation("UserReferrals")
   investments           Investment[]
+  assetPositions        AssetPosition[]
   transactions          Transaction[]
   notifications         Notification[]
   sessions              Session[]
@@ -120,12 +121,35 @@ model Investment {
   @@map("investments")
 }
 
+model AssetPosition {
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol           AssetSymbol
+  status           AssetPositionStatus @default(ACTIVE)
+  amountInvested   Decimal     @default(0.00) @db.Decimal(15, 2)
+  unitsHeld        Decimal     @default(0.00000000) @db.Decimal(24, 8)
+  averageEntryPrice Decimal    @default(0.00) @db.Decimal(15, 2)
+  currentPrice     Decimal     @default(0.00) @db.Decimal(15, 2)
+  currentValue     Decimal     @default(0.00) @db.Decimal(15, 2)
+  profitLoss       Decimal     @default(0.00) @db.Decimal(15, 2)
+  lastValuationAt  DateTime?
+  transactions     Transaction[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([userId, symbol])
+  @@map("asset_positions")
+}
+
 model Transaction {
   id               String            @id @default(cuid())
   userId           String
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   investmentId     String?
   investment       Investment?       @relation(fields: [investmentId], references: [id])
+  assetPositionId  String?
+  assetPosition    AssetPosition?    @relation(fields: [assetPositionId], references: [id], onDelete: SetNull)
   type             TransactionType
   amount           Decimal           @db.Decimal(15, 2)
   status           TransactionStatus @default(PENDING)
@@ -265,6 +289,18 @@ enum InvestmentStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+enum AssetSymbol {
+  BTC
+  ETH
+  USDT
+  BNB
+}
+
+enum AssetPositionStatus {
+  ACTIVE
+  CLOSED
 }
 
 enum TransactionType {

@@ -7,6 +7,7 @@ import dashboardRoutes from './dashboard.routes';
 import miningRoutes from './mining.routes';
 import transactionRoutes from './transaction.routes';
 import payoutRoutes from './payout.routes';
+import assetRoutes from './asset.routes';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/mining', miningRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/payouts', payoutRoutes);
+router.use('/assets', assetRoutes);
 
 export default router;

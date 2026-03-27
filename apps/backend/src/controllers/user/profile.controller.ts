@@ -4,6 +4,7 @@ import { User, KycStatus, DocumentType, DocumentStatus } from '@prisma/client';
 import db from '@/services/database';
 import { hashPassword, verifyPassword } from '@/utils/password';
 import { logger } from '@/utils/logger';
+import { getAssetPortfolioSnapshot } from '@/services/assetPortfolio.service';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -353,63 +354,75 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
             return;
         }
 
-        // Get active investments
-        const activeInvestments = await db.prisma.investment.findMany({
-            where: {
-                userId,
-                status: 'ACTIVE'
-            },
-            include: {
-                miningOperation: {
-                    select: {
-                        id: true,
-                        name: true,
-                        dailyReturn: true
+        const [activeInvestments, assetPortfolio, recentTransactions, recentNotifications] = await Promise.all([
+            db.prisma.investment.findMany({
+                where: {
+                    userId,
+                    status: 'ACTIVE'
+                },
+                include: {
+                    miningOperation: {
+                        select: {
+                            id: true,
+                            name: true,
+                            dailyReturn: true
+                        }
                     }
+                },
+                orderBy: { createdAt: 'desc' }
+            }),
+            getAssetPortfolioSnapshot(userId),
+            db.prisma.transaction.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                select: {
+                    id: true,
+                    type: true,
+                    amount: true,
+                    status: true,
+                    description: true,
+                    metadata: true,
+                    createdAt: true
                 }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        // Get recent transactions
-        const recentTransactions = await db.prisma.transaction.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            select: {
-                id: true,
-                type: true,
-                amount: true,
-                status: true,
-                description: true,
-                createdAt: true
-            }
-        });
-
-        // Get recent notifications
-        const recentNotifications = await db.prisma.notification.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            select: {
-                id: true,
-                type: true,
-                title: true,
-                message: true,
-                isRead: true,
-                createdAt: true
-            }
-        });
+            }),
+            db.prisma.notification.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                select: {
+                    id: true,
+                    type: true,
+                    title: true,
+                    message: true,
+                    isRead: true,
+                    createdAt: true
+                }
+            })
+        ]);
 
         // Calculate total daily earnings from active investments
         const totalDailyEarnings = activeInvestments.reduce((total, investment) => {
             return total + (Number(investment.amount) * Number(investment.miningOperation.dailyReturn));
         }, 0);
 
+        const miningInvested = activeInvestments.reduce((total, investment) => total + Number(investment.amount), 0);
+
         const dashboardData = {
             user,
-            activeInvestments: activeInvestments.length,
-            totalDailyEarnings,
+            stats: {
+                activeInvestments: activeInvestments.length,
+                activeMiningOperations: activeInvestments.length,
+                activeAssetPositions: assetPortfolio.summary.activePositions,
+                dailyEarnings: totalDailyEarnings
+            },
+            portfolio: {
+                miningInvested,
+                cryptoInvested: assetPortfolio.summary.totalInvested,
+                cryptoCurrentValue: assetPortfolio.summary.currentValue,
+                totalCurrentValue: Number(user.balance) + miningInvested + assetPortfolio.summary.currentValue
+            },
+            assetPortfolio,
             recentTransactions,
             recentNotifications,
             unreadNotifications: recentNotifications.filter(n => !n.isRead).length

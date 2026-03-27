@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { UserRole } from '@prisma/client';
 import db from '@/services/database';
 import { logger } from '@/utils/logger';
+import { getAssetPortfolioSnapshot } from '@/services/assetPortfolio.service';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -61,6 +62,8 @@ export const getDashboardOverview = async (req: AuthRequest, res: Response): Pro
             where: { userId }
         });
 
+        const assetPortfolio = await getAssetPortfolioSnapshot(userId);
+
         // Get recent transactions (last 5)
         const recentTransactions = await db.prisma.transaction.findMany({
             where: { userId },
@@ -73,6 +76,7 @@ export const getDashboardOverview = async (req: AuthRequest, res: Response): Pro
                 netAmount: true,
                 status: true,
                 description: true,
+                metadata: true,
                 createdAt: true
             }
         });
@@ -121,7 +125,10 @@ export const getDashboardOverview = async (req: AuthRequest, res: Response): Pro
         });
 
         // Calculate portfolio performance (simplified)
-        const totalPortfolioValue = Number(user.balance) + Number(activeInvestments._sum.amount || 0);
+        const totalPortfolioValue =
+            Number(user.balance) +
+            Number(activeInvestments._sum.amount || 0) +
+            assetPortfolio.summary.currentValue;
         const totalEarnings = Number(user.totalEarnings);
 
         const dashboardData = {
@@ -135,12 +142,16 @@ export const getDashboardOverview = async (req: AuthRequest, res: Response): Pro
                 activeInvestments: activeInvestments._count.id,
                 totalInvested: activeInvestments._sum.amount || 0,
                 totalValue: totalPortfolioValue,
+                assetInvested: assetPortfolio.summary.totalInvested,
+                assetCurrentValue: assetPortfolio.summary.currentValue,
+                assetProfitLoss: assetPortfolio.summary.totalPnL,
                 performance: totalEarnings > 0 ? ((totalEarnings / Number(user.totalInvested)) * 100) : 0
             },
             mining: {
                 totalOperations: miningOperations,
                 todayEarnings: Number(todayEarnings._sum.amount || 0)
             },
+            assetPortfolio,
             activity: {
                 recentTransactions,
                 recentPayouts: recentPayouts.map(p => ({
@@ -190,7 +201,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             successfulTransactions,
             totalPayouts,
             monthlyPayouts,
-            referralStats
+            referralStats,
+            assetPortfolio
         ] = await Promise.all([
             // Investment stats
             db.prisma.investment.count({ where: { userId } }),
@@ -213,7 +225,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             }),
 
             // Referral stats
-            db.prisma.user.count({ where: { referredBy: userId } })
+            db.prisma.user.count({ where: { referredBy: userId } }),
+
+            getAssetPortfolioSnapshot(userId)
         ]);
 
         // Get earnings by month (last 12 months)
@@ -247,6 +261,13 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             },
             referrals: {
                 totalReferrals: referralStats
+            },
+            assets: {
+                totalPositions: assetPortfolio.summary.activePositions,
+                totalInvested: assetPortfolio.summary.totalInvested,
+                currentValue: assetPortfolio.summary.currentValue,
+                totalProfitLoss: assetPortfolio.summary.totalPnL,
+                allocation: assetPortfolio.summary.allocation
             },
             earnings: {
                 byMonth: earningsByMonth

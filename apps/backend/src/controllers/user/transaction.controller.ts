@@ -334,7 +334,7 @@ export const createDepositValidation = [
         .withMessage('Amount must be greater than 0'),
     body('currency')
         .optional()
-        .isIn(['BTC', 'ETH', 'USDT', 'USD'])
+        .isIn(['BTC', 'ETH', 'USDT', 'BNB', 'USD'])
         .withMessage('Invalid currency'),
     body('paymentMethod')
         .optional()
@@ -348,7 +348,7 @@ export const createWithdrawalValidation = [
         .withMessage('Amount must be greater than 0'),
     body('currency')
         .optional()
-        .isIn(['BTC', 'ETH', 'USDT', 'USD'])
+        .isIn(['BTC', 'ETH', 'USDT', 'BNB', 'USD'])
         .withMessage('Invalid currency'),
     body('withdrawalAddress')
         .isString()
