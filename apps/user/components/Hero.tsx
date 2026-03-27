@@ -1,19 +1,144 @@
 "use client"
 
-import React from 'react'
+import React, { useLayoutEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, TrendingUp, Shield, Zap } from 'lucide-react'
 import Link from 'next/link'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const Hero = () => {
+    const sectionRef = useRef<HTMLElement | null>(null)
+    const fadedTextWrapRef = useRef<HTMLDivElement | null>(null)
+    const fadedTextRef = useRef<HTMLHeadingElement | null>(null)
+
     const floatingElements = [
         { icon: TrendingUp, delay: 0, x: 100, y: 50 },
         { icon: Shield, delay: 0.5, x: -80, y: 80 },
         { icon: Zap, delay: 1, x: 120, y: -60 },
     ]
 
+    useLayoutEffect(() => {
+        if (!sectionRef.current || !fadedTextRef.current || !fadedTextWrapRef.current) {
+            return
+        }
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return
+        }
+
+        gsap.registerPlugin(ScrollTrigger)
+
+        const ctx = gsap.context(() => {
+            const fadedText = fadedTextRef.current
+            const fadedTextWrap = fadedTextWrapRef.current
+            const heroSection = sectionRef.current
+
+            if (!fadedText || !fadedTextWrap || !heroSection) {
+                return
+            }
+
+            gsap.set(fadedText, {
+                transformOrigin: '50% 50%',
+            })
+
+            const introTween = gsap.fromTo(
+                fadedText,
+                {
+                    autoAlpha: 0,
+                    xPercent: -8,
+                    yPercent: 18,
+                    scale: 0.84,
+                    rotate: -20,
+                    filter: 'blur(18px)',
+                },
+                {
+                    autoAlpha: 1,
+                    xPercent: 0,
+                    yPercent: 0,
+                    scale: 1,
+                    rotate: -12,
+                    filter: 'blur(0px)',
+                    duration: 1.6,
+                    ease: 'power4.out',
+                },
+            )
+
+            const driftTween = gsap.to(fadedText, {
+                xPercent: 2.5,
+                yPercent: -3.5,
+                duration: 4.5,
+                ease: 'sine.inOut',
+                repeat: -1,
+                yoyo: true,
+            })
+
+            const mm = gsap.matchMedia()
+
+            mm.add('(min-width: 768px)', () => {
+                gsap.fromTo(
+                    fadedTextWrap,
+                    {
+                        yPercent: 8,
+                        xPercent: 0,
+                    },
+                    {
+                        yPercent: -18,
+                        xPercent: -10,
+                        ease: 'none',
+                        scrollTrigger: {
+                            trigger: heroSection,
+                            start: 'top bottom',
+                            end: 'bottom top',
+                            scrub: true,
+                        },
+                    },
+                )
+
+                gsap.to(fadedText, {
+                    scale: 1.16,
+                    rotate: -6,
+                    ease: 'none',
+                    scrollTrigger: {
+                        trigger: heroSection,
+                        start: 'top bottom',
+                        end: 'bottom top',
+                        scrub: true,
+                    },
+                })
+            })
+
+            mm.add('(max-width: 767px)', () => {
+                gsap.fromTo(
+                    fadedTextWrap,
+                    {
+                        yPercent: 4,
+                    },
+                    {
+                        yPercent: -8,
+                        ease: 'none',
+                        scrollTrigger: {
+                            trigger: heroSection,
+                            start: 'top bottom',
+                            end: 'bottom top',
+                            scrub: true,
+                        },
+                    },
+                )
+            })
+
+            return () => {
+                introTween.kill()
+                driftTween.kill()
+                mm.revert()
+            }
+        }, sectionRef)
+
+        return () => ctx.revert()
+    }, [])
+
     return (
-        <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
+        <section ref={sectionRef} id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
             style={{
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
@@ -23,8 +148,14 @@ const Hero = () => {
             <div className="absolute inset-0 bg-black/50"></div>
 
             {/* Faded Background Text */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-                <h2 className="text-8xl md:text-9xl lg:text-[10rem] xl:text-[15rem] font-bold font-display text-white/5 select-none whitespace-nowrap transform -rotate-12">
+            <div
+                ref={fadedTextWrapRef}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"
+            >
+                <h2
+                    ref={fadedTextRef}
+                    className="text-8xl md:text-9xl lg:text-[10rem] xl:text-[15rem] font-bold font-display text-white/5 select-none whitespace-nowrap transform -rotate-12 will-change-transform"
+                >
                     NEXGEN
                 </h2>
             </div>
