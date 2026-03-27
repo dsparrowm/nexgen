@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useAssetData } from '@/hooks/useAssetData'
-import { formatCurrency, formatHashrate } from '@/utils/formatters'
+import { formatCrypto, formatCurrency, formatHashrate } from '@/utils/formatters'
 
 type StatCard = {
     title: string;
@@ -44,13 +44,18 @@ type StatCard = {
     bgColor: string;
     change?: string;
     changeType?: 'positive' | 'negative' | 'neutral';
+    details?: Array<{
+        label: string;
+        value: string;
+        secondaryValue: string;
+    }>;
 };
 
 const DashboardOverview = () => {
     const router = useRouter()
     const [showBalance, setShowBalance] = React.useState(true)
     const { data, stats, loading, error, refetch } = useDashboardData()
-    const { assetSummary, loading: assetLoading } = useAssetData()
+    const { supportedAssets, assetPositions, assetSummary, loading: assetLoading } = useAssetData()
 
     // Calculate percentage changes from historical data
     const calculatePercentageChange = (currentValue: number, historicalData: any[]): { change: string, changeType: 'positive' | 'negative' | 'neutral' } | null => {
@@ -74,15 +79,49 @@ const DashboardOverview = () => {
 
     const portfolioSummary = data?.assetPortfolio || assetSummary
     const allocationData = portfolioSummary?.allocations || []
+    const cryptoBalance = Number(portfolioSummary?.currentValue || 0)
+    const totalBalanceSubtitle = portfolioSummary?.activePositions
+        ? `${portfolioSummary.activePositions} crypto ${portfolioSummary.activePositions === 1 ? 'position' : 'positions'} with live USD value`
+        : 'No crypto holdings yet'
+    const assetBalanceDetails = supportedAssets.map((asset) => {
+        const assetTotals = assetPositions
+            .filter((position) => position.assetSymbol === asset.symbol)
+            .reduce(
+                (totals, position) => ({
+                    unitsHeld: totals.unitsHeld + Number(position.unitsHeld || 0),
+                    currentValue:
+                        totals.currentValue +
+                        Number(
+                            position.currentValue ??
+                                (Number(position.unitsHeld || 0) * Number(position.currentPrice || asset.currentPrice || 0))
+                        ),
+                }),
+                { unitsHeld: 0, currentValue: 0 }
+            )
+
+        return {
+            label: asset.symbol,
+            value: formatCrypto(assetTotals.unitsHeld, {
+                symbol: asset.symbol,
+                decimals: asset.decimalPlaces ?? 8,
+            }),
+            secondaryValue: formatCurrency(assetTotals.currentValue),
+        }
+    })
 
     const statsCards: StatCard[] = [
         {
-            title: 'Total Balance',
-            value: showBalance ? formatCurrency(data?.user?.balance || 0) : '****',
-            subtitle: 'Available to invest',
+            title: 'Crypto Balance',
+            value: showBalance ? formatCurrency(cryptoBalance) : '****',
+            subtitle: totalBalanceSubtitle,
             icon: DollarSign,
             color: 'text-green-500',
             bgColor: 'bg-green-500/10',
+            details: showBalance ? assetBalanceDetails : assetBalanceDetails.map((asset) => ({
+                label: asset.label,
+                value: '****',
+                secondaryValue: '****',
+            })),
         },
         {
             title: 'Total Hashpower',
@@ -233,6 +272,19 @@ const DashboardOverview = () => {
                         <h3 className="text-2xl font-bold text-white mb-1">{stat.value}</h3>
                         <p className="text-gray-400 text-sm mb-1">{stat.title}</p>
                         {stat.subtitle && <p className="text-gray-500 text-sm">{stat.subtitle}</p>}
+                        {stat.details && stat.details.length > 0 && (
+                            <div className="mt-4 space-y-2 border-t border-white/5 pt-4">
+                                {stat.details.map((detail) => (
+                                    <div key={`${stat.title}-${detail.label}`} className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-400">{detail.label}</span>
+                                        <div className="text-right">
+                                            <p className="font-medium text-white">{detail.value}</p>
+                                            <p className="text-gray-500">{detail.secondaryValue}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ))}
             </motion.div>
