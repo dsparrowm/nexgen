@@ -3,54 +3,17 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getDashboardData, getDashboardStats } from '@/utils/api/dashboardApi';
+import {
+    getDashboardData,
+    getDashboardStats,
+    type DashboardData,
+    type DashboardStats,
+} from '@/utils/api/dashboardApi';
 
 // Module-level cache and inflight promise to prevent duplicate network calls
 let cachedDashboardData: DashboardData | null = null;
 let cachedDashboardStats: DashboardStats | null = null;
 let inflightDashboardFetch: Promise<void> | null = null;
-
-interface DashboardData {
-    user: any;
-    stats?: {
-        totalBalance?: number;
-        totalInvested?: number;
-        totalEarnings?: number;
-        activeMiningOperations?: number;
-        activeInvestments?: number;
-        pendingPayouts?: number;
-        totalHashrate?: number;
-        dailyEarnings?: number;
-    };
-    recentTransactions?: any[];
-    recentNotifications?: any[];
-}
-
-interface DashboardStats {
-    investments: {
-        total: number;
-        active: number;
-        completed: number;
-    };
-    transactions: {
-        total: number;
-        successful: number;
-        successRate: number;
-    };
-    payouts: {
-        total: number;
-        thisMonth: number;
-    };
-    referrals: {
-        totalReferrals: number;
-    };
-    earnings: {
-        byMonth: Array<{
-            month: Date | string;
-            earnings: number;
-        }>;
-    };
-}
 
 interface UseDashboardDataReturn {
     data: DashboardData | null;

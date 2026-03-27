@@ -13,6 +13,9 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
 } from 'recharts'
 import {
     Bitcoin,
@@ -29,7 +32,8 @@ import {
     RefreshCw
 } from 'lucide-react'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import { formatCurrency, formatHashrate, formatCrypto, formatPercentage } from '@/utils/formatters'
+import { useAssetData } from '@/hooks/useAssetData'
+import { formatCurrency, formatHashrate } from '@/utils/formatters'
 
 type StatCard = {
     title: string;
@@ -46,6 +50,7 @@ const DashboardOverview = () => {
     const router = useRouter()
     const [showBalance, setShowBalance] = React.useState(true)
     const { data, stats, loading, error, refetch } = useDashboardData()
+    const { assetSummary, loading: assetLoading } = useAssetData()
 
     // Calculate percentage changes from historical data
     const calculatePercentageChange = (currentValue: number, historicalData: any[]): { change: string, changeType: 'positive' | 'negative' | 'neutral' } | null => {
@@ -67,6 +72,9 @@ const DashboardOverview = () => {
 
     const earningsChange = stats?.earnings?.byMonth ? calculatePercentageChange(0, stats.earnings.byMonth) : null;
 
+    const portfolioSummary = data?.assetPortfolio || assetSummary
+    const allocationData = portfolioSummary?.allocations || []
+
     const statsCards: StatCard[] = [
         {
             title: 'Total Balance',
@@ -87,12 +95,12 @@ const DashboardOverview = () => {
             bgColor: 'bg-blue-500/10',
         },
         {
-            title: 'Active Investments',
-            value: formatCurrency(data?.user?.totalInvested || 0),
-            subtitle: data?.stats?.activeInvestments
-                ? `${data.stats.activeInvestments} ${data.stats.activeInvestments === 1 ? 'Investment' : 'Investments'}`
-                : 'No investments',
-            icon: Coins,
+            title: 'Crypto Portfolio',
+            value: showBalance ? formatCurrency(portfolioSummary?.currentValue || 0) : '****',
+            subtitle: portfolioSummary?.activePositions
+                ? `${portfolioSummary.activePositions} ${portfolioSummary.activePositions === 1 ? 'Position' : 'Positions'}`
+                : 'No crypto positions',
+            icon: Bitcoin,
             color: 'text-gold-500',
             bgColor: 'bg-gold-500/10',
         },
@@ -283,24 +291,69 @@ const DashboardOverview = () => {
                     className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
                 >
                     <h3 className="text-lg font-semibold text-white mb-6">Portfolio Allocation</h3>
-                    {(data?.stats?.activeInvestments ?? 0) > 0 || (data?.user?.balance ?? 0) > 0 ? (
+                    {assetLoading ? (
                         <div className="flex items-center justify-center h-[300px]">
-                            <div className="text-center">
-                                <TrendingUp className="w-16 h-16 text-gold-500 mx-auto mb-4 opacity-50" />
-                                <p className="text-gray-400 text-sm">Portfolio breakdown will appear here</p>
-                                <p className="text-gray-500 text-xs mt-2">Shows asset distribution across investments</p>
+                            <div className="text-center animate-pulse">
+                                <Coins className="w-16 h-16 text-gold-500 mx-auto mb-4 opacity-50" />
+                                <p className="text-gray-400 text-sm">Loading asset allocation...</p>
+                            </div>
+                        </div>
+                    ) : allocationData.length > 0 ? (
+                        <div>
+                            <ResponsiveContainer width="100%" height={240}>
+                                <PieChart>
+                                    <Pie
+                                        data={allocationData}
+                                        dataKey="value"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={56}
+                                        outerRadius={86}
+                                        paddingAngle={2}
+                                    >
+                                        {allocationData.map((entry) => (
+                                            <Cell key={entry.symbol} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#1F2937',
+                                            border: '1px solid #374151',
+                                            borderRadius: '8px',
+                                            color: '#F9FAFB'
+                                        }}
+                                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="space-y-3 mt-4">
+                                {allocationData.map((item) => (
+                                    <div key={item.symbol} className="flex items-center justify-between rounded-2xl border border-navy-700 bg-navy-900/40 px-4 py-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                            <div>
+                                                <p className="text-white font-medium">{item.name}</p>
+                                                <p className="text-gray-400 text-xs">{item.symbol}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-white font-medium">{formatCurrency(item.value)}</p>
+                                            <p className="text-gray-400 text-xs">{item.percentage.toFixed(1)}%</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-[300px]">
                             <div className="text-center">
                                 <Coins className="w-16 h-16 text-gray-500 mx-auto mb-4 opacity-30" />
-                                <p className="text-gray-400 text-sm">No active investments</p>
+                                <p className="text-gray-400 text-sm">No crypto positions yet</p>
                                 <button
                                     onClick={() => router.push('/dashboard/investments')}
                                     className="mt-4 px-4 py-2 bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 rounded-lg transition-colors"
                                 >
-                                    Start Investing
+                                    Buy Crypto
                                 </button>
                             </div>
                         </div>
@@ -420,8 +473,8 @@ const DashboardOverview = () => {
                             <Coins className="w-6 h-6 text-gold-500" />
                         </div>
                         <div>
-                            <h4 className="text-white font-semibold">New Investment</h4>
-                            <p className="text-gray-400 text-sm">Diversify your portfolio</p>
+                            <h4 className="text-white font-semibold">Buy Crypto</h4>
+                            <p className="text-gray-400 text-sm">Add BTC, ETH, USDT, or BNB</p>
                         </div>
                     </div>
                 </button>

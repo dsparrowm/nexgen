@@ -6,6 +6,7 @@ import {
     DollarSign,
     CreditCard,
     Bitcoin,
+    Coins,
     ArrowRight,
     AlertCircle,
     CheckCircle,
@@ -17,7 +18,7 @@ import { formatCurrency } from '@/utils/formatters'
 
 interface DepositFormData {
     amount: string
-    cryptocurrency: 'BTC' | 'ETH' | 'USDT'
+    cryptocurrency: 'BTC' | 'ETH' | 'USDT' | 'BNB'
 }
 
 const DepositManagement = () => {
@@ -75,6 +76,16 @@ const DepositManagement = () => {
             walletAddress: '0x90499F5A9d8E6832B25DC305D2ac841424a86DD0',
             network: 'TRON (TRC-20)',
             minDeposit: 10,
+            available: true
+        },
+        {
+            id: 'BNB',
+            name: 'BNB',
+            symbol: 'BNB',
+            icon: Coins,
+            walletAddress: '0xBnbDepositAddress000000000000000000000000',
+            network: 'BNB Smart Chain (BEP-20)',
+            minDeposit: 0.01,
             available: true
         }
     ]

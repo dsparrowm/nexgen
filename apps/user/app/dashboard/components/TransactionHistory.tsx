@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import {
     History,
     Download,
-    Search,
     ArrowUpRight,
     ArrowDownRight,
     Bitcoin,
@@ -20,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useTransactions } from '@/hooks/useTransactions'
 import { formatCurrency } from '@/utils/formatters'
-import { exportTransactionsToCSV } from '@/utils/api/transactionApi'
+import { exportTransactionsToCSV, type Transaction } from '@/utils/api/transactionApi'
 
 const TransactionHistory = () => {
     const {
@@ -36,7 +35,7 @@ const TransactionHistory = () => {
         prevPage
     } = useTransactions()
 
-    const getTypeIcon = (type: string) => {
+    const getTypeIcon = (type: Transaction['type']) => {
         switch (type) {
             case 'DEPOSIT': return DollarSign
             case 'WITHDRAWAL': return ArrowUpRight
@@ -55,6 +54,7 @@ const TransactionHistory = () => {
             case 'WITHDRAWAL': return { text: 'text-red-500', bg: 'bg-red-500/20' }
             case 'INVESTMENT': return { text: 'text-gold-500', bg: 'bg-gold-500/20' }
             case 'PAYOUT': return { text: 'text-orange-500', bg: 'bg-orange-500/20' }
+            case 'MINING_PAYOUT': return { text: 'text-orange-500', bg: 'bg-orange-500/20' }
             case 'BONUS': return { text: 'text-green-500', bg: 'bg-green-500/20' }
             case 'REFUND': return { text: 'text-green-500', bg: 'bg-green-500/20' }
             case 'REFERRAL_BONUS': return { text: 'text-green-500', bg: 'bg-green-500/20' }
@@ -66,15 +66,26 @@ const TransactionHistory = () => {
         switch (status) {
             case 'COMPLETED': return 'text-green-500 bg-green-500/20'
             case 'PENDING': return 'text-yellow-500 bg-yellow-500/20'
+            case 'PROCESSING': return 'text-yellow-500 bg-yellow-500/20'
             case 'FAILED': return 'text-red-500 bg-red-500/20'
+            case 'REFUNDED': return 'text-blue-500 bg-blue-500/20'
             default: return 'text-gray-500 bg-gray-500/20'
         }
     }
 
-    const getAmountDisplay = (transaction: any) => {
+    const getAmountDisplay = (transaction: Transaction) => {
         const sign = transaction.type === 'DEPOSIT' || transaction.type === 'PAYOUT' ? '+' : '-'
         const amount = Math.abs(transaction.amount)
         return `${sign}${formatCurrency(amount)}`
+    }
+
+    const getAssetLabel = (transaction: Transaction) => {
+        const assetSymbol = transaction.assetSymbol || transaction.metadata?.assetSymbol
+        const assetName = transaction.assetName || transaction.metadata?.assetName
+
+        if (!assetSymbol && !assetName) return null
+
+        return assetName ? `${assetName} (${assetSymbol || assetName})` : assetSymbol
     }
 
     const handleExport = () => {
@@ -274,6 +285,7 @@ const TransactionHistory = () => {
                         {transactions.map((transaction) => {
                             const Icon = getTypeIcon(transaction.type)
                             const colors = getTypeColor(transaction.type)
+                            const assetLabel = getAssetLabel(transaction)
 
                             return (
                                 <motion.div
@@ -289,7 +301,7 @@ const TransactionHistory = () => {
                                             </div>
                                             <div>
                                                 <h4 className="text-white font-medium">
-                                                    {transaction.description || transaction.type}
+                                                    {transaction.description || (assetLabel ? `Asset purchase - ${assetLabel}` : transaction.type)}
                                                 </h4>
                                                 <div className="flex items-center space-x-4 mt-1">
                                                     <p className="text-gray-400 text-sm">
@@ -304,6 +316,11 @@ const TransactionHistory = () => {
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(transaction.status)}`}>
                                                         {transaction.status}
                                                     </span>
+                                                    {assetLabel && (
+                                                        <span className="px-2 py-1 rounded text-xs font-medium bg-gold-500/20 text-gold-400">
+                                                            {assetLabel}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

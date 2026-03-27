@@ -4,6 +4,12 @@
  */
 
 import { getApiBase } from '@/lib/axiosInstance';
+import type {
+    AssetPortfolioSummary,
+    AssetPosition,
+    SupportedAsset,
+    SupportedAssetSymbol,
+} from './assetsApi';
 
 const API_BASE_URL = getApiBase(true);
 
@@ -17,29 +23,49 @@ interface ApiResponse<T> {
     message?: string;
 }
 
-interface DashboardData {
-    user: {
-        id: string;
-        username: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        balance: number;
-        totalHashpower: number;
-        totalInvested: number;
-        totalEarnings: number;
+export interface DashboardUser {
+    id: string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    balance: number;
+    totalHashpower?: number;
+    totalInvested: number;
+    totalEarnings: number;
+    assetBalance?: number;
+    assetInvested?: number;
+    assetEarnings?: number;
+}
+
+export interface DashboardAssetPortfolio extends AssetPortfolioSummary {
+    supportedAssets?: SupportedAsset[];
+    positions?: AssetPosition[];
+    topHolding: SupportedAssetSymbol | null;
+}
+
+export interface DashboardData {
+    user: DashboardUser;
+    portfolio?: {
+        miningInvested?: number;
+        cryptoInvested?: number;
+        cryptoCurrentValue?: number;
+        totalCurrentValue?: number;
     };
     stats?: {
         activeInvestments?: number;
         activeMiningOperations?: number;
         dailyEarnings?: number;
+        activeAssetPositions?: number;
+        assetDailyPnL?: number;
     };
+    assetPortfolio?: DashboardAssetPortfolio;
     recentTransactions?: any[];
     recentNotifications?: any[];
     unreadNotifications?: number;
 }
 
-interface DashboardStats {
+export interface DashboardStats {
     investments: {
         total: number;
         active: number;
@@ -119,11 +145,59 @@ async function apiFetch<T>(
     }
 }
 
+const normalizeAssetPortfolio = (assetPortfolio: any): DashboardAssetPortfolio | undefined => {
+    if (!assetPortfolio) {
+        return undefined;
+    }
+
+    const summary = assetPortfolio.summary || assetPortfolio;
+    const allocations = (summary.allocations || summary.allocation || []).map((item: any) => ({
+        symbol: item.symbol as SupportedAssetSymbol,
+        name: item.name || item.symbol,
+        value: Number(item.value ?? item.currentValue ?? 0),
+        percentage: Number(item.percentage ?? 0),
+        color: item.color || item.allocationColor || '#F59E0B',
+    }));
+
+    return {
+        totalInvested: Number(summary.totalInvested ?? 0),
+        currentValue: Number(summary.currentValue ?? summary.totalCurrentValue ?? 0),
+        unrealizedPnL: Number(summary.unrealizedPnL ?? summary.totalPnL ?? summary.totalProfitLoss ?? 0),
+        unrealizedPnLPercent: Number(
+            summary.unrealizedPnLPercent ??
+                summary.totalProfitLossPercentage ??
+                (Number(summary.totalInvested ?? 0) > 0
+                    ? (Number(summary.unrealizedPnL ?? summary.totalPnL ?? summary.totalProfitLoss ?? 0) /
+                          Number(summary.totalInvested ?? 0)) *
+                      100
+                    : 0)
+        ),
+        activePositions: Number(summary.activePositions ?? 0),
+        completedPositions: Number(summary.completedPositions ?? Math.max(0, Number(summary.totalPositions ?? 0) - Number(summary.activePositions ?? 0))),
+        topHolding: (summary.topHolding || allocations[0]?.symbol || null) as SupportedAssetSymbol | null,
+        allocations,
+        supportedAssets: assetPortfolio.supportedAssets as SupportedAsset[] | undefined,
+        positions: (assetPortfolio.positions || []) as AssetPosition[],
+    };
+};
+
 /**
  * Get dashboard data for the authenticated user
  */
 export async function getDashboardData() {
-    return apiFetch<DashboardData>('user/profile/dashboard');
+    const response = await apiFetch<DashboardData>('user/profile/dashboard');
+
+    if (response.success && response.data) {
+        return {
+            ...response,
+            data: {
+                ...response.data,
+                assetPortfolio: normalizeAssetPortfolio((response.data as any).assetPortfolio),
+            },
+        };
+    }
+
+    return response;
 }
 
 /**

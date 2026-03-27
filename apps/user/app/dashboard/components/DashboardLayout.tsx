@@ -60,7 +60,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', href: '/dashboard' },
         { name: 'Mining', icon: Pickaxe, id: 'mining', href: '/dashboard/mining' },
-        { name: 'Investments', icon: TrendingUp, id: 'investments', href: '/dashboard/investments' },
+        { name: 'Assets', icon: TrendingUp, id: 'investments', href: '/dashboard/investments' },
         { name: 'Deposit', icon: ArrowDownLeft, id: 'deposit', href: '/dashboard/deposit' },
         { name: 'Withdrawal', icon: ArrowUpRight, id: 'withdrawal', href: '/dashboard/withdrawal' },
         { name: 'Transactions', icon: History, id: 'transactions', href: '/dashboard/transactions' },
@@ -157,7 +157,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                 <Menu className="w-5 h-5" />
                             </button>
                             <h1 className="text-xl font-semibold text-white capitalize">
-                                {activeSection}
+                                {activeSection === 'investments' ? 'Assets' : activeSection}
                             </h1>
                         </div>
 

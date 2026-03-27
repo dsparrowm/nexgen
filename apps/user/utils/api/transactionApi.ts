@@ -4,6 +4,7 @@
  */
 
 import { getApiBase } from '@/lib/axiosInstance';
+import type { SupportedAssetSymbol } from './assetsApi';
 
 const API_BASE_URL = getApiBase(true);
 
@@ -20,10 +21,10 @@ interface ApiResponse<T> {
 interface Transaction {
     id: string;
     userId: string;
-    type: 'DEPOSIT' | 'WITHDRAWAL' | 'INVESTMENT' | 'PAYOUT';
+    type: 'DEPOSIT' | 'WITHDRAWAL' | 'INVESTMENT' | 'PAYOUT' | 'BONUS' | 'REFUND' | 'REFERRAL_BONUS' | 'MINING_PAYOUT';
     amount: number;
     currency: string;
-    status: 'PENDING' | 'COMPLETED' | 'FAILED';
+    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
     description?: string;
     createdAt: string;
     updatedAt: string;
@@ -31,6 +32,18 @@ interface Transaction {
     investment?: any;
     miningOperationId?: string;
     miningOperation?: any;
+    assetSymbol?: SupportedAssetSymbol;
+    assetName?: string;
+    assetQuantity?: number;
+    assetPrice?: number;
+    metadata?: {
+        assetSymbol?: SupportedAssetSymbol;
+        assetName?: string;
+        assetQuantity?: number;
+        assetPrice?: number;
+        sourceType?: 'ASSET' | 'MINING';
+        [key: string]: unknown;
+    };
 }
 
 interface TransactionsResponse {
@@ -59,6 +72,35 @@ interface TransactionFilters {
     startDate?: string;
     endDate?: string;
 }
+
+const normalizeTransaction = (transaction: any): Transaction => {
+    const assetSymbol =
+        transaction.assetSymbol ||
+        transaction.assetPosition?.symbol ||
+        transaction.metadata?.assetSymbol;
+    const assetName =
+        transaction.assetName ||
+        transaction.metadata?.assetName;
+    const assetQuantity =
+        transaction.assetQuantity ||
+        transaction.metadata?.assetQuantity ||
+        transaction.metadata?.unitsPurchased ||
+        transaction.assetPosition?.unitsHeld;
+    const assetPrice =
+        transaction.assetPrice ||
+        transaction.metadata?.assetPrice ||
+        transaction.metadata?.referencePrice ||
+        transaction.assetPosition?.currentPrice;
+
+    return {
+        ...transaction,
+        currency: transaction.currency || transaction.metadata?.currency || assetSymbol || 'USD',
+        assetSymbol,
+        assetName,
+        assetQuantity: assetQuantity !== undefined ? Number(assetQuantity) : undefined,
+        assetPrice: assetPrice !== undefined ? Number(assetPrice) : undefined,
+    };
+};
 
 /**
  * Get authentication token from localStorage
@@ -134,14 +176,35 @@ export async function getTransactions(filters: TransactionFilters = {}) {
     const queryString = queryParams.toString();
     const endpoint = `user/transactions${queryString ? `?${queryString}` : ''}`;
 
-    return apiFetch<TransactionsResponse>(endpoint);
+    const response = await apiFetch<TransactionsResponse>(endpoint);
+
+    if (response.success && response.data) {
+        return {
+            ...response,
+            data: {
+                ...response.data,
+                transactions: (response.data.transactions || []).map((transaction) => normalizeTransaction(transaction)),
+            },
+        };
+    }
+
+    return response;
 }
 
 /**
  * Get a specific transaction by ID
  */
 export async function getTransactionById(transactionId: string) {
-    return apiFetch<Transaction>(`user/transactions/${transactionId}`);
+    const response = await apiFetch<Transaction>(`user/transactions/${transactionId}`);
+
+    if (response.success && response.data) {
+        return {
+            ...response,
+            data: normalizeTransaction(response.data),
+        };
+    }
+
+    return response;
 }
 
 /**
@@ -152,10 +215,19 @@ export async function createDeposit(data: {
     currency: string;
     paymentMethod: string;
 }) {
-    return apiFetch<Transaction>('user/transactions/deposit', {
+    const response = await apiFetch<Transaction>('user/transactions/deposit', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+
+    if (response.success && response.data) {
+        return {
+            ...response,
+            data: normalizeTransaction(response.data),
+        };
+    }
+
+    return response;
 }
 
 /**
@@ -166,21 +238,31 @@ export async function createWithdrawal(data: {
     currency: string;
     withdrawalAddress: string;
 }) {
-    return apiFetch<Transaction>('user/transactions/withdraw', {
+    const response = await apiFetch<Transaction>('user/transactions/withdraw', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+
+    if (response.success && response.data) {
+        return {
+            ...response,
+            data: normalizeTransaction(response.data),
+        };
+    }
+
+    return response;
 }
 
 /**
  * Export transactions to CSV (client-side generation)
  */
 export function exportTransactionsToCSV(transactions: Transaction[], filename: string = 'transactions') {
-    const headers = ['Date', 'Type', 'Description', 'Amount', 'Currency', 'Status'];
+    const headers = ['Date', 'Type', 'Description', 'Asset', 'Amount', 'Currency', 'Status'];
     const rows = transactions.map(tx => [
         new Date(tx.createdAt).toLocaleDateString(),
         tx.type,
         tx.description || '-',
+        tx.assetName || tx.assetSymbol || tx.metadata?.assetName || tx.metadata?.assetSymbol || '-',
         tx.amount.toString(),
         tx.currency,
         tx.status

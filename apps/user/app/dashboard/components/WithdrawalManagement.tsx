@@ -6,6 +6,7 @@ import {
     ArrowUpRight,
     CreditCard,
     Bitcoin,
+    Coins,
     Building,
     AlertCircle,
     CheckCircle,
@@ -20,7 +21,7 @@ import { useDashboardData } from '@/hooks/useDashboardData'
 
 interface WithdrawalFormData {
     amount: string
-    cryptocurrency: 'BTC' | 'ETH' | 'USDT'
+    cryptocurrency: 'BTC' | 'ETH' | 'USDT' | 'BNB'
     withdrawalAddress: string
 }
 
@@ -86,6 +87,16 @@ const WithdrawalManagement = () => {
             network: 'Ethereum (ERC-20)',
             fee: '5 USDT',
             minWithdrawal: 50,
+            available: true
+        },
+        {
+            id: 'BNB',
+            name: 'BNB',
+            symbol: 'BNB',
+            icon: Coins,
+            network: 'BNB Smart Chain (BEP-20)',
+            fee: '0.005 BNB',
+            minWithdrawal: 0.01,
             available: true
         }
     ]
@@ -289,13 +300,15 @@ const WithdrawalManagement = () => {
                                     minLength: { value: 10, message: 'Please provide a valid withdrawal address' }
                                 })}
                                 className="w-full px-4 py-3 bg-navy-900 border border-navy-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                placeholder={
-                                    selectedCryptocurrency === 'BTC'
-                                        ? 'Enter your Bitcoin wallet address'
-                                        : selectedCryptocurrency === 'ETH'
-                                            ? 'Enter your Ethereum wallet address'
-                                            : 'Enter your Tether wallet address'
-                                }
+                                    placeholder={
+                                        selectedCryptocurrency === 'BTC'
+                                            ? 'Enter your Bitcoin wallet address'
+                                            : selectedCryptocurrency === 'ETH'
+                                                ? 'Enter your Ethereum wallet address'
+                                                : selectedCryptocurrency === 'USDT'
+                                                    ? 'Enter your Tether wallet address'
+                                                    : 'Enter your BNB wallet address'
+                                    }
                             />
                             {errors.withdrawalAddress && (
                                 <p className="mt-1 text-sm text-red-500">{errors.withdrawalAddress.message}</p>
@@ -406,7 +419,7 @@ const WithdrawalManagement = () => {
                                 <div className="flex items-center">
                                     <CreditCard className="w-5 h-5 text-blue-500 mr-3" />
                                     <div>
-                                        <div className="text-white font-medium">Ethereum (ETH/USDT)</div>
+                                        <div className="text-white font-medium">Ethereum / USDT / BNB</div>
                                         <div className="text-gray-400 text-sm">12-15 confirmations (3-5 min)</div>
                                     </div>
                                 </div>
