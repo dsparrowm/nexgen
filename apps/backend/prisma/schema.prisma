@@ -49,6 +49,9 @@ model User {
   assetPositions        AssetPosition[]
   transactions          Transaction[]
   notifications         Notification[]
+  supportConversations  SupportConversation[] @relation("CustomerSupportConversations")
+  assignedConversations SupportConversation[] @relation("AssignedSupportConversations")
+  supportMessages       SupportMessage[]      @relation("SupportMessageSender")
   sessions              Session[]
   auditLogs             AuditLog[]
   createdAt             DateTime              @default(now())
@@ -193,6 +196,50 @@ model Notification {
   createdAt DateTime           @default(now())
 
   @@map("notifications")
+}
+
+model SupportConversation {
+  id                   String                    @id @default(cuid())
+  userId               String?
+  user                 User?                     @relation("CustomerSupportConversations", fields: [userId], references: [id], onDelete: SetNull)
+  assignedAdminId      String?
+  assignedAdmin        User?                     @relation("AssignedSupportConversations", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  visitorToken         String?                   @unique
+  subject              String?
+  guestName            String?
+  guestEmail           String?
+  guestPhone           String?
+  status               SupportConversationStatus @default(OPEN)
+  source               SupportConversationSource @default(LANDING_PAGE)
+  priority             SupportConversationPriority @default(NORMAL)
+  lastMessageAt        DateTime                  @default(now())
+  lastReadAtByCustomer DateTime?
+  lastReadAtByAdmin    DateTime?
+  messages             SupportMessage[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([userId, status])
+  @@index([assignedAdminId, status])
+  @@index([guestEmail])
+  @@index([lastMessageAt])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     SupportSenderType
+  senderUserId   String?
+  senderUser     User?             @relation("SupportMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  content        String
+  isInternal     Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderUserId])
+  @@map("support_messages")
 }
 
 model Session {
@@ -348,4 +395,31 @@ enum NotificationType {
   KYC_REJECTED
   SYSTEM_ANNOUNCEMENT
   SECURITY_ALERT
+}
+
+enum SupportConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum SupportConversationSource {
+  LANDING_PAGE
+  DASHBOARD
+  ADMIN
+}
+
+enum SupportConversationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportSenderType {
+  VISITOR
+  CUSTOMER
+  ADMIN
+  SYSTEM
 }

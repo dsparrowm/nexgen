@@ -21,7 +21,8 @@ import {
     ArrowDownRight,
     Wallet,
     PieChart,
-    RefreshCw
+    RefreshCw,
+    MessageCircle
 } from 'lucide-react'
 
 interface DashboardStats {
@@ -198,6 +199,14 @@ const AdminOverview = () => {
             color: 'text-gold-500',
             bgColor: 'bg-gold-500/10',
             href: '/admin/users'
+        },
+        {
+            title: 'Support Inbox',
+            description: 'Handle live customer chats',
+            icon: MessageCircle,
+            color: 'text-cyan-500',
+            bgColor: 'bg-cyan-500/10',
+            href: '/admin/support'
         }
     ]
 

@@ -47,6 +47,43 @@ interface LoginResponse {
     tokens: Tokens;
 }
 
+export type SupportConversationStatus = 'OPEN' | 'PENDING' | 'CLOSED' | 'RESOLVED';
+export type SupportSenderType = 'VISITOR' | 'CUSTOMER' | 'ADMIN' | 'SYSTEM';
+export type SupportConversationPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+
+export interface SupportConversationSummary {
+    id: string;
+    subject?: string;
+    status: SupportConversationStatus;
+    priority?: SupportConversationPriority;
+    customerName: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    lastMessage?: string;
+    lastMessageAt?: string;
+    unreadCount?: number;
+    assignedAdminName?: string;
+    assignedAdminId?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SupportMessage {
+    id: string;
+    conversationId: string;
+    senderType: SupportSenderType;
+    senderName: string;
+    senderEmail?: string;
+    message: string;
+    isInternal?: boolean;
+    readAt?: string | null;
+    createdAt: string;
+}
+
+export interface SupportConversationDetail extends SupportConversationSummary {
+    messages: SupportMessage[];
+}
+
 class ApiClient {
     private baseUrl: string;
     private isRefreshing = false;
@@ -475,6 +512,89 @@ class ApiClient {
     }
 
     /**
+     * Get support conversations
+     */
+    async getSupportConversations(params?: {
+        status?: SupportConversationStatus | 'ALL';
+        search?: string;
+        page?: number;
+        limit?: number;
+    }): Promise<ApiResponse<{ conversations: SupportConversationSummary[]; pagination?: any }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.status && params.status !== 'ALL') queryParams.append('status', params.status);
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+        const query = queryParams.toString();
+        return this.request(`/admin/support/conversations${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Get a single support conversation with messages
+     */
+    async getSupportConversation(conversationId: string): Promise<ApiResponse<{ conversation: SupportConversationDetail; messages: SupportMessage[] }>> {
+        return this.request(`/admin/support/conversations/${conversationId}`);
+    }
+
+    /**
+     * Get support messages for a conversation
+     */
+    async getSupportMessages(conversationId: string, params?: {
+        page?: number;
+        limit?: number;
+    }): Promise<ApiResponse<{ messages: SupportMessage[]; pagination?: any }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+        const query = queryParams.toString();
+        return this.request(`/admin/support/conversations/${conversationId}/messages${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Send a reply to a support conversation
+     */
+    async sendSupportReply(conversationId: string, message: string): Promise<ApiResponse<{ message: SupportMessage }>> {
+        return this.post(`/admin/support/conversations/${conversationId}/messages`, { message });
+    }
+
+    /**
+     * Update a support conversation status
+     */
+    async updateSupportConversationStatus(conversationId: string, status: SupportConversationStatus): Promise<ApiResponse<any>> {
+        return this.put(`/admin/support/conversations/${conversationId}/status`, { status });
+    }
+
+    /**
+     * Assign a support conversation to an admin
+     */
+    async assignSupportConversation(conversationId: string, adminId?: string): Promise<ApiResponse<any>> {
+        return this.put(`/admin/support/conversations/${conversationId}/assign`, adminId ? { adminId } : {});
+    }
+
+    /**
+     * Mark a support conversation as read
+     */
+    async markSupportConversationRead(conversationId: string): Promise<ApiResponse<any>> {
+        return this.put(`/admin/support/conversations/${conversationId}/read`);
+    }
+
+    /**
+     * Close a support conversation
+     */
+    async closeSupportConversation(conversationId: string): Promise<ApiResponse<any>> {
+        return this.updateSupportConversationStatus(conversationId, 'CLOSED');
+    }
+
+    /**
+     * Reopen a support conversation
+     */
+    async reopenSupportConversation(conversationId: string): Promise<ApiResponse<any>> {
+        return this.updateSupportConversationStatus(conversationId, 'OPEN');
+    }
+
+    /**
      * Get audit logs
      */
     async getAuditLogs(params?: {
@@ -531,4 +651,10 @@ class ApiClient {
 export const apiClient = new ApiClient(API_BASE_URL);
 
 // Export types
-export type { ApiResponse, ApiError, AdminData, Tokens, LoginResponse };
+export type {
+    ApiResponse,
+    ApiError,
+    AdminData,
+    Tokens,
+    LoginResponse,
+};

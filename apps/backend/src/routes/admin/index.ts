@@ -9,6 +9,7 @@ import transactionRoutes from './transaction.routes';
 import reportRoutes from './report.routes';
 import settingsRoutes from './settings.routes';
 import securityRoutes from './security.routes';
+import supportRoutes from './support.routes';
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.use('/transactions', transactionRoutes);
 router.use('/reports', reportRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/security', securityRoutes);
+router.use('/support', supportRoutes);
 
 export default router;

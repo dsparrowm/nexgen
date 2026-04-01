@@ -19,7 +19,8 @@ import {
     X,
     Activity,
     DollarSign,
-    ArrowLeftRight
+    ArrowLeftRight,
+    MessageCircle
 } from 'lucide-react'
 
 // Inline NexgenLogo component
@@ -57,6 +58,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { name: 'User Management', icon: Users, href: '/admin/users' },
         { name: 'Transaction Management', icon: ArrowLeftRight, href: '/admin/transactions' },
         { name: 'Credit Management', icon: CreditCard, href: '/admin/credits' },
+        { name: 'Support Inbox', icon: MessageCircle, href: '/admin/support' },
         { name: 'Reports & Analytics', icon: BarChart3, href: '/admin/reports' },
         ...(canManageSettings() ? [{ name: 'System Settings', icon: Settings, href: '/admin/settings' }] : []),
         ...(isSuperAdmin() ? [{ name: 'Security & Audit', icon: Shield, href: '/admin/security' }] : []),

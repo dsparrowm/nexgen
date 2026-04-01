@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { SupportChatProvider } from "@/components/support-chat/SupportChatProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -52,9 +53,10 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#1a365d" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning={true}>
-        {children}
-        <Toaster position="top-right" richColors />
-        <script src="//code.tidio.co/kjoq3614ehzzyczrpszkhgqqo4j8tgp8.js" async></script>
+        <SupportChatProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </SupportChatProvider>
       </body>
     </html>
   );
