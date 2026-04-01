@@ -363,11 +363,14 @@ export async function createGuestConversation(input: {
   message: string;
 }) {
   const visitorToken = nanoid(32);
+  const conversationId = nanoid();
+  const messageId = nanoid();
 
   return db.prisma.$transaction(async (tx) => {
-    const inserted = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+    await tx.$executeRawUnsafe(
       `
         INSERT INTO "support_conversations" (
+          "id",
           "guestName",
           "guestEmail",
           "guestPhone",
@@ -380,9 +383,9 @@ export async function createGuestConversation(input: {
           "createdAt",
           "updatedAt"
         )
-        VALUES ($1, $2, $3, $4, $5, 'OPEN', 'LANDING_PAGE', 'NORMAL', NOW(), NOW(), NOW())
-        RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', 'LANDING_PAGE', 'NORMAL', NOW(), NOW(), NOW())
       `,
+      conversationId,
       input.name.trim(),
       input.email.trim().toLowerCase(),
       input.phone?.trim() || null,
@@ -390,18 +393,19 @@ export async function createGuestConversation(input: {
       visitorToken
     );
 
-    const conversationId = inserted[0]?.id;
     await tx.$executeRawUnsafe(
       `
         INSERT INTO "support_messages" (
+          "id",
           "conversationId",
           "senderType",
           content,
           "isInternal",
           "createdAt"
         )
-        VALUES ($1, 'VISITOR', $2, FALSE, NOW())
+        VALUES ($1, $2, 'VISITOR', $3, FALSE, NOW())
       `,
+      messageId,
       conversationId,
       input.message.trim()
     );
@@ -421,10 +425,14 @@ export async function createUserConversation(input: {
   subject?: string;
   message: string;
 }) {
+  const conversationId = nanoid();
+  const messageId = nanoid();
+
   return db.prisma.$transaction(async (tx) => {
-    const inserted = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+    await tx.$executeRawUnsafe(
       `
         INSERT INTO "support_conversations" (
+          "id",
           "userId",
           subject,
           status,
@@ -435,17 +443,17 @@ export async function createUserConversation(input: {
           "createdAt",
           "updatedAt"
         )
-        VALUES ($1, $2, 'OPEN', 'DASHBOARD', 'NORMAL', NOW(), NOW(), NOW(), NOW())
-        RETURNING id
+        VALUES ($1, $2, $3, 'OPEN', 'DASHBOARD', 'NORMAL', NOW(), NOW(), NOW(), NOW())
       `,
+      conversationId,
       input.userId,
       input.subject?.trim() || 'Customer support request'
     );
 
-    const conversationId = inserted[0]?.id;
     await tx.$executeRawUnsafe(
       `
         INSERT INTO "support_messages" (
+          "id",
           "conversationId",
           "senderType",
           "senderUserId",
@@ -453,8 +461,9 @@ export async function createUserConversation(input: {
           "isInternal",
           "createdAt"
         )
-        VALUES ($1, 'CUSTOMER', $2, $3, FALSE, NOW())
+        VALUES ($1, $2, 'CUSTOMER', $3, $4, FALSE, NOW())
       `,
+      messageId,
       conversationId,
       input.userId,
       input.message.trim()
@@ -471,11 +480,14 @@ async function addMessageAndRefresh(
   updateParams: unknown[],
   insertParams: unknown[]
 ) {
+  const messageId = nanoid();
+
   return db.prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(updateSql, ...updateParams);
     await tx.$executeRawUnsafe(
       `
         INSERT INTO "support_messages" (
+          "id",
           "conversationId",
           "senderType",
           "senderUserId",
@@ -483,8 +495,9 @@ async function addMessageAndRefresh(
           "isInternal",
           "createdAt"
         )
-        VALUES ($1, $2, $3, $4, FALSE, NOW())
+        VALUES ($1, $2, $3::"SupportSenderType", $4, $5, FALSE, NOW())
       `,
+      messageId,
       ...insertParams
     );
 
@@ -578,7 +591,7 @@ export async function listAdminConversations(filters: {
 
   if (filters.status && SUPPORT_CONVERSATION_STATUSES.includes(filters.status as SupportConversationStatus)) {
     params.push(filters.status);
-    clauses.push(`c.status = $${params.length}`);
+    clauses.push(`c.status = $${params.length}::"SupportConversationStatus"`);
   }
 
   if (filters.search?.trim()) {
@@ -617,7 +630,7 @@ export async function updateConversationStatus(
     await tx.$executeRawUnsafe(
       `
         UPDATE "support_conversations"
-        SET status = $2,
+        SET status = $2::"SupportConversationStatus",
             "lastReadAtByAdmin" = NOW(),
             "updatedAt" = NOW()
         WHERE id = $1

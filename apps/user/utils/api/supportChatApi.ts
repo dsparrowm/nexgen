@@ -1,4 +1,5 @@
 import { getApiBase } from '@/lib/axiosInstance'
+import { getToken, isTokenExpired } from '@/utils/auth'
 
 const API_BASE_URL = getApiBase(true)
 
@@ -153,7 +154,12 @@ function getAuthToken(): string | null {
         return null
     }
 
-    return window.localStorage.getItem('authToken')
+    const token = getToken()
+    if (!token || isTokenExpired()) {
+        return null
+    }
+
+    return token
 }
 
 function getSupportHeaders(): HeadersInit {
