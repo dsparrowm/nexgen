@@ -356,8 +356,8 @@ async function fetchConversationAndMessages(
 }
 
 export async function createGuestConversation(input: {
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   phone?: string;
   subject?: string;
   message: string;
@@ -386,8 +386,8 @@ export async function createGuestConversation(input: {
         VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', 'LANDING_PAGE', 'NORMAL', NOW(), NOW(), NOW())
       `,
       conversationId,
-      input.name.trim(),
-      input.email.trim().toLowerCase(),
+      input.name?.trim() || null,
+      input.email?.trim().toLowerCase() || null,
       input.phone?.trim() || null,
       input.subject?.trim() || 'Website support request',
       visitorToken

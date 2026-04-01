@@ -12,11 +12,11 @@ export const createConversation = async (req: Request, res: Response): Promise<v
   try {
     const { name, email, phone, subject, message } = req.body;
 
-    if (!name?.trim() || !email?.trim() || !message?.trim()) {
+    if (!message?.trim()) {
       res.status(400).json({
         success: false,
         error: {
-          message: 'Name, email, and message are required',
+          message: 'Message is required',
           code: 'VALIDATION_FAILED',
         },
       });
