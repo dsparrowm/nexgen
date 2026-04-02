@@ -7,6 +7,7 @@ import {
   serializeConversationDetail,
   serializeMessages,
 } from '@/services/supportChat.service';
+import { broadcastSupportConversationSnapshot } from '@/realtime/supportChatSocket';
 
 export const createConversation = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -30,6 +31,7 @@ export const createConversation = async (req: Request, res: Response): Promise<v
       subject,
       message,
     });
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'conversation_created');
 
     res.status(201).json({
       success: true,
@@ -131,6 +133,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
     }
 
     const { conversation, messages } = await addGuestMessage(conversationId, visitorToken, message);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
 
     res.status(201).json({
       success: true,

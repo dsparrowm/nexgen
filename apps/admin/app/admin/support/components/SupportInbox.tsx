@@ -26,6 +26,7 @@ import {
     SupportConversationSummary,
     SupportMessage,
 } from '@/lib/api'
+import { createSupportSocket } from '@/lib/supportSocket'
 
 type StatusFilter = SupportConversationStatus | 'ALL'
 
@@ -47,6 +48,7 @@ const statusOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: 'ALL', label: 'All' },
     { value: 'OPEN', label: 'Open' },
     { value: 'PENDING', label: 'Pending' },
+    { value: 'RESOLVED', label: 'Resolved' },
     { value: 'CLOSED', label: 'Closed' },
 ]
 
@@ -66,6 +68,32 @@ const normalizeMessages = (data: any): SupportMessage[] => {
     if (!data) return []
     if (Array.isArray(data)) return data
     return data.messages ?? data.items ?? data.data ?? []
+}
+
+const extractConversationId = (payload: any): string | null => {
+    if (!payload) return null
+
+    const candidates = Array.isArray(payload) ? payload : [payload]
+
+    for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== 'object') continue
+
+        const conversationId =
+            candidate.conversationId
+            || candidate.id
+            || candidate.conversation?.conversationId
+            || candidate.conversation?.id
+            || candidate.data?.conversationId
+            || candidate.data?.id
+            || candidate.data?.conversation?.conversationId
+            || candidate.data?.conversation?.id
+
+        if (typeof conversationId === 'string' && conversationId.length > 0) {
+            return conversationId
+        }
+    }
+
+    return null
 }
 
 const formatRelativeTime = (value?: string) => {
@@ -97,8 +125,13 @@ const SupportInbox: React.FC = () => {
     const [isSending, setIsSending] = useState(false)
     const [isAssigning, setIsAssigning] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    const [socketStatus, setSocketStatus] = useState<'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error'>('idle')
     const [error, setError] = useState<string | null>(null)
     const messageScrollRef = useRef<HTMLDivElement | null>(null)
+    const loadConversationsRef = useRef<((background?: boolean) => Promise<void>) | null>(null)
+    const loadConversationRef = useRef<((conversationId: string, background?: boolean) => Promise<void>) | null>(null)
+    const selectedConversationIdRef = useRef<string | null>(null)
+    const socketRef = useRef<any>(null)
 
     const selectedSummary = conversations.find((conversation) => conversation.id === selectedConversationId) || selectedConversation
     const openCount = conversations.filter((conversation) => conversation.status === 'OPEN').length
@@ -179,6 +212,97 @@ const SupportInbox: React.FC = () => {
             setIsLoadingThread(false)
         }
     }, [])
+
+    useEffect(() => {
+        loadConversationsRef.current = loadConversations
+        loadConversationRef.current = loadConversation
+        selectedConversationIdRef.current = selectedConversationId
+    }, [loadConversations, loadConversation, selectedConversationId])
+
+    useEffect(() => {
+        let mounted = true
+        let socket: any = null
+
+        const syncSupportData = (event: string, payloads: any[]) => {
+            const activeConversationId = selectedConversationIdRef.current
+            const payloadConversationId = extractConversationId(payloads)
+
+            void loadConversationsRef.current?.(true)
+
+            if (payloadConversationId && activeConversationId && payloadConversationId === activeConversationId) {
+                void loadConversationRef.current?.(payloadConversationId, true)
+                return
+            }
+
+            if (!payloadConversationId && activeConversationId) {
+                void loadConversationRef.current?.(activeConversationId, true)
+                return
+            }
+
+        }
+
+        const connectSocket = async () => {
+            if (!admin?.id) {
+                setSocketStatus('idle')
+                return
+            }
+
+            const token = apiClient.getAccessToken()
+            if (!token) {
+                setSocketStatus('idle')
+                return
+            }
+
+            setSocketStatus('connecting')
+
+            const nextSocket = await createSupportSocket({ token, type: 'admin' })
+            if (!mounted) {
+                nextSocket?.disconnect()
+                return
+            }
+
+            if (!nextSocket) {
+                setSocketStatus('error')
+                return
+            }
+
+            socket = nextSocket
+            socketRef.current = nextSocket
+
+            socket.on('connect', () => {
+                if (mounted) setSocketStatus('connected')
+            })
+            socket.on('disconnect', () => {
+                if (mounted) setSocketStatus('idle')
+            })
+            socket.on('connect_error', () => {
+                if (mounted) setSocketStatus('error')
+            })
+            socket.on('reconnect_attempt', () => {
+                if (mounted) setSocketStatus('reconnecting')
+            })
+            socket.on('reconnect', () => {
+                if (mounted) setSocketStatus('connected')
+            })
+            socket.onAny?.((event: string, ...payloads: any[]) => {
+                if (typeof event !== 'string' || !event.startsWith('support:')) return
+
+                syncSupportData(event, payloads)
+            })
+            socket.connect?.()
+        }
+
+        void connectSocket()
+
+        return () => {
+            mounted = false
+            socket?.offAny?.()
+            socket?.disconnect?.()
+            if (socketRef.current === socket) {
+                socketRef.current = null
+            }
+        }
+    }, [admin?.id])
 
     useEffect(() => {
         loadConversations()
@@ -371,6 +495,38 @@ const SupportInbox: React.FC = () => {
                         <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
+                    <div
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${
+                            socketStatus === 'connected'
+                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                : socketStatus === 'connecting' || socketStatus === 'reconnecting'
+                                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                    : socketStatus === 'error'
+                                        ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                        : 'border-white/10 bg-navy-800/50 text-gray-300'
+                        }`}
+                    >
+                        <span
+                            className={`h-2 w-2 rounded-full ${
+                                socketStatus === 'connected'
+                                    ? 'bg-emerald-400'
+                                    : socketStatus === 'connecting' || socketStatus === 'reconnecting'
+                                        ? 'bg-blue-400'
+                                        : socketStatus === 'error'
+                                            ? 'bg-red-400'
+                                            : 'bg-gray-500'
+                            }`}
+                        />
+                        {socketStatus === 'connected'
+                            ? 'Live connected'
+                            : socketStatus === 'connecting'
+                                ? 'Connecting'
+                                : socketStatus === 'reconnecting'
+                                    ? 'Reconnecting'
+                                    : socketStatus === 'error'
+                                        ? 'Live unavailable'
+                                        : 'Polling fallback'}
+                    </div>
                 </div>
             </div>
 

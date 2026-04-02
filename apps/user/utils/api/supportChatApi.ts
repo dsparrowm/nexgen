@@ -2,6 +2,9 @@ import { getApiBase } from '@/lib/axiosInstance'
 import { getToken, isTokenExpired } from '@/utils/auth'
 
 const API_BASE_URL = getApiBase(true)
+const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '')
 
 export type SupportChatRole = 'visitor' | 'user' | 'agent' | 'system'
 
@@ -236,6 +239,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
 export function getCurrentSupportSessionType() {
     return getAuthToken() ? 'user' : 'guest'
+}
+
+export function getSupportBackendBaseUrl() {
+    return BACKEND_BASE_URL
+}
+
+export function getSupportSocketBundleUrl() {
+    return `${BACKEND_BASE_URL}/socket.io/socket.io.js`
 }
 
 export function conversationIdFrom(payload: SupportConversation | null | undefined) {

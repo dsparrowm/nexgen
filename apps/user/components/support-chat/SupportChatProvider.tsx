@@ -5,6 +5,7 @@ import React, {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -24,6 +25,11 @@ import {
     type SupportChatMessage,
     type SupportConversationListItem,
 } from '@/utils/api/supportChatApi'
+import { getToken, isTokenExpired } from '@/utils/auth'
+import {
+    createSupportSocket,
+    type SupportSocket as SupportSocketClient,
+} from '@/utils/api/supportSocket'
 
 type SupportChatSessionType = 'guest' | 'user'
 
@@ -89,7 +95,12 @@ function getStoredAuthToken() {
         return null
     }
 
-    return window.localStorage.getItem('authToken')
+    const token = getToken()
+    if (!token || isTokenExpired()) {
+        return null
+    }
+
+    return token
 }
 
 function getLatestConversationId(conversations: SupportConversationListItem[]) {
@@ -112,6 +123,94 @@ function normalizeMessages(messages: SupportChatMessage[] | undefined, fallback:
     }
 
     return fallback
+}
+
+function isLikelySocketMessage(value: unknown): value is SupportChatMessage {
+    return Boolean(value && typeof value === 'object' && 'content' in value)
+}
+
+function normalizeSocketMessage(message: unknown): SupportChatMessage | null {
+    if (!isLikelySocketMessage(message)) {
+        return null
+    }
+
+    const rawMessage = message as Partial<SupportChatMessage> & {
+        senderType?: string
+        message?: string
+    }
+
+    const role = rawMessage.role
+        || (rawMessage.senderType === 'ADMIN' ? 'agent'
+            : rawMessage.senderType === 'SYSTEM' ? 'system'
+                : rawMessage.senderType === 'CUSTOMER' ? 'user'
+                    : 'visitor')
+
+    return {
+        id: rawMessage.id || `socket-message-${Date.now()}`,
+        role,
+        content: rawMessage.content || rawMessage.message || '',
+        createdAt: rawMessage.createdAt || new Date().toISOString(),
+        status: rawMessage.status,
+    }
+}
+
+function normalizeSocketMessages(value: unknown): SupportChatMessage[] | null {
+    if (!Array.isArray(value)) {
+        return null
+    }
+
+    const normalized = value
+        .map((item) => normalizeSocketMessage(item))
+        .filter((item): item is SupportChatMessage => Boolean(item))
+
+    return normalized.length > 0 ? normalized : null
+}
+
+function mergeSupportMessages(current: SupportChatMessage[], incoming: SupportChatMessage[]) {
+    const byId = new Map<string, SupportChatMessage>()
+
+    for (const message of current) {
+        byId.set(message.id, message)
+    }
+
+    for (const message of incoming) {
+        const currentMatch = current.find((item) => (
+            item.id.startsWith('temp-')
+            && item.role === message.role
+            && item.content === message.content
+        ))
+
+        if (currentMatch && currentMatch.id !== message.id) {
+            byId.delete(currentMatch.id)
+        }
+
+        byId.set(message.id, {
+            ...byId.get(message.id),
+            ...message,
+        })
+    }
+
+    return Array.from(byId.values()).sort((left, right) => (
+        new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+    ))
+}
+
+function normalizeSocketConversationId(payload: unknown) {
+    if (!payload || typeof payload !== 'object') {
+        return null
+    }
+
+    const record = payload as {
+        conversationId?: string
+        id?: string
+        conversation?: SupportConversationListItem
+    }
+
+    return record.conversationId
+        || record.id
+        || record.conversation?.conversationId
+        || record.conversation?.id
+        || null
 }
 
 export function useSupportChat() {
@@ -175,6 +274,79 @@ function SupportChatPanel({
     const [isSending, setIsSending] = useState(false)
     const [isHydrating, setIsHydrating] = useState(false)
     const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected' | 'offline'>('idle')
+    const socketRef = useRef<SupportSocketClient | null>(null)
+    const chatStateRef = useRef({
+        sessionType,
+        identity,
+        subject,
+        conversationId,
+        visitorToken,
+    })
+
+    useEffect(() => {
+        chatStateRef.current = {
+            sessionType,
+            identity,
+            subject,
+            conversationId,
+            visitorToken,
+        }
+    }, [conversationId, identity, sessionType, subject, visitorToken])
+
+    function buildJoinPayload() {
+        const current = chatStateRef.current
+
+        return {
+            conversationId: current.conversationId,
+            visitorToken: current.sessionType === 'guest' ? current.visitorToken : undefined,
+        }
+    }
+
+    function emitJoin(socket: SupportSocketClient) {
+        const payload = buildJoinPayload()
+
+        if (!payload.conversationId) {
+            return
+        }
+
+        socket.emit('support:join', payload, (response?: {
+            success?: boolean
+            data?: {
+                conversation?: {
+                    id?: string
+                    conversationId?: string
+                    visitorToken?: string | null
+                    messages?: unknown
+                }
+                messages?: unknown
+            }
+        }) => {
+            if (!response?.success) {
+                setConnectionState('offline')
+                return
+            }
+
+            const nextConversationId = normalizeSocketConversationId(response.data?.conversation)
+            const nextMessages = normalizeSocketMessages(
+                response.data?.messages || response.data?.conversation?.messages
+            )
+            const nextVisitorToken = response.data?.conversation?.visitorToken || null
+
+            if (nextConversationId) {
+                setConversationId(nextConversationId)
+            }
+
+            if (nextVisitorToken) {
+                setVisitorToken(nextVisitorToken)
+            }
+
+            if (nextMessages) {
+                setMessages((current) => mergeSupportMessages(current, nextMessages))
+            }
+
+            setConnectionState('connected')
+        })
+    }
 
     useEffect(() => {
         const detectedSessionType = getCurrentSupportSessionType()
@@ -240,6 +412,114 @@ function SupportChatPanel({
             setStoredJson(STORAGE_KEYS.userConversationId, conversationId)
         }
     }, [conversationId, sessionType])
+
+    useEffect(() => {
+        const socket = socketRef.current
+
+        if (!isOpen) {
+            socket?.disconnect()
+            socketRef.current = null
+            setConnectionState('idle')
+            return
+        }
+
+        let active = true
+
+        const attachSocket = async () => {
+            setConnectionState((current) => (current === 'connected' ? current : 'connecting'))
+
+            if (!active) {
+                return
+            }
+
+            if (socketRef.current) {
+                return
+            }
+
+            let socket: SupportSocketClient | null = null
+
+            try {
+                const authToken = sessionType === 'user' ? getStoredAuthToken() : null
+                socket = await createSupportSocket(authToken ? { token: authToken, type: 'user' } : undefined)
+            } catch {
+                if (active) {
+                    setConnectionState('offline')
+                }
+                return
+            }
+
+            if (!active || !socket) {
+                socket?.disconnect()
+                return
+            }
+
+            socketRef.current = socket
+
+            const handleSnapshot = (payload: unknown) => {
+                const nextConversationId = normalizeSocketConversationId(payload)
+                const nextMessages = normalizeSocketMessages(
+                    (payload as { messages?: unknown }).messages
+                        || (payload as { conversation?: { messages?: unknown } }).conversation?.messages
+                )
+                const nextVisitorToken = (payload as { visitorToken?: string }).visitorToken
+                    || (payload as { conversation?: { visitorToken?: string } }).conversation?.visitorToken
+
+                if (nextConversationId) {
+                    setConversationId(nextConversationId)
+                }
+
+                if (nextVisitorToken) {
+                    setVisitorToken(nextVisitorToken)
+                }
+
+                if (nextMessages) {
+                    setMessages((current) => mergeSupportMessages(current, nextMessages))
+                }
+            }
+
+            const handleConnected = () => {
+                setConnectionState('connected')
+                emitJoin(socket)
+            }
+
+            const handleDisconnected = () => {
+                setConnectionState('offline')
+            }
+
+            const handleConnectError = () => {
+                setConnectionState('offline')
+            }
+
+            socket.on('connect', handleConnected)
+            socket.on('disconnect', handleDisconnected)
+            socket.on('connect_error', handleConnectError)
+            socket.on('support:conversation-snapshot', handleSnapshot)
+            socket.connect()
+        }
+
+        void attachSocket()
+
+        return () => {
+            active = false
+        }
+    }, [isOpen, sessionType])
+
+    useEffect(() => {
+        const socket = socketRef.current
+        if (!socket || !socket.connected || !conversationId) {
+            return
+        }
+
+        emitJoin(socket)
+    }, [conversationId, identity, sessionType, subject, visitorToken])
+
+    useEffect(() => {
+        return () => {
+            const socket = socketRef.current
+            socket?.disconnect()
+            socketRef.current = null
+        }
+    }, [])
 
     useEffect(() => {
         if (!isOpen) {

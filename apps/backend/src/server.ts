@@ -1,8 +1,10 @@
 import 'dotenv/config';
+import { createServer } from 'http';
 import app from './app';
 import { config } from './config/env';
 import { logger } from './utils/logger';
 import db from './services/database';
+import { initializeSupportChatSocketServer } from './realtime/supportChatSocket';
 
 const startServer = async () => {
     console.log('Starting NexGen Backend Server...');
@@ -20,7 +22,10 @@ const startServer = async () => {
         logger.info('✅ Database connection established');
 
         // Create HTTP server
-        const server = app.listen(config.port, '0.0.0.0', () => {
+        const httpServer = createServer(app);
+        initializeSupportChatSocketServer(httpServer);
+
+        const server = httpServer.listen(config.port, '0.0.0.0', () => {
             console.log(`Server is listening on port ${config.port}`);
             logger.info(`
 🚀 NexGen Backend Server Started!

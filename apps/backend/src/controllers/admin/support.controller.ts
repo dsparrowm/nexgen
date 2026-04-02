@@ -13,6 +13,7 @@ import {
   serializeMessages,
   updateConversationStatus,
 } from '@/services/supportChat.service';
+import { broadcastSupportConversationSnapshot } from '@/realtime/supportChatSocket';
 
 type AuthRequest = Request & {
   user?: {
@@ -105,6 +106,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const { conversation, messages } = await addAdminMessage(conversationId, adminId, message);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
 
     res.status(201).json({
       success: true,
@@ -137,6 +139,7 @@ export const setStatus = async (req: AuthRequest, res: Response): Promise<void> 
     }
 
     const { conversation, messages } = await updateConversationStatus(conversationId, status);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'status_updated');
 
     res.status(200).json({
       success: true,
@@ -170,6 +173,7 @@ export const assignToAdmin = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const { conversation, messages } = await assignConversation(conversationId, adminId);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'assigned');
 
     res.status(200).json({
       success: true,
@@ -192,6 +196,7 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { conversationId } = req.params;
     const { conversation, messages } = await markConversationReadByAdmin(conversationId);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'read');
 
     res.status(200).json({
       success: true,

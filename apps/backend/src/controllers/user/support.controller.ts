@@ -9,6 +9,7 @@ import {
   serializeConversationSummary,
   serializeMessages,
 } from '@/services/supportChat.service';
+import { broadcastSupportConversationSnapshot } from '@/realtime/supportChatSocket';
 
 type AuthRequest = Request & {
   user?: {
@@ -66,6 +67,7 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
     }
 
     const { conversation, messages } = await createUserConversation({ userId, subject, message });
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'conversation_created');
 
     res.status(201).json({
       success: true,
@@ -156,6 +158,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const { conversation, messages } = await addUserMessage(conversationId, userId, message);
+    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
 
     res.status(201).json({
       success: true,
