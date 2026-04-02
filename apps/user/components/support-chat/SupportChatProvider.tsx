@@ -74,12 +74,43 @@ function getStoredJson<T>(key: string): T | null {
     }
 }
 
+function getStoredString(key: string): string | null {
+    if (!isBrowser()) {
+        return null
+    }
+
+    const raw = window.localStorage.getItem(key)
+    if (raw === null) {
+        return null
+    }
+
+    try {
+        const parsed = JSON.parse(raw)
+        return typeof parsed === 'string' ? parsed : raw
+    } catch {
+        return raw
+    }
+}
+
 function setStoredJson(key: string, value: unknown) {
     if (!isBrowser()) {
         return
     }
 
     window.localStorage.setItem(key, JSON.stringify(value))
+}
+
+function setStoredString(key: string, value: string | null) {
+    if (!isBrowser()) {
+        return
+    }
+
+    if (value === null) {
+        window.localStorage.removeItem(key)
+        return
+    }
+
+    window.localStorage.setItem(key, value)
 }
 
 function removeStoredValue(key: string) {
@@ -361,9 +392,9 @@ function SupportChatPanel({
         }
 
         const storedIdentity = getStoredJson<SupportChatIdentity>(STORAGE_KEYS.guestIdentity)
-        const storedConversationId = isBrowser() ? window.localStorage.getItem(STORAGE_KEYS.guestConversationId) : null
-        const storedVisitorToken = isBrowser() ? window.localStorage.getItem(STORAGE_KEYS.guestVisitorToken) : null
-        const storedSubject = isBrowser() ? window.localStorage.getItem(STORAGE_KEYS.guestSubject) : null
+        const storedConversationId = getStoredString(STORAGE_KEYS.guestConversationId)
+        const storedVisitorToken = getStoredString(STORAGE_KEYS.guestVisitorToken)
+        const storedSubject = getStoredString(STORAGE_KEYS.guestSubject)
 
         if (storedIdentity) {
             setIdentity(storedIdentity)
@@ -388,16 +419,16 @@ function SupportChatPanel({
         }
 
         setStoredJson(STORAGE_KEYS.guestIdentity, identity)
-        setStoredJson(STORAGE_KEYS.guestSubject, subject)
+        setStoredString(STORAGE_KEYS.guestSubject, subject || null)
 
         if (conversationId) {
-            setStoredJson(STORAGE_KEYS.guestConversationId, conversationId)
+            setStoredString(STORAGE_KEYS.guestConversationId, conversationId)
         } else {
             removeStoredValue(STORAGE_KEYS.guestConversationId)
         }
 
         if (visitorToken) {
-            setStoredJson(STORAGE_KEYS.guestVisitorToken, visitorToken)
+            setStoredString(STORAGE_KEYS.guestVisitorToken, visitorToken)
         } else {
             removeStoredValue(STORAGE_KEYS.guestVisitorToken)
         }
@@ -409,7 +440,7 @@ function SupportChatPanel({
         }
 
         if (conversationId) {
-            setStoredJson(STORAGE_KEYS.userConversationId, conversationId)
+            setStoredString(STORAGE_KEYS.userConversationId, conversationId)
         }
     }, [conversationId, sessionType])
 
