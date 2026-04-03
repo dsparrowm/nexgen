@@ -253,7 +253,9 @@ const SupportInbox: React.FC = () => {
                     setHistoryPage(detailResponse.data.pagination?.page || page)
                     setHistoryHasMore(detailResponse.data.pagination?.hasMore || false)
                     stickToBottomRef.current = true
-                    await apiClient.markSupportConversationRead(conversationId)
+                    if (!background) {
+                        await apiClient.markSupportConversationRead(conversationId)
+                    }
                     return
                 }
             }
