@@ -696,7 +696,7 @@ export async function addAdminMessage(conversationId: string, adminId: string, m
     conversationId,
     `
       UPDATE "support_conversations"
-      SET status = 'PENDING',
+      SET status = 'OPEN',
           "assignedAdminId" = $2,
           "lastMessageAt" = NOW(),
           "lastReadAtByAdmin" = NOW(),
