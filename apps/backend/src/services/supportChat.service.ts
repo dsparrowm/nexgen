@@ -56,7 +56,7 @@ type ConversationRow = {
 
 type MessageRow = {
   id: string;
-  clientMessageId: string | null;
+  clientMessageId?: string | null;
   conversationId: string;
   senderType: SupportSenderType;
   senderUserId: string | null;
@@ -275,7 +275,6 @@ async function fetchMessages(
       `
         SELECT
           m.id,
-          m."clientMessageId" AS "clientMessageId",
           m."conversationId" AS "conversationId",
           m."senderType" AS "senderType",
           m."senderUserId" AS "senderUserId",
@@ -311,7 +310,6 @@ async function fetchMessages(
     `
       SELECT
         m.id,
-        m."clientMessageId" AS "clientMessageId",
         m."conversationId" AS "conversationId",
         m."senderType" AS "senderType",
         m."senderUserId" AS "senderUserId",
@@ -489,7 +487,10 @@ async function fetchConversationAndMessagesByClientMessageId(
   clientMessageId: string,
   options: MessageQueryOptions = {}
 ) {
-  return fetchConversationAndMessages(runner, 'c.id = (SELECT m."conversationId" FROM "support_messages" m WHERE m."clientMessageId" = $1 LIMIT 1)', [clientMessageId], options);
+  void runner;
+  void clientMessageId;
+  void options;
+  return null;
 }
 
 export async function createGuestConversation(input: {
@@ -504,25 +505,11 @@ export async function createGuestConversation(input: {
   const conversationId = nanoid();
   const messageId = nanoid();
 
-  if (input.clientMessageId) {
-    const existing = await fetchConversationAndMessagesByClientMessageId(db.prisma as unknown as QueryRunner, input.clientMessageId);
-    if (existing) {
-      return {
-        conversation: existing.conversation,
-        messages: existing.messages,
-        createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-        visitorToken: existing.conversation.visitorToken,
-      };
-    }
-  }
-
   return db.prisma.$transaction(async (tx) => {
-    const conversationInsertResult = input.clientMessageId
-      ? await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `
+    await tx.$executeRawUnsafe(
+      `
         INSERT INTO "support_conversations" (
           "id",
-          "clientMessageId",
           "guestName",
           "guestEmail",
           "guestPhone",
@@ -535,89 +522,32 @@ export async function createGuestConversation(input: {
           "createdAt",
           "updatedAt"
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', 'LANDING_PAGE', 'NORMAL', NOW(), NOW(), NOW())
-        ON CONFLICT ("clientMessageId") DO NOTHING
-        RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, 'OPEN', 'LANDING_PAGE', 'NORMAL', NOW(), NOW(), NOW())
       `,
-        conversationId,
-        input.clientMessageId,
-        input.name?.trim() || null,
-        input.email?.trim().toLowerCase() || null,
-        input.phone?.trim() || null,
-        input.subject?.trim() || 'Website support request',
-        visitorToken
-      )
-      : [
-        { id: conversationId },
-      ];
+      conversationId,
+      input.name?.trim() || null,
+      input.email?.trim().toLowerCase() || null,
+      input.phone?.trim() || null,
+      input.subject?.trim() || 'Website support request',
+      visitorToken
+    );
 
-    if (input.clientMessageId && conversationInsertResult.length === 0) {
-      const existing = await fetchConversationAndMessagesByClientMessageId(tx as QueryRunner, input.clientMessageId);
-      if (existing) {
-        return {
-          conversation: existing.conversation,
-          messages: existing.messages,
-          createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-          visitorToken: existing.conversation.visitorToken,
-        };
-      }
-    }
-
-    const messageInsertResult = input.clientMessageId
-      ? await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `
+    await tx.$executeRawUnsafe(
+      `
         INSERT INTO "support_messages" (
           "id",
-          "clientMessageId",
           "conversationId",
           "senderType",
           content,
           "isInternal",
           "createdAt"
         )
-        VALUES ($1, $2, $3, 'VISITOR', $4, FALSE, NOW())
-        ON CONFLICT ("clientMessageId") DO NOTHING
-        RETURNING id
+        VALUES ($1, $2, 'VISITOR', $3, FALSE, NOW())
       `,
-        messageId,
-        input.clientMessageId,
-        conversationId,
-        input.message.trim()
-      )
-      : [
-        { id: messageId },
-      ];
-
-    if (input.clientMessageId && messageInsertResult.length === 0) {
-      const existing = await fetchConversationAndMessagesByClientMessageId(tx as QueryRunner, input.clientMessageId);
-      if (existing) {
-        return {
-          conversation: existing.conversation,
-          messages: existing.messages,
-          createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-          visitorToken: existing.conversation.visitorToken,
-        };
-      }
-    }
-
-    if (!input.clientMessageId) {
-      await tx.$executeRawUnsafe(
-        `
-          INSERT INTO "support_messages" (
-            "id",
-            "conversationId",
-            "senderType",
-            content,
-            "isInternal",
-            "createdAt"
-          )
-          VALUES ($1, $2, 'VISITOR', $3, FALSE, NOW())
-        `,
-        messageId,
-        conversationId,
-        input.message.trim()
-      );
-    }
+      messageId,
+      conversationId,
+      input.message.trim()
+    );
 
     const result = await fetchConversationAndMessages(tx as QueryRunner, 'c.id = $1', [conversationId]);
 
@@ -639,23 +569,11 @@ export async function createUserConversation(input: {
   const conversationId = nanoid();
   const messageId = nanoid();
 
-  if (input.clientMessageId) {
-    const existing = await fetchConversationAndMessagesByClientMessageId(db.prisma as unknown as QueryRunner, input.clientMessageId);
-    if (existing) {
-      return {
-        ...existing,
-        createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-      };
-    }
-  }
-
   return db.prisma.$transaction(async (tx) => {
-    const conversationInsertResult = input.clientMessageId
-      ? await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `
+    await tx.$executeRawUnsafe(
+      `
         INSERT INTO "support_conversations" (
           "id",
-          "clientMessageId",
           "userId",
           subject,
           status,
@@ -666,35 +584,17 @@ export async function createUserConversation(input: {
           "createdAt",
           "updatedAt"
         )
-        VALUES ($1, $2, $3, $4, 'OPEN', 'DASHBOARD', 'NORMAL', NOW(), NOW(), NOW(), NOW())
-        ON CONFLICT ("clientMessageId") DO NOTHING
-        RETURNING id
+        VALUES ($1, $2, $3, 'OPEN', 'DASHBOARD', 'NORMAL', NOW(), NOW(), NOW(), NOW())
       `,
-        conversationId,
-        input.clientMessageId,
-        input.userId,
-        input.subject?.trim() || 'Customer support request'
-      )
-      : [
-        { id: conversationId },
-      ];
+      conversationId,
+      input.userId,
+      input.subject?.trim() || 'Customer support request'
+    );
 
-    if (input.clientMessageId && conversationInsertResult.length === 0) {
-      const existing = await fetchConversationAndMessagesByClientMessageId(tx as QueryRunner, input.clientMessageId);
-      if (existing) {
-        return {
-          ...existing,
-          createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-        };
-      }
-    }
-
-    const messageInsertResult = input.clientMessageId
-      ? await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `
+    await tx.$executeRawUnsafe(
+      `
         INSERT INTO "support_messages" (
           "id",
-          "clientMessageId",
           "conversationId",
           "senderType",
           "senderUserId",
@@ -702,50 +602,13 @@ export async function createUserConversation(input: {
           "isInternal",
           "createdAt"
         )
-        VALUES ($1, $2, $3, 'CUSTOMER', $4, $5, FALSE, NOW())
-        ON CONFLICT ("clientMessageId") DO NOTHING
-        RETURNING id
+        VALUES ($1, $2, 'CUSTOMER', $3, $4, FALSE, NOW())
       `,
-        messageId,
-        input.clientMessageId,
-        conversationId,
-        input.userId,
-        input.message.trim()
-      )
-      : [
-        { id: messageId },
-      ];
-
-    if (input.clientMessageId && messageInsertResult.length === 0) {
-      const existing = await fetchConversationAndMessagesByClientMessageId(tx as QueryRunner, input.clientMessageId);
-      if (existing) {
-        return {
-          ...existing,
-          createdMessageId: existing.messages.find((message) => message.clientMessageId === input.clientMessageId)?.id || null,
-        };
-      }
-    }
-
-    if (!input.clientMessageId) {
-      await tx.$executeRawUnsafe(
-        `
-          INSERT INTO "support_messages" (
-            "id",
-            "conversationId",
-            "senderType",
-            "senderUserId",
-            content,
-            "isInternal",
-            "createdAt"
-          )
-          VALUES ($1, $2, 'CUSTOMER', $3, $4, FALSE, NOW())
-        `,
-        messageId,
-        conversationId,
-        input.userId,
-        input.message.trim()
-      );
-    }
+      messageId,
+      conversationId,
+      input.userId,
+      input.message.trim()
+    );
 
     const result = await fetchConversationAndMessages(tx as QueryRunner, 'c.id = $1', [conversationId]);
     return { ...result!, createdMessageId: messageId };
@@ -761,71 +624,24 @@ async function addMessageAndRefresh(
 ) {
   const messageId = nanoid();
 
-  if (clientMessageId) {
-    const existing = await fetchConversationAndMessagesByClientMessageId(db.prisma as unknown as QueryRunner, clientMessageId);
-    if (existing) {
-      return {
-        ...existing,
-        createdMessageId: existing.messages.find((message) => message.clientMessageId === clientMessageId)?.id || null,
-      };
-    }
-  }
-
   return db.prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(updateSql, ...updateParams);
-    const messageInsertResult = clientMessageId
-      ? await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `
-        INSERT INTO "support_messages" (
-          "id",
-          "clientMessageId",
-          "conversationId",
-          "senderType",
-          "senderUserId",
-          content,
-          "isInternal",
-          "createdAt"
-        )
-        VALUES ($1, $2, $3, $4::"SupportSenderType", $5, $6, FALSE, NOW())
-        ON CONFLICT ("clientMessageId") DO NOTHING
-        RETURNING id
-      `,
-        messageId,
-        clientMessageId,
-        ...insertParams
+    await tx.$executeRawUnsafe(
+      `
+      INSERT INTO "support_messages" (
+        "id",
+        "conversationId",
+        "senderType",
+        "senderUserId",
+        content,
+        "isInternal",
+        "createdAt"
       )
-      : [
-        { id: messageId },
-      ];
-
-    if (clientMessageId && messageInsertResult.length === 0) {
-      const existing = await fetchConversationAndMessagesByClientMessageId(tx as QueryRunner, clientMessageId);
-      if (existing) {
-        return {
-          ...existing,
-          createdMessageId: existing.messages.find((message) => message.clientMessageId === clientMessageId)?.id || null,
-        };
-      }
-    }
-
-    if (!clientMessageId) {
-      await tx.$executeRawUnsafe(
-        `
-        INSERT INTO "support_messages" (
-          "id",
-          "conversationId",
-          "senderType",
-          "senderUserId",
-          content,
-          "isInternal",
-          "createdAt"
-        )
-        VALUES ($1, $2, $3::"SupportSenderType", $4, $5, FALSE, NOW())
-      `,
-        messageId,
-        ...insertParams
-      );
-    }
+      VALUES ($1, $2, $3::"SupportSenderType", $4, $5, FALSE, NOW())
+    `,
+      messageId,
+      ...insertParams
+    );
 
     const result = await fetchConversationAndMessages(tx as QueryRunner, 'c.id = $1', [conversationId]);
     if (!result) {
