@@ -10,6 +10,26 @@ import {
 } from '@/services/supportChat.service';
 import { broadcastSupportConversationSnapshot } from '@/realtime/supportChatSocket';
 
+function normalizeSupportConversationId(value: unknown) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+}
+
 export const createConversation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, phone, subject, message, clientMessageId } = req.body;
@@ -67,7 +87,7 @@ export const createConversation = async (req: Request, res: Response): Promise<v
 
 export const getConversation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { conversationId } = req.params;
+    const conversationId = normalizeSupportConversationId(req.params.conversationId);
     const visitorToken = String(req.query.visitorToken || '');
     const page = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
     const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
@@ -125,7 +145,7 @@ export const getConversation = async (req: Request, res: Response): Promise<void
 
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { conversationId } = req.params;
+    const conversationId = normalizeSupportConversationId(req.params.conversationId);
     const { visitorToken, message, clientMessageId } = req.body;
 
     if (!visitorToken || !message?.trim()) {

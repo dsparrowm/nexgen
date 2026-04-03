@@ -19,6 +19,7 @@ import {
     getGuestConversation,
     getUserConversation,
     listUserConversations,
+    normalizeSupportConversationId,
     sendGuestMessage,
     sendUserMessage,
     type SupportChatIdentity,
@@ -407,7 +408,7 @@ function SupportChatPanel({
             const nextVisitorToken = response.data?.conversation?.visitorToken || null
 
             if (nextConversationId) {
-                setConversationId(nextConversationId)
+                setConversationId(normalizeSupportConversationId(nextConversationId))
             }
 
             if (nextVisitorToken) {
@@ -442,7 +443,7 @@ function SupportChatPanel({
         if (detectedSessionType === 'user') {
             const storedUserConversationId = isBrowser() ? window.localStorage.getItem(STORAGE_KEYS.userConversationId) : null
             if (storedUserConversationId) {
-                setConversationId(storedUserConversationId)
+                setConversationId(normalizeSupportConversationId(storedUserConversationId))
             }
             return
         }
@@ -457,7 +458,7 @@ function SupportChatPanel({
         }
 
         if (storedConversationId) {
-            setConversationId(storedConversationId)
+            setConversationId(normalizeSupportConversationId(storedConversationId))
         }
 
         if (storedVisitorToken) {
@@ -754,7 +755,7 @@ function SupportChatPanel({
             }
 
             if (response.success) {
-                setConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || conversationId)
+                setConversationId(normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || conversationId))
                 setVisitorToken(response.data?.visitorToken || visitorToken)
                 setMessages(normalizeMessages(response.data?.messages, [WELCOME_MESSAGE]))
                 setHistoryPage(response.data?.pagination?.page || 1)
@@ -785,7 +786,7 @@ function SupportChatPanel({
                     : listResponse.data?.conversations || []
                 activeConversationId = getLatestConversationId(conversations)
                 if (activeConversationId) {
-                    setConversationId(activeConversationId)
+                    setConversationId(normalizeSupportConversationId(activeConversationId))
                 }
             }
 
@@ -807,7 +808,7 @@ function SupportChatPanel({
             }
 
             if (response.success) {
-                setConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
+                setConversationId(normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId))
                 setMessages(normalizeMessages(response.data?.messages, [WELCOME_MESSAGE]))
                 setHistoryPage(response.data?.pagination?.page || 1)
                 setHistoryHasMore(response.data?.pagination?.hasMore || false)
@@ -922,10 +923,10 @@ function SupportChatPanel({
                 })
 
                 if (response.success) {
-                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    activeConversationId = normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
                     activeVisitorToken = response.data?.visitorToken || activeVisitorToken
                     if (activeConversationId) {
-                        setConversationId(activeConversationId)
+                        setConversationId(normalizeSupportConversationId(activeConversationId))
                     }
                     if (activeVisitorToken) {
                         setVisitorToken(activeVisitorToken)
@@ -1006,9 +1007,9 @@ function SupportChatPanel({
                 })
 
                 if (response.success) {
-                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    activeConversationId = normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
                     if (activeConversationId) {
-                        setConversationId(activeConversationId)
+                        setConversationId(normalizeSupportConversationId(activeConversationId))
                     }
                     const createdMessages: SupportChatMessage[] = response.data?.messages?.length
                         ? response.data.messages
@@ -1111,10 +1112,10 @@ function SupportChatPanel({
                 })
 
                 if (response.success) {
-                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    activeConversationId = normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
                     activeVisitorToken = response.data?.visitorToken || activeVisitorToken
                     if (activeConversationId) {
-                        setConversationId(activeConversationId)
+                        setConversationId(normalizeSupportConversationId(activeConversationId))
                     }
                     if (activeVisitorToken) {
                         setVisitorToken(activeVisitorToken)
@@ -1150,8 +1151,8 @@ function SupportChatPanel({
                 if (sendResponse.success) {
                     if (sendResponse.data?.messages?.length) {
                         setMessages(sendResponse.data.messages)
-                            setHistoryPage(1)
-                            setHistoryHasMore(false)
+                        setHistoryPage(1)
+                        setHistoryHasMore(false)
                     } else {
                         setMessages((current) => current.map((message) => (
                             message.id === messageToRetry.id
@@ -1180,9 +1181,9 @@ function SupportChatPanel({
                 })
 
                 if (response.success) {
-                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    activeConversationId = normalizeSupportConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
                     if (activeConversationId) {
-                        setConversationId(activeConversationId)
+                        setConversationId(normalizeSupportConversationId(activeConversationId))
                     }
                     const createdMessages: SupportChatMessage[] = response.data?.messages?.length
                         ? response.data.messages

@@ -75,6 +75,27 @@ export interface SupportConversationListResponse {
     conversations?: SupportConversationListItem[]
 }
 
+export function normalizeSupportConversationId(value: string | null | undefined) {
+    if (typeof value !== 'string') {
+        return null
+    }
+
+    const trimmed = value.trim()
+    if (!trimmed) {
+        return null
+    }
+
+    if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"'))
+        || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+        const unwrapped = trimmed.slice(1, -1).trim()
+        return unwrapped || null
+    }
+
+    return trimmed
+}
+
 type RawSupportMessage = {
     id?: string
     content?: string
@@ -126,8 +147,8 @@ function normalizeConversation(payload: any): SupportConversation | undefined {
     }
 
     return {
-        id: payload.id || payload.conversationId,
-        conversationId: payload.conversationId || payload.id,
+        id: normalizeSupportConversationId(payload.id || payload.conversationId) || undefined,
+        conversationId: normalizeSupportConversationId(payload.conversationId || payload.id) || undefined,
         subject: payload.subject ?? null,
         status: payload.status ?? null,
         assignedAgent: payload.assignedAdminName || payload.assignedAgent || payload.assignedAdmin?.displayName || null,
@@ -269,7 +290,7 @@ export function getSupportSocketBundleUrl() {
 }
 
 export function conversationIdFrom(payload: SupportConversation | null | undefined) {
-    return payload?.conversationId || payload?.id || null
+    return normalizeSupportConversationId(payload?.conversationId || payload?.id)
 }
 
 export function createGuestConversation(payload: {
@@ -287,6 +308,7 @@ export function createGuestConversation(payload: {
 }
 
 export function getGuestConversation(conversationId: string, visitorToken: string, params?: { page?: number; limit?: number }) {
+    const normalizedConversationId = normalizeSupportConversationId(conversationId) || conversationId
     const query = new URLSearchParams({ visitorToken })
 
     if (params?.page) {
@@ -298,7 +320,7 @@ export function getGuestConversation(conversationId: string, visitorToken: strin
     }
 
     return apiRequest<SupportGuestConversationResponse>(
-        `public/support/conversations/${conversationId}?${query.toString()}`,
+        `public/support/conversations/${normalizedConversationId}?${query.toString()}`,
         { method: 'GET' }
     )
 }
@@ -311,7 +333,9 @@ export function sendGuestMessage(
         clientMessageId?: string
     }
 ) {
-    return apiRequest<SupportGuestConversationResponse>(`public/support/conversations/${conversationId}/messages`, {
+    const normalizedConversationId = normalizeSupportConversationId(conversationId) || conversationId
+
+    return apiRequest<SupportGuestConversationResponse>(`public/support/conversations/${normalizedConversationId}/messages`, {
         method: 'POST',
         body: JSON.stringify(payload),
     })
@@ -335,6 +359,7 @@ export function createUserConversation(payload: {
 }
 
 export function getUserConversation(conversationId: string, params?: { page?: number; limit?: number }) {
+    const normalizedConversationId = normalizeSupportConversationId(conversationId) || conversationId
     const query = new URLSearchParams()
 
     if (params?.page) {
@@ -347,7 +372,7 @@ export function getUserConversation(conversationId: string, params?: { page?: nu
 
     const queryString = query.toString()
 
-    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${conversationId}${queryString ? `?${queryString}` : ''}`, {
+    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${normalizedConversationId}${queryString ? `?${queryString}` : ''}`, {
         method: 'GET',
     })
 }
@@ -359,7 +384,9 @@ export function sendUserMessage(
         clientMessageId?: string
     }
 ) {
-    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${conversationId}/messages`, {
+    const normalizedConversationId = normalizeSupportConversationId(conversationId) || conversationId
+
+    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${normalizedConversationId}/messages`, {
         method: 'POST',
         body: JSON.stringify(payload),
     })
