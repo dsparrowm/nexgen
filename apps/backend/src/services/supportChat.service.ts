@@ -22,7 +22,6 @@ type SupportUserRow = {
 
 type ConversationRow = {
   id: string;
-  clientMessageId: string | null;
   userId: string | null;
   assignedAdminId: string | null;
   visitorToken: string | null;
@@ -96,7 +95,6 @@ type MessageViewRole = 'admin' | 'customer';
 const conversationSelect = `
   SELECT
     c.id,
-    c."clientMessageId" AS "clientMessageId",
     c."userId" AS "userId",
     c."assignedAdminId" AS "assignedAdminId",
     c."visitorToken" AS "visitorToken",
