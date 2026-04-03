@@ -48,7 +48,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
 
 // Rate limiting
-const limiter = rateLimit({
+const authLimiter = rateLimit({
     windowMs: config.rateLimitWindowMs,
     max: config.rateLimitMaxRequests,
     message: {
@@ -57,7 +57,6 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 })
-app.use(limiter)
 
 // Request logging middleware
 if (config.nodeEnv === 'development') {
@@ -82,6 +81,8 @@ app.get('/health', (req, res) => {
 })
 
 // API routes
+app.use('/api/auth', authLimiter)
+app.use('/api/public', authLimiter)
 app.use('/api/auth/user', userAuthRoutes)
 app.use('/api/auth/admin', adminAuthRoutes)
 app.use('/api/user', userRoutes)
