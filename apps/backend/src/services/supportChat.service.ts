@@ -830,8 +830,12 @@ async function addMessageAndRefresh(
     }
 
     const result = await fetchConversationAndMessages(tx as QueryRunner, 'c.id = $1', [conversationId]);
+    if (!result) {
+      return null;
+    }
+
     return {
-      ...result!,
+      ...result,
       createdMessageId: messageId,
     };
   });

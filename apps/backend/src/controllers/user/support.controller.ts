@@ -175,7 +175,16 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { conversation, messages, createdMessageId } = await addUserMessage(conversationId, userId, message, clientMessageId);
+    const messageResult = await addUserMessage(conversationId, userId, message, clientMessageId);
+    if (!messageResult) {
+      res.status(404).json({
+        success: false,
+        error: { message: 'Conversation not found', code: 'SUPPORT_CONVERSATION_NOT_FOUND' },
+      });
+      return;
+    }
+
+    const { conversation, messages, createdMessageId } = messageResult;
     broadcastSupportConversationSnapshot(
       { conversation, messages },
       'message_created',
