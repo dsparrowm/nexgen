@@ -77,11 +77,20 @@ export interface SupportMessage {
     message: string;
     isInternal?: boolean;
     readAt?: string | null;
+    isRead?: boolean;
     createdAt: string;
 }
 
 export interface SupportConversationDetail extends SupportConversationSummary {
     messages: SupportMessage[];
+}
+
+export interface SupportConversationPagination {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
 }
 
 class ApiClient {
@@ -533,8 +542,13 @@ class ApiClient {
     /**
      * Get a single support conversation with messages
      */
-    async getSupportConversation(conversationId: string): Promise<ApiResponse<{ conversation: SupportConversationDetail; messages: SupportMessage[] }>> {
-        return this.request(`/admin/support/conversations/${conversationId}`);
+    async getSupportConversation(conversationId: string, params?: { page?: number; limit?: number }): Promise<ApiResponse<{ conversation: SupportConversationDetail; messages: SupportMessage[]; pagination?: SupportConversationPagination }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+        const query = queryParams.toString();
+        return this.request(`/admin/support/conversations/${conversationId}${query ? `?${query}` : ''}`);
     }
 
     /**
@@ -543,13 +557,8 @@ class ApiClient {
     async getSupportMessages(conversationId: string, params?: {
         page?: number;
         limit?: number;
-    }): Promise<ApiResponse<{ messages: SupportMessage[]; pagination?: any }>> {
-        const queryParams = new URLSearchParams();
-        if (params?.page) queryParams.append('page', params.page.toString());
-        if (params?.limit) queryParams.append('limit', params.limit.toString());
-
-        const query = queryParams.toString();
-        return this.request(`/admin/support/conversations/${conversationId}/messages${query ? `?${query}` : ''}`);
+    }): Promise<ApiResponse<{ messages: SupportMessage[]; pagination?: SupportConversationPagination }>> {
+        return this.getSupportConversation(conversationId, params) as Promise<ApiResponse<{ messages: SupportMessage[]; pagination?: SupportConversationPagination }>>;
     }
 
     /**

@@ -30,6 +30,19 @@ import { createSupportSocket } from '@/lib/supportSocket'
 
 type StatusFilter = SupportConversationStatus | 'ALL'
 
+type SupportConversationPresence = {
+    conversationId: string
+    adminOnline: boolean
+    customerOnline: boolean
+    onlineCount: number
+}
+
+type SupportConversationTyping = {
+    conversationId: string
+    adminTyping: boolean
+    customerTyping: boolean
+}
+
 const statusMeta: Record<SupportConversationStatus, { label: string; className: string; icon: React.ReactNode }> = {
     OPEN: { label: 'Open', className: 'bg-green-500/10 text-green-300 border-green-500/20', icon: <CheckCircle2 className="w-4 h-4" /> },
     PENDING: { label: 'Pending', className: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20', icon: <Clock3 className="w-4 h-4" /> },
@@ -52,6 +65,8 @@ const statusOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: 'CLOSED', label: 'Closed' },
 ]
 
+const MESSAGE_PAGE_SIZE = 20
+
 const normalizeConversations = (data: any): SupportConversationSummary[] => {
     if (!data) return []
     if (Array.isArray(data)) return data
@@ -68,6 +83,25 @@ const normalizeMessages = (data: any): SupportMessage[] => {
     if (!data) return []
     if (Array.isArray(data)) return data
     return data.messages ?? data.items ?? data.data ?? []
+}
+
+const mergeSupportMessages = (current: SupportMessage[], incoming: SupportMessage[]) => {
+    const byId = new Map<string, SupportMessage>()
+
+    for (const message of current) {
+        byId.set(message.id, message)
+    }
+
+    for (const message of incoming) {
+        byId.set(message.id, {
+            ...byId.get(message.id),
+            ...message,
+        })
+    }
+
+    return Array.from(byId.values()).sort((left, right) => (
+        new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+    ))
 }
 
 const extractConversationId = (payload: any): string | null => {
@@ -127,7 +161,16 @@ const SupportInbox: React.FC = () => {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [socketStatus, setSocketStatus] = useState<'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error'>('idle')
     const [error, setError] = useState<string | null>(null)
+    const [selectedConversationPresence, setSelectedConversationPresence] = useState<SupportConversationPresence | null>(null)
+    const [selectedConversationTyping, setSelectedConversationTyping] = useState<SupportConversationTyping | null>(null)
+    const [historyPage, setHistoryPage] = useState(1)
+    const [historyHasMore, setHistoryHasMore] = useState(false)
+    const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false)
     const messageScrollRef = useRef<HTMLDivElement | null>(null)
+    const pendingScrollAdjustmentRef = useRef<{ previousScrollHeight: number; previousScrollTop: number } | null>(null)
+    const stickToBottomRef = useRef(true)
+    const replyTypingTimeoutRef = useRef<number | null>(null)
+    const replyTypingActiveRef = useRef(false)
     const loadConversationsRef = useRef<((background?: boolean) => Promise<void>) | null>(null)
     const loadConversationRef = useRef<((conversationId: string, background?: boolean) => Promise<void>) | null>(null)
     const selectedConversationIdRef = useRef<string | null>(null)
@@ -183,7 +226,7 @@ const SupportInbox: React.FC = () => {
         }
     }, [searchQuery, statusFilter])
 
-    const loadConversation = useCallback(async (conversationId: string, background = false) => {
+    const loadConversation = useCallback(async (conversationId: string, background = false, page = 1) => {
         if (!conversationId) return
 
         if (!background) {
@@ -191,15 +234,25 @@ const SupportInbox: React.FC = () => {
         }
 
         try {
-            const detailResponse = await apiClient.getSupportConversation(conversationId)
+            const detailResponse = await apiClient.getSupportConversation(conversationId, {
+                page,
+                limit: MESSAGE_PAGE_SIZE,
+            })
 
             if (detailResponse.success && detailResponse.data) {
                 const conversation = normalizeConversation(detailResponse.data)
                 const nextMessages = normalizeMessages(detailResponse.data.messages)
 
                 if (conversation) {
-                    setSelectedConversation({ ...conversation, messages: nextMessages })
-                    setMessages(nextMessages)
+                    setMessages((current) => mergeSupportMessages(current, nextMessages))
+                    setSelectedConversation((current) => ({
+                        ...(current || conversation),
+                        ...conversation,
+                        messages: mergeSupportMessages(current?.messages || [], nextMessages),
+                    }))
+                    setHistoryPage(detailResponse.data.pagination?.page || page)
+                    setHistoryHasMore(detailResponse.data.pagination?.hasMore || false)
+                    stickToBottomRef.current = true
                     await apiClient.markSupportConversationRead(conversationId)
                     return
                 }
@@ -227,6 +280,10 @@ const SupportInbox: React.FC = () => {
             const activeConversationId = selectedConversationIdRef.current
             const payloadConversationId = extractConversationId(payloads)
 
+            if (event === 'support:typing' || event === 'support:presence') {
+                return
+            }
+
             void loadConversationsRef.current?.(true)
 
             if (payloadConversationId && activeConversationId && payloadConversationId === activeConversationId) {
@@ -239,6 +296,22 @@ const SupportInbox: React.FC = () => {
                 return
             }
 
+        }
+
+        const handlePresence = (payload: SupportConversationPresence) => {
+            if (payload.conversationId !== selectedConversationIdRef.current) {
+                return
+            }
+
+            setSelectedConversationPresence(payload)
+        }
+
+        const handleTyping = (payload: SupportConversationTyping & { conversationId: string }) => {
+            if (payload.conversationId !== selectedConversationIdRef.current) {
+                return
+            }
+
+            setSelectedConversationTyping(payload)
         }
 
         const connectSocket = async () => {
@@ -284,6 +357,8 @@ const SupportInbox: React.FC = () => {
             socket.on('reconnect', () => {
                 if (mounted) setSocketStatus('connected')
             })
+            socket.on('support:presence', handlePresence)
+            socket.on('support:typing', handleTyping)
             socket.onAny?.((event: string, ...payloads: any[]) => {
                 if (typeof event !== 'string' || !event.startsWith('support:')) return
 
@@ -297,6 +372,8 @@ const SupportInbox: React.FC = () => {
         return () => {
             mounted = false
             socket?.offAny?.()
+            socket?.off?.('support:presence', handlePresence)
+            socket?.off?.('support:typing', handleTyping)
             socket?.disconnect?.()
             if (socketRef.current === socket) {
                 socketRef.current = null
@@ -313,7 +390,145 @@ const SupportInbox: React.FC = () => {
         if (selectedConversationId) {
             loadConversation(selectedConversationId)
         }
+        setSelectedConversationPresence(null)
+        setSelectedConversationTyping(null)
+        setHistoryPage(1)
+        setHistoryHasMore(false)
+        stickToBottomRef.current = true
     }, [loadConversation, selectedConversationId])
+
+    useEffect(() => {
+        const container = messageScrollRef.current
+        if (!container) {
+            return
+        }
+
+        if (pendingScrollAdjustmentRef.current) {
+            const { previousScrollHeight, previousScrollTop } = pendingScrollAdjustmentRef.current
+            const nextScrollHeight = container.scrollHeight
+            container.scrollTop = nextScrollHeight - previousScrollHeight + previousScrollTop
+            pendingScrollAdjustmentRef.current = null
+            return
+        }
+
+        if (stickToBottomRef.current) {
+            container.scrollTop = container.scrollHeight
+        }
+    }, [messages, selectedConversationId])
+
+    const loadOlderMessages = async () => {
+        if (isLoadingOlderMessages || !historyHasMore || !selectedConversationId) {
+            return
+        }
+
+        const nextPage = historyPage + 1
+        const container = messageScrollRef.current
+        if (container) {
+            pendingScrollAdjustmentRef.current = {
+                previousScrollHeight: container.scrollHeight,
+                previousScrollTop: container.scrollTop,
+            }
+        }
+
+        setIsLoadingOlderMessages(true)
+
+        try {
+            const response = await apiClient.getSupportConversation(selectedConversationId, {
+                page: nextPage,
+                limit: MESSAGE_PAGE_SIZE,
+            })
+
+            if (response.success && response.data?.messages) {
+                const olderMessages = normalizeMessages(response.data.messages)
+                if (olderMessages.length > 0) {
+                    setMessages((current) => mergeSupportMessages(current, olderMessages))
+                    setSelectedConversation((current) => current ? {
+                        ...current,
+                        messages: mergeSupportMessages(current.messages || [], olderMessages),
+                    } : current)
+                    setHistoryPage(response.data.pagination?.page || nextPage)
+                    setHistoryHasMore(response.data.pagination?.hasMore || false)
+                } else {
+                    setHistoryHasMore(false)
+                }
+            }
+        } finally {
+            setIsLoadingOlderMessages(false)
+        }
+    }
+
+    const handleMessageScroll = () => {
+        const container = messageScrollRef.current
+        if (!container) {
+            return
+        }
+
+        const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+        stickToBottomRef.current = distanceFromBottom < 120
+
+        if (container.scrollTop < 140) {
+            void loadOlderMessages()
+        }
+    }
+
+    useEffect(() => {
+        const socket = socketRef.current
+        const conversationId = selectedConversationId
+        const trimmedReply = replyMessage.trim()
+
+        if (!socket?.connected || !conversationId) {
+            if (replyTypingTimeoutRef.current !== null) {
+                window.clearTimeout(replyTypingTimeoutRef.current)
+                replyTypingTimeoutRef.current = null
+            }
+
+            if (replyTypingActiveRef.current && socket?.connected && conversationId) {
+                socket.emit('support:typing', { conversationId, isTyping: false })
+            }
+
+            replyTypingActiveRef.current = false
+            return
+        }
+
+        if (!trimmedReply) {
+            if (replyTypingActiveRef.current) {
+                socket.emit('support:typing', { conversationId, isTyping: false })
+            }
+
+            replyTypingActiveRef.current = false
+            if (replyTypingTimeoutRef.current !== null) {
+                window.clearTimeout(replyTypingTimeoutRef.current)
+                replyTypingTimeoutRef.current = null
+            }
+            return
+        }
+
+        if (!replyTypingActiveRef.current) {
+            socket.emit('support:typing', { conversationId, isTyping: true })
+            replyTypingActiveRef.current = true
+        }
+
+        if (replyTypingTimeoutRef.current !== null) {
+            window.clearTimeout(replyTypingTimeoutRef.current)
+        }
+
+        replyTypingTimeoutRef.current = window.setTimeout(() => {
+            const activeSocket = socketRef.current
+            const activeConversationId = selectedConversationIdRef.current
+
+            if (activeSocket?.connected && activeConversationId && replyTypingActiveRef.current) {
+                activeSocket.emit('support:typing', { conversationId: activeConversationId, isTyping: false })
+                replyTypingActiveRef.current = false
+            }
+        }, 1200)
+
+        return () => {
+            if (replyTypingTimeoutRef.current !== null) {
+                window.clearTimeout(replyTypingTimeoutRef.current)
+                replyTypingTimeoutRef.current = null
+            }
+        }
+    }, [replyMessage, selectedConversationId])
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -496,26 +711,24 @@ const SupportInbox: React.FC = () => {
                         Refresh
                     </button>
                     <div
-                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${
-                            socketStatus === 'connected'
-                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                : socketStatus === 'connecting' || socketStatus === 'reconnecting'
-                                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
-                                    : socketStatus === 'error'
-                                        ? 'border-red-500/30 bg-red-500/10 text-red-300'
-                                        : 'border-white/10 bg-navy-800/50 text-gray-300'
-                        }`}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${socketStatus === 'connected'
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                            : socketStatus === 'connecting' || socketStatus === 'reconnecting'
+                                ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                : socketStatus === 'error'
+                                    ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                    : 'border-white/10 bg-navy-800/50 text-gray-300'
+                            }`}
                     >
                         <span
-                            className={`h-2 w-2 rounded-full ${
-                                socketStatus === 'connected'
-                                    ? 'bg-emerald-400'
-                                    : socketStatus === 'connecting' || socketStatus === 'reconnecting'
-                                        ? 'bg-blue-400'
-                                        : socketStatus === 'error'
-                                            ? 'bg-red-400'
-                                            : 'bg-gray-500'
-                            }`}
+                            className={`h-2 w-2 rounded-full ${socketStatus === 'connected'
+                                ? 'bg-emerald-400'
+                                : socketStatus === 'connecting' || socketStatus === 'reconnecting'
+                                    ? 'bg-blue-400'
+                                    : socketStatus === 'error'
+                                        ? 'bg-red-400'
+                                        : 'bg-gray-500'
+                                }`}
                         />
                         {socketStatus === 'connected'
                             ? 'Live connected'
@@ -714,13 +927,35 @@ const SupportInbox: React.FC = () => {
                                         </span>
                                     )}
                                 </div>
+
+                                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+                                    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${selectedConversationPresence?.customerOnline
+                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                        : 'border-white/10 bg-navy-800/50 text-gray-300'
+                                        }`}>
+                                        <span className={`h-2 w-2 rounded-full ${selectedConversationPresence?.customerOnline ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                                        {selectedConversationPresence?.customerOnline ? 'Customer online' : 'Customer offline'}
+                                    </span>
+                                    {selectedConversationTyping?.customerTyping && (
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-blue-200">
+                                            <span className="h-2 w-2 rounded-full bg-blue-400" />
+                                            Customer typing...
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
-                            <div ref={messageScrollRef} className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                            <div ref={messageScrollRef} onScroll={handleMessageScroll} className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
                                 {messages.length ? (
                                     messages.map((message) => {
                                         const isAdminMessage = message.senderType === 'ADMIN'
                                         const isSystemMessage = message.senderType === 'SYSTEM'
+                                        const isOutgoing = isAdminMessage
+                                        const deliveryLabel = message.readAt && isOutgoing
+                                            ? 'Seen'
+                                            : isOutgoing
+                                                ? 'Delivered'
+                                                : formatRelativeTime(message.createdAt)
 
                                         return (
                                             <div key={message.id} className={`flex ${isAdminMessage ? 'justify-end' : 'justify-start'}`}>
@@ -757,6 +992,9 @@ const SupportInbox: React.FC = () => {
                                                     </div>
 
                                                     <p className="whitespace-pre-wrap text-sm leading-6 text-gray-100">{message.message}</p>
+                                                    <p className={`mt-2 text-[11px] ${isAdminMessage ? 'text-gold-200/80' : 'text-gray-400'}`}>
+                                                        {deliveryLabel}
+                                                    </p>
                                                 </div>
                                             </div>
                                         )
@@ -778,6 +1016,13 @@ const SupportInbox: React.FC = () => {
 
                             <div className="border-t border-white/5 px-6 py-5">
                                 <form onSubmit={handleSendReply} className="space-y-3">
+                                    <p className="text-xs text-gray-400">
+                                        {selectedConversationTyping?.customerTyping
+                                            ? 'The customer is actively typing a reply.'
+                                            : selectedConversationPresence?.customerOnline
+                                                ? 'The customer is currently online.'
+                                                : 'The customer is offline right now.'}
+                                    </p>
                                     <textarea
                                         value={replyMessage}
                                         onChange={(event) => setReplyMessage(event.target.value)}

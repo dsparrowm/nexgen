@@ -4,6 +4,7 @@ import {
   addGuestMessage,
   createGuestConversation,
   getGuestConversation,
+  markConversationReadByCustomer,
   serializeConversationDetail,
   serializeMessages,
 } from '@/services/supportChat.service';
@@ -11,7 +12,7 @@ import { broadcastSupportConversationSnapshot } from '@/realtime/supportChatSock
 
 export const createConversation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, phone, subject, message } = req.body;
+    const { name, email, phone, subject, message, clientMessageId } = req.body;
 
     if (!message?.trim()) {
       res.status(400).json({
@@ -24,20 +25,30 @@ export const createConversation = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const { conversation, messages, visitorToken } = await createGuestConversation({
+    const { conversation, messages, visitorToken, createdMessageId } = await createGuestConversation({
       name,
       email,
       phone,
       subject,
       message,
+      clientMessageId,
     });
-    broadcastSupportConversationSnapshot({ conversation, messages }, 'conversation_created');
+    broadcastSupportConversationSnapshot(
+      { conversation, messages },
+      'conversation_created',
+      { createdMessageId, clientMessageId }
+    );
 
     res.status(201).json({
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, {
+          includeInternal: false,
+          highlightedMessageId: createdMessageId,
+          clientMessageId,
+          viewerRole: 'customer',
+        }),
         visitorToken,
       },
       message: 'Support conversation created successfully',
@@ -58,6 +69,8 @@ export const getConversation = async (req: Request, res: Response): Promise<void
   try {
     const { conversationId } = req.params;
     const visitorToken = String(req.query.visitorToken || '');
+    const page = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
 
     if (!visitorToken) {
       res.status(400).json({
@@ -70,7 +83,11 @@ export const getConversation = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const result = await getGuestConversation(conversationId, visitorToken);
+    const result = await getGuestConversation(conversationId, visitorToken, {
+      page: Number.isFinite(page) ? page : undefined,
+      limit: Number.isFinite(limit) ? limit : undefined,
+      includeInternal: false,
+    });
 
     if (!result) {
       res.status(404).json({
@@ -84,12 +101,14 @@ export const getConversation = async (req: Request, res: Response): Promise<void
     }
 
     const { conversation, messages } = result;
+    const readResult = await markConversationReadByCustomer(conversationId);
 
     res.status(200).json({
       success: true,
       data: {
-        conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        conversation: serializeConversationDetail(readResult.conversation),
+        messages: serializeMessages(readResult.conversation, readResult.messages, { includeInternal: false, viewerRole: 'customer' }),
+        pagination: result.pagination,
       },
     });
   } catch (error) {
@@ -107,7 +126,7 @@ export const getConversation = async (req: Request, res: Response): Promise<void
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
-    const { visitorToken, message } = req.body;
+    const { visitorToken, message, clientMessageId } = req.body;
 
     if (!visitorToken || !message?.trim()) {
       res.status(400).json({
@@ -132,14 +151,23 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const { conversation, messages } = await addGuestMessage(conversationId, visitorToken, message);
-    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
+    const { conversation, messages, createdMessageId } = await addGuestMessage(conversationId, visitorToken, message, clientMessageId);
+    broadcastSupportConversationSnapshot(
+      { conversation, messages },
+      'message_created',
+      { createdMessageId, clientMessageId }
+    );
 
     res.status(201).json({
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, {
+          includeInternal: false,
+          highlightedMessageId: createdMessageId,
+          clientMessageId,
+          viewerRole: 'customer',
+        }),
       },
       message: 'Message sent successfully',
     });

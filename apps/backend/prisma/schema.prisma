@@ -200,6 +200,7 @@ model Notification {
 
 model SupportConversation {
   id                   String                    @id @default(cuid())
+  clientMessageId     String?                   @unique
   userId               String?
   user                 User?                     @relation("CustomerSupportConversations", fields: [userId], references: [id], onDelete: SetNull)
   assignedAdminId      String?
@@ -228,6 +229,7 @@ model SupportConversation {
 
 model SupportMessage {
   id             String            @id @default(cuid())
+  clientMessageId String?           @unique
   conversationId String
   conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderType     SupportSenderType

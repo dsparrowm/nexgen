@@ -5,6 +5,7 @@ CREATE TYPE "SupportSenderType" AS ENUM ('VISITOR', 'CUSTOMER', 'ADMIN', 'SYSTEM
 
 CREATE TABLE "support_conversations" (
     "id" TEXT NOT NULL,
+    "clientMessageId" TEXT,
     "userId" TEXT,
     "assignedAdminId" TEXT,
     "visitorToken" TEXT,
@@ -26,6 +27,7 @@ CREATE TABLE "support_conversations" (
 
 CREATE TABLE "support_messages" (
     "id" TEXT NOT NULL,
+    "clientMessageId" TEXT,
     "conversationId" TEXT NOT NULL,
     "senderType" "SupportSenderType" NOT NULL,
     "senderUserId" TEXT,
@@ -37,11 +39,13 @@ CREATE TABLE "support_messages" (
 );
 
 CREATE UNIQUE INDEX "support_conversations_visitorToken_key" ON "support_conversations"("visitorToken");
+CREATE UNIQUE INDEX "support_conversations_clientMessageId_key" ON "support_conversations"("clientMessageId");
 CREATE INDEX "support_conversations_userId_status_idx" ON "support_conversations"("userId", "status");
 CREATE INDEX "support_conversations_assignedAdminId_status_idx" ON "support_conversations"("assignedAdminId", "status");
 CREATE INDEX "support_conversations_guestEmail_idx" ON "support_conversations"("guestEmail");
 CREATE INDEX "support_conversations_lastMessageAt_idx" ON "support_conversations"("lastMessageAt");
 CREATE INDEX "support_messages_conversationId_createdAt_idx" ON "support_messages"("conversationId", "createdAt");
+CREATE UNIQUE INDEX "support_messages_clientMessageId_key" ON "support_messages"("clientMessageId");
 CREATE INDEX "support_messages_senderUserId_idx" ON "support_messages"("senderUserId");
 
 ALTER TABLE "support_conversations"

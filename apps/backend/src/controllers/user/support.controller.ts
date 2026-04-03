@@ -5,6 +5,7 @@ import {
   createUserConversation,
   getUserConversation,
   listUserConversations,
+  markConversationReadByCustomer,
   serializeConversationDetail,
   serializeConversationSummary,
   serializeMessages,
@@ -48,7 +49,7 @@ export const listConversations = async (req: AuthRequest, res: Response): Promis
 export const createConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { subject, message } = req.body;
+    const { subject, message, clientMessageId } = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -66,14 +67,23 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const { conversation, messages } = await createUserConversation({ userId, subject, message });
-    broadcastSupportConversationSnapshot({ conversation, messages }, 'conversation_created');
+    const { conversation, messages, createdMessageId } = await createUserConversation({ userId, subject, message, clientMessageId });
+    broadcastSupportConversationSnapshot(
+      { conversation, messages },
+      'conversation_created',
+      { createdMessageId, clientMessageId }
+    );
 
     res.status(201).json({
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, {
+          includeInternal: false,
+          highlightedMessageId: createdMessageId,
+          clientMessageId,
+          viewerRole: 'customer',
+        }),
       },
       message: 'Conversation created successfully',
     });
@@ -90,6 +100,8 @@ export const getConversation = async (req: AuthRequest, res: Response): Promise<
   try {
     const userId = req.user?.userId;
     const { conversationId } = req.params;
+    const page = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
 
     if (!userId) {
       res.status(401).json({
@@ -99,7 +111,11 @@ export const getConversation = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const result = await getUserConversation(conversationId, userId);
+    const result = await getUserConversation(conversationId, userId, {
+      page: Number.isFinite(page) ? page : undefined,
+      limit: Number.isFinite(limit) ? limit : undefined,
+      includeInternal: false,
+    });
     if (!result) {
       res.status(404).json({
         success: false,
@@ -109,12 +125,14 @@ export const getConversation = async (req: AuthRequest, res: Response): Promise<
     }
 
     const { conversation, messages } = result;
+    const readResult = await markConversationReadByCustomer(conversationId);
 
     res.status(200).json({
       success: true,
       data: {
-        conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        conversation: serializeConversationDetail(readResult.conversation),
+        messages: serializeMessages(readResult.conversation, readResult.messages, { includeInternal: false, viewerRole: 'customer' }),
+        pagination: result.pagination,
       },
     });
   } catch (error) {
@@ -130,7 +148,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const userId = req.user?.userId;
     const { conversationId } = req.params;
-    const { message } = req.body;
+    const { message, clientMessageId } = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -157,14 +175,23 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { conversation, messages } = await addUserMessage(conversationId, userId, message);
-    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
+    const { conversation, messages, createdMessageId } = await addUserMessage(conversationId, userId, message, clientMessageId);
+    broadcastSupportConversationSnapshot(
+      { conversation, messages },
+      'message_created',
+      { createdMessageId, clientMessageId }
+    );
 
     res.status(201).json({
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, {
+          includeInternal: false,
+          highlightedMessageId: createdMessageId,
+          clientMessageId,
+          viewerRole: 'customer',
+        }),
       },
       message: 'Message sent successfully',
     });

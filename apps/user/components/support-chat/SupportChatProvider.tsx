@@ -23,6 +23,7 @@ import {
     sendUserMessage,
     type SupportChatIdentity,
     type SupportChatMessage,
+    type SupportConversationPagination,
     type SupportConversationListItem,
 } from '@/utils/api/supportChatApi'
 import { getToken, isTokenExpired } from '@/utils/auth'
@@ -32,6 +33,19 @@ import {
 } from '@/utils/api/supportSocket'
 
 type SupportChatSessionType = 'guest' | 'user'
+
+type SupportConversationPresence = {
+    conversationId: string
+    adminOnline: boolean
+    customerOnline: boolean
+    onlineCount: number
+}
+
+type SupportConversationTyping = {
+    conversationId: string
+    adminTyping: boolean
+    customerTyping: boolean
+}
 
 type SupportChatContextValue = {
     isOpen: boolean
@@ -56,6 +70,8 @@ const WELCOME_MESSAGE: SupportChatMessage = {
     content: 'Hi, thanks for reaching out. Leave a message here and our support team will respond as soon as possible.',
     createdAt: '2026-04-01T00:00:00.000Z',
 }
+
+const MESSAGE_PAGE_SIZE = 20
 
 function isBrowser() {
     return typeof window !== 'undefined'
@@ -156,6 +172,14 @@ function normalizeMessages(messages: SupportChatMessage[] | undefined, fallback:
     return fallback
 }
 
+function createClientMessageId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+    }
+
+    return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 function isLikelySocketMessage(value: unknown): value is SupportChatMessage {
     return Boolean(value && typeof value === 'object' && 'content' in value)
 }
@@ -182,6 +206,7 @@ function normalizeSocketMessage(message: unknown): SupportChatMessage | null {
         content: rawMessage.content || rawMessage.message || '',
         createdAt: rawMessage.createdAt || new Date().toISOString(),
         status: rawMessage.status,
+        clientMessageId: rawMessage.clientMessageId,
     }
 }
 
@@ -206,9 +231,12 @@ function mergeSupportMessages(current: SupportChatMessage[], incoming: SupportCh
 
     for (const message of incoming) {
         const currentMatch = current.find((item) => (
-            item.id.startsWith('temp-')
-            && item.role === message.role
-            && item.content === message.content
+            (message.clientMessageId && item.clientMessageId === message.clientMessageId)
+            || (
+                item.id.startsWith('temp-')
+                && item.role === message.role
+                && item.content === message.content
+            )
         ))
 
         if (currentMatch && currentMatch.id !== message.id) {
@@ -301,11 +329,21 @@ function SupportChatPanel({
     const [conversationId, setConversationId] = useState<string | null>(null)
     const [visitorToken, setVisitorToken] = useState<string | null>(null)
     const [messages, setMessages] = useState<SupportChatMessage[]>([WELCOME_MESSAGE])
+    const [historyPage, setHistoryPage] = useState(1)
+    const [historyHasMore, setHistoryHasMore] = useState(false)
+    const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false)
     const [draft, setDraft] = useState('')
     const [isSending, setIsSending] = useState(false)
     const [isHydrating, setIsHydrating] = useState(false)
     const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected' | 'offline'>('idle')
+    const [presence, setPresence] = useState<SupportConversationPresence | null>(null)
+    const [typingState, setTypingState] = useState<SupportConversationTyping | null>(null)
     const socketRef = useRef<SupportSocketClient | null>(null)
+    const messageScrollRef = useRef<HTMLDivElement | null>(null)
+    const pendingScrollAdjustmentRef = useRef<{ previousScrollHeight: number; previousScrollTop: number } | null>(null)
+    const stickToBottomRef = useRef(true)
+    const typingTimeoutRef = useRef<number | null>(null)
+    const typingActiveRef = useRef(false)
     const chatStateRef = useRef({
         sessionType,
         identity,
@@ -330,6 +368,8 @@ function SupportChatPanel({
         return {
             conversationId: current.conversationId,
             visitorToken: current.sessionType === 'guest' ? current.visitorToken : undefined,
+            page: 1,
+            limit: MESSAGE_PAGE_SIZE,
         }
     }
 
@@ -350,6 +390,9 @@ function SupportChatPanel({
                     messages?: unknown
                 }
                 messages?: unknown
+                presence?: SupportConversationPresence
+                typing?: SupportConversationTyping
+                pagination?: SupportConversationPagination
             }
         }) => {
             if (!response?.success) {
@@ -373,6 +416,19 @@ function SupportChatPanel({
 
             if (nextMessages) {
                 setMessages((current) => mergeSupportMessages(current, nextMessages))
+            }
+
+            if (response.data?.presence) {
+                setPresence(response.data.presence)
+            }
+
+            if (response.data?.typing) {
+                setTypingState(response.data.typing)
+            }
+
+            if (response.data?.pagination) {
+                setHistoryPage(response.data.pagination.page)
+                setHistoryHasMore(response.data.pagination.hasMore)
             }
 
             setConnectionState('connected')
@@ -445,6 +501,12 @@ function SupportChatPanel({
     }, [conversationId, sessionType])
 
     useEffect(() => {
+        setHistoryPage(1)
+        setHistoryHasMore(false)
+        stickToBottomRef.current = true
+    }, [conversationId])
+
+    useEffect(() => {
         const socket = socketRef.current
 
         if (!isOpen) {
@@ -490,8 +552,10 @@ function SupportChatPanel({
                 const nextConversationId = normalizeSocketConversationId(payload)
                 const nextMessages = normalizeSocketMessages(
                     (payload as { messages?: unknown }).messages
-                        || (payload as { conversation?: { messages?: unknown } }).conversation?.messages
+                    || (payload as { conversation?: { messages?: unknown } }).conversation?.messages
                 )
+                const nextPresence = (payload as { presence?: SupportConversationPresence }).presence || null
+                const nextTyping = (payload as { typing?: SupportConversationTyping }).typing || null
                 const nextVisitorToken = (payload as { visitorToken?: string }).visitorToken
                     || (payload as { conversation?: { visitorToken?: string } }).conversation?.visitorToken
 
@@ -506,6 +570,34 @@ function SupportChatPanel({
                 if (nextMessages) {
                     setMessages((current) => mergeSupportMessages(current, nextMessages))
                 }
+
+                if (nextPresence) {
+                    setPresence(nextPresence)
+                }
+
+                if (nextTyping) {
+                    setTypingState(nextTyping)
+                }
+            }
+
+            const handlePresence = (payload: SupportConversationPresence) => {
+                if (payload.conversationId !== chatStateRef.current.conversationId) {
+                    return
+                }
+
+                setPresence(payload)
+            }
+
+            const handleTyping = (payload: { conversationId: string; role: 'admin' | 'customer'; isTyping: boolean }) => {
+                if (payload.conversationId !== chatStateRef.current.conversationId) {
+                    return
+                }
+
+                setTypingState((current) => ({
+                    conversationId: payload.conversationId,
+                    adminTyping: payload.role === 'admin' ? payload.isTyping : current?.adminTyping ?? false,
+                    customerTyping: payload.role === 'customer' ? payload.isTyping : current?.customerTyping ?? false,
+                }))
             }
 
             const handleConnected = () => {
@@ -525,6 +617,8 @@ function SupportChatPanel({
             socket.on('disconnect', handleDisconnected)
             socket.on('connect_error', handleConnectError)
             socket.on('support:conversation-snapshot', handleSnapshot)
+            socket.on('support:presence', handlePresence)
+            socket.on('support:typing', handleTyping)
             socket.connect()
         }
 
@@ -545,8 +639,88 @@ function SupportChatPanel({
     }, [conversationId, identity, sessionType, subject, visitorToken])
 
     useEffect(() => {
+        const container = messageScrollRef.current
+        if (!container) {
+            return
+        }
+
+        if (pendingScrollAdjustmentRef.current) {
+            const { previousScrollHeight, previousScrollTop } = pendingScrollAdjustmentRef.current
+            const nextScrollHeight = container.scrollHeight
+            container.scrollTop = nextScrollHeight - previousScrollHeight + previousScrollTop
+            pendingScrollAdjustmentRef.current = null
+            return
+        }
+
+        if (stickToBottomRef.current) {
+            container.scrollTop = container.scrollHeight
+        }
+    }, [messages, isOpen])
+
+    const loadOlderMessages = async () => {
+        if (isLoadingOlderMessages || !historyHasMore || !conversationId) {
+            return
+        }
+
+        if (sessionType === 'guest' && !visitorToken) {
+            return
+        }
+
+        const nextPage = historyPage + 1
+        const container = messageScrollRef.current
+        if (container) {
+            pendingScrollAdjustmentRef.current = {
+                previousScrollHeight: container.scrollHeight,
+                previousScrollTop: container.scrollTop,
+            }
+        }
+
+        setIsLoadingOlderMessages(true)
+
+        try {
+            const response = sessionType === 'guest'
+                ? await getGuestConversation(conversationId, visitorToken as string, { page: nextPage, limit: MESSAGE_PAGE_SIZE })
+                : await getUserConversation(conversationId, { page: nextPage, limit: MESSAGE_PAGE_SIZE })
+
+            if (response.success && response.data?.messages) {
+                const olderMessages = normalizeMessages(response.data.messages, []) || []
+                if (olderMessages.length > 0) {
+                    setMessages((current) => mergeSupportMessages(current, olderMessages))
+                    setHistoryPage(response.data?.pagination?.page || nextPage)
+                    setHistoryHasMore(response.data?.pagination?.hasMore || false)
+                } else {
+                    setHistoryHasMore(false)
+                }
+            }
+        } finally {
+            setIsLoadingOlderMessages(false)
+        }
+    }
+
+    const handleMessageScroll = () => {
+        const container = messageScrollRef.current
+        if (!container) {
+            return
+        }
+
+        const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+        stickToBottomRef.current = distanceFromBottom < 120
+
+        if (container.scrollTop < 140) {
+            void loadOlderMessages()
+        }
+    }
+
+    useEffect(() => {
         return () => {
             const socket = socketRef.current
+            if (typingTimeoutRef.current !== null) {
+                window.clearTimeout(typingTimeoutRef.current)
+                typingTimeoutRef.current = null
+            }
+            if (typingActiveRef.current && socket?.connected && chatStateRef.current.conversationId) {
+                socket.emit('support:typing', { conversationId: chatStateRef.current.conversationId, isTyping: false })
+            }
             socket?.disconnect()
             socketRef.current = null
         }
@@ -562,6 +736,8 @@ function SupportChatPanel({
         const hydrateGuestConversation = async () => {
             if (!conversationId || !visitorToken) {
                 setMessages((current) => normalizeMessages(current, [WELCOME_MESSAGE]))
+                setHistoryPage(1)
+                setHistoryHasMore(false)
                 setConnectionState('idle')
                 return
             }
@@ -569,7 +745,10 @@ function SupportChatPanel({
             setIsHydrating(true)
             setConnectionState('connecting')
 
-            const response = await getGuestConversation(conversationId, visitorToken)
+            const response = await getGuestConversation(conversationId, visitorToken, {
+                page: 1,
+                limit: MESSAGE_PAGE_SIZE,
+            })
             if (!active) {
                 return
             }
@@ -578,6 +757,9 @@ function SupportChatPanel({
                 setConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || conversationId)
                 setVisitorToken(response.data?.visitorToken || visitorToken)
                 setMessages(normalizeMessages(response.data?.messages, [WELCOME_MESSAGE]))
+                setHistoryPage(response.data?.pagination?.page || 1)
+                setHistoryHasMore(response.data?.pagination?.hasMore || false)
+                stickToBottomRef.current = true
                 setConnectionState('connected')
             } else {
                 setConnectionState('offline')
@@ -609,12 +791,17 @@ function SupportChatPanel({
 
             if (!activeConversationId) {
                 setMessages((current) => normalizeMessages(current, [WELCOME_MESSAGE]))
+                setHistoryPage(1)
+                setHistoryHasMore(false)
                 setConnectionState('idle')
                 setIsHydrating(false)
                 return
             }
 
-            const response = await getUserConversation(activeConversationId)
+            const response = await getUserConversation(activeConversationId, {
+                page: 1,
+                limit: MESSAGE_PAGE_SIZE,
+            })
             if (!active) {
                 return
             }
@@ -622,6 +809,9 @@ function SupportChatPanel({
             if (response.success) {
                 setConversationId(response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId)
                 setMessages(normalizeMessages(response.data?.messages, [WELCOME_MESSAGE]))
+                setHistoryPage(response.data?.pagination?.page || 1)
+                setHistoryHasMore(response.data?.pagination?.hasMore || false)
+                stickToBottomRef.current = true
                 setConnectionState('connected')
             } else {
                 setConnectionState('offline')
@@ -637,6 +827,65 @@ function SupportChatPanel({
         }
     }, [conversationId, isOpen, sessionType, visitorToken])
 
+    useEffect(() => {
+        const socket = socketRef.current
+        const currentConversationId = chatStateRef.current.conversationId
+        const trimmedDraft = draft.trim()
+
+        if (!socket?.connected || !currentConversationId) {
+            if (typingTimeoutRef.current !== null) {
+                window.clearTimeout(typingTimeoutRef.current)
+                typingTimeoutRef.current = null
+            }
+
+            if (typingActiveRef.current && socket?.connected && currentConversationId) {
+                socket.emit('support:typing', { conversationId: currentConversationId, isTyping: false })
+            }
+
+            typingActiveRef.current = false
+            return
+        }
+
+        if (!trimmedDraft) {
+            if (typingActiveRef.current) {
+                socket.emit('support:typing', { conversationId: currentConversationId, isTyping: false })
+            }
+
+            typingActiveRef.current = false
+            if (typingTimeoutRef.current !== null) {
+                window.clearTimeout(typingTimeoutRef.current)
+                typingTimeoutRef.current = null
+            }
+            return
+        }
+
+        if (!typingActiveRef.current) {
+            socket.emit('support:typing', { conversationId: currentConversationId, isTyping: true })
+            typingActiveRef.current = true
+        }
+
+        if (typingTimeoutRef.current !== null) {
+            window.clearTimeout(typingTimeoutRef.current)
+        }
+
+        typingTimeoutRef.current = window.setTimeout(() => {
+            const activeSocket = socketRef.current
+            const activeConversationId = chatStateRef.current.conversationId
+
+            if (activeSocket?.connected && activeConversationId && typingActiveRef.current) {
+                activeSocket.emit('support:typing', { conversationId: activeConversationId, isTyping: false })
+                typingActiveRef.current = false
+            }
+        }, 1200)
+
+        return () => {
+            if (typingTimeoutRef.current !== null) {
+                window.clearTimeout(typingTimeoutRef.current)
+                typingTimeoutRef.current = null
+            }
+        }
+    }, [draft, conversationId, isOpen])
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
@@ -645,8 +894,11 @@ function SupportChatPanel({
             return
         }
 
+        const clientMessageId = createClientMessageId()
+
         const outgoingMessage: SupportChatMessage = {
-            id: `temp-${Date.now()}`,
+            id: clientMessageId,
+            clientMessageId,
             role: sessionType === 'user' ? 'user' : 'visitor',
             content: trimmedDraft,
             createdAt: new Date().toISOString(),
@@ -666,6 +918,7 @@ function SupportChatPanel({
                     ...identity,
                     subject: subject || undefined,
                     message: trimmedDraft,
+                    clientMessageId,
                 })
 
                 if (response.success) {
@@ -677,14 +930,12 @@ function SupportChatPanel({
                     if (activeVisitorToken) {
                         setVisitorToken(activeVisitorToken)
                     }
-                    const deliveredOutgoingMessage: SupportChatMessage = {
-                        ...outgoingMessage,
-                        status: 'sent',
-                    }
-                    const createdMessages = response.data?.messages?.length
+                    const createdMessages: SupportChatMessage[] = response.data?.messages?.length
                         ? response.data.messages
-                        : [WELCOME_MESSAGE, deliveredOutgoingMessage]
+                        : [WELCOME_MESSAGE, { ...outgoingMessage, status: 'sent' }]
                     setMessages(createdMessages)
+                    setHistoryPage(1)
+                    setHistoryHasMore(false)
                     setConnectionState('connected')
                     setIsSending(false)
                     return
@@ -709,24 +960,31 @@ function SupportChatPanel({
                 const sendResponse = await sendGuestMessage(activeConversationId, {
                     visitorToken: activeVisitorToken,
                     message: trimmedDraft,
+                    clientMessageId,
                 })
 
                 if (sendResponse.success) {
-                    setMessages((current) =>
-                        current.map((message) =>
-                            message.id === outgoingMessage.id
-                                ? {
-                                    ...message,
-                                    status: 'sent',
-                                }
-                                : message
+                    if (sendResponse.data?.messages?.length) {
+                        setMessages(sendResponse.data.messages)
+                        setHistoryPage(1)
+                        setHistoryHasMore(false)
+                    } else {
+                        setMessages((current) =>
+                            current.map((message) =>
+                                message.clientMessageId === clientMessageId || message.id === outgoingMessage.id
+                                    ? {
+                                        ...message,
+                                        status: 'sent',
+                                    }
+                                    : message
+                            )
                         )
-                    )
+                    }
                     setConnectionState('connected')
                 } else {
                     setMessages((current) =>
                         current.map((message) =>
-                            message.id === outgoingMessage.id
+                            message.clientMessageId === clientMessageId || message.id === outgoingMessage.id
                                 ? {
                                     ...message,
                                     status: 'failed',
@@ -744,6 +1002,7 @@ function SupportChatPanel({
                 const response = await createUserConversation({
                     subject: subject || undefined,
                     message: trimmedDraft,
+                    clientMessageId,
                 })
 
                 if (response.success) {
@@ -751,14 +1010,12 @@ function SupportChatPanel({
                     if (activeConversationId) {
                         setConversationId(activeConversationId)
                     }
-                    const deliveredOutgoingMessage: SupportChatMessage = {
-                        ...outgoingMessage,
-                        status: 'sent',
-                    }
-                    const createdMessages = response.data?.messages?.length
+                    const createdMessages: SupportChatMessage[] = response.data?.messages?.length
                         ? response.data.messages
-                        : [WELCOME_MESSAGE, deliveredOutgoingMessage]
+                        : [WELCOME_MESSAGE, { ...outgoingMessage, status: 'sent' }]
                     setMessages(createdMessages)
+                    setHistoryPage(1)
+                    setHistoryHasMore(false)
                     setConnectionState('connected')
                     setIsSending(false)
                     return
@@ -782,24 +1039,31 @@ function SupportChatPanel({
             if (activeConversationId) {
                 const sendResponse = await sendUserMessage(activeConversationId, {
                     message: trimmedDraft,
+                    clientMessageId,
                 })
 
                 if (sendResponse.success) {
-                    setMessages((current) =>
-                        current.map((message) =>
-                            message.id === outgoingMessage.id
-                                ? {
-                                    ...message,
-                                    status: 'sent',
-                                }
-                                : message
+                    if (sendResponse.data?.messages?.length) {
+                        setMessages(sendResponse.data.messages)
+                        setHistoryPage(1)
+                        setHistoryHasMore(false)
+                    } else {
+                        setMessages((current) =>
+                            current.map((message) =>
+                                message.clientMessageId === clientMessageId || message.id === outgoingMessage.id
+                                    ? {
+                                        ...message,
+                                        status: 'sent',
+                                    }
+                                    : message
+                            )
                         )
-                    )
+                    }
                     setConnectionState('connected')
                 } else {
                     setMessages((current) =>
                         current.map((message) =>
-                            message.id === outgoingMessage.id
+                            message.clientMessageId === clientMessageId || message.id === outgoingMessage.id
                                 ? {
                                     ...message,
                                     status: 'failed',
@@ -807,6 +1071,161 @@ function SupportChatPanel({
                                 : message
                         )
                     )
+                    setConnectionState('offline')
+                }
+            }
+        }
+
+        setIsSending(false)
+    }
+
+    const handleRetryMessage = async (messageToRetry: SupportChatMessage) => {
+        if (isSending || messageToRetry.status !== 'failed') {
+            return
+        }
+
+        const trimmedContent = messageToRetry.content.trim()
+        if (!trimmedContent) {
+            return
+        }
+
+        const clientMessageId = messageToRetry.clientMessageId || messageToRetry.id
+
+        setIsSending(true)
+        setMessages((current) => current.map((message) => (
+            message.id === messageToRetry.id
+                ? { ...message, status: 'sending' }
+                : message
+        )))
+
+        if (sessionType === 'guest') {
+            let activeConversationId = conversationId
+            let activeVisitorToken = visitorToken
+
+            if (!activeConversationId || !activeVisitorToken) {
+                const response = await createGuestConversation({
+                    ...identity,
+                    subject: subject || undefined,
+                    message: trimmedContent,
+                    clientMessageId,
+                })
+
+                if (response.success) {
+                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    activeVisitorToken = response.data?.visitorToken || activeVisitorToken
+                    if (activeConversationId) {
+                        setConversationId(activeConversationId)
+                    }
+                    if (activeVisitorToken) {
+                        setVisitorToken(activeVisitorToken)
+                    }
+                    const createdMessages: SupportChatMessage[] = response.data?.messages?.length
+                        ? response.data.messages
+                        : [WELCOME_MESSAGE, { ...messageToRetry, status: 'sent' }]
+                    setMessages(createdMessages)
+                    setHistoryPage(1)
+                    setHistoryHasMore(false)
+                    setConnectionState('connected')
+                    setIsSending(false)
+                    return
+                }
+
+                setMessages((current) => current.map((message) => (
+                    message.id === messageToRetry.id
+                        ? { ...message, status: 'failed' }
+                        : message
+                )))
+                setConnectionState('offline')
+                setIsSending(false)
+                return
+            }
+
+            if (activeConversationId && activeVisitorToken) {
+                const sendResponse = await sendGuestMessage(activeConversationId, {
+                    visitorToken: activeVisitorToken,
+                    message: trimmedContent,
+                    clientMessageId,
+                })
+
+                if (sendResponse.success) {
+                    if (sendResponse.data?.messages?.length) {
+                        setMessages(sendResponse.data.messages)
+                            setHistoryPage(1)
+                            setHistoryHasMore(false)
+                    } else {
+                        setMessages((current) => current.map((message) => (
+                            message.id === messageToRetry.id
+                                ? { ...message, status: 'sent' }
+                                : message
+                        )))
+                    }
+                    setConnectionState('connected')
+                } else {
+                    setMessages((current) => current.map((message) => (
+                        message.id === messageToRetry.id
+                            ? { ...message, status: 'failed' }
+                            : message
+                    )))
+                    setConnectionState('offline')
+                }
+            }
+        } else {
+            let activeConversationId = conversationId
+
+            if (!activeConversationId) {
+                const response = await createUserConversation({
+                    subject: subject || undefined,
+                    message: trimmedContent,
+                    clientMessageId,
+                })
+
+                if (response.success) {
+                    activeConversationId = response.data?.conversation?.conversationId || response.data?.conversation?.id || activeConversationId
+                    if (activeConversationId) {
+                        setConversationId(activeConversationId)
+                    }
+                    const createdMessages: SupportChatMessage[] = response.data?.messages?.length
+                        ? response.data.messages
+                        : [WELCOME_MESSAGE, { ...messageToRetry, status: 'sent' }]
+                    setMessages(createdMessages)
+                    setConnectionState('connected')
+                    setIsSending(false)
+                    return
+                }
+
+                setMessages((current) => current.map((message) => (
+                    message.id === messageToRetry.id
+                        ? { ...message, status: 'failed' }
+                        : message
+                )))
+                setConnectionState('offline')
+                setIsSending(false)
+                return
+            }
+
+            if (activeConversationId) {
+                const sendResponse = await sendUserMessage(activeConversationId, {
+                    message: trimmedContent,
+                    clientMessageId,
+                })
+
+                if (sendResponse.success) {
+                    if (sendResponse.data?.messages?.length) {
+                        setMessages(sendResponse.data.messages)
+                    } else {
+                        setMessages((current) => current.map((message) => (
+                            message.id === messageToRetry.id
+                                ? { ...message, status: 'sent' }
+                                : message
+                        )))
+                    }
+                    setConnectionState('connected')
+                } else {
+                    setMessages((current) => current.map((message) => (
+                        message.id === messageToRetry.id
+                            ? { ...message, status: 'failed' }
+                            : message
+                    )))
                     setConnectionState('offline')
                 }
             }
@@ -852,12 +1271,28 @@ function SupportChatPanel({
                                             {sessionType === 'user' ? 'Account chat' : 'Guest chat'}
                                         </span>
                                         <span>
-                                            {connectionState === 'connected'
-                                                ? 'Connected'
-                                                : connectionState === 'offline'
-                                                    ? 'Offline mode'
-                                                    : 'We usually reply in a few minutes'}
+                                            {typingState?.adminTyping
+                                                ? 'Support is typing...'
+                                                : presence?.adminOnline
+                                                    ? 'Support online'
+                                                    : connectionState === 'connected'
+                                                        ? 'Connected'
+                                                        : connectionState === 'offline'
+                                                            ? 'Offline mode'
+                                                            : 'We usually reply in a few minutes'}
                                         </span>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-300">
+                                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 ${presence?.adminOnline ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-white/10 bg-white/5 text-gray-300'}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${presence?.adminOnline ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                                            {presence?.adminOnline ? 'Support online' : 'Support offline'}
+                                        </span>
+                                        {typingState?.adminTyping && (
+                                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-blue-200">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                                                Agent typing
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -872,7 +1307,7 @@ function SupportChatPanel({
                         </div>
                     </div>
 
-                    <div className="max-h-[70vh] space-y-4 overflow-y-auto px-4 py-4 sm:max-h-[72vh]">
+                    <div ref={messageScrollRef} onScroll={handleMessageScroll} className="max-h-[70vh] space-y-4 overflow-y-auto px-4 py-4 sm:max-h-[72vh]">
                         <div className="rounded-2xl border border-gold-500/10 bg-white/5 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-400">
                                 Chat details
@@ -929,32 +1364,49 @@ function SupportChatPanel({
                         </div>
 
                         <div className="space-y-3">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={`flex ${message.role === 'visitor' || message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
+                            {messages.map((message) => {
+                                const isOutgoing = message.role === 'visitor' || message.role === 'user'
+                                const deliveryLabel = message.status === 'failed'
+                                    ? 'Send failed'
+                                    : message.status === 'sending'
+                                        ? 'Sending...'
+                                        : isOutgoing && message.readAt
+                                            ? 'Seen'
+                                            : isOutgoing
+                                                ? 'Delivered'
+                                                : new Date(message.createdAt).toLocaleTimeString([], {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                })
+
+                                return (
                                     <div
-                                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                                            message.role === 'visitor' || message.role === 'user'
+                                        key={message.id}
+                                        className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div
+                                            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isOutgoing
                                                 ? 'bg-gradient-to-r from-gold-500 to-gold-600 text-navy-900'
                                                 : 'border border-white/10 bg-navy-900/80 text-gray-100'
-                                        }`}
-                                    >
-                                        <p>{message.content}</p>
-                                        <p className={`mt-2 text-[11px] ${message.role === 'visitor' || message.role === 'user' ? 'text-navy-900/70' : 'text-gray-400'}`}>
-                                            {message.status === 'failed'
-                                                ? 'Send failed'
-                                                : message.status === 'sending'
-                                                    ? 'Sending...'
-                                                    : new Date(message.createdAt).toLocaleTimeString([], {
-                                                        hour: 'numeric',
-                                                        minute: '2-digit',
-                                                    })}
-                                        </p>
+                                                }`}
+                                        >
+                                            <p>{message.content}</p>
+                                            <p className={`mt-2 text-[11px] ${isOutgoing ? 'text-navy-900/70' : 'text-gray-400'}`}>
+                                                {deliveryLabel}
+                                            </p>
+                                            {message.status === 'failed' && isOutgoing && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { void handleRetryMessage(message) }}
+                                                    className="mt-2 rounded-full border border-navy-900/20 bg-white/20 px-3 py-1 text-[11px] font-semibold text-navy-900 transition-colors hover:bg-white/30"
+                                                >
+                                                    Retry
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                             {isHydrating && (
                                 <div className="flex justify-start">
                                     <div className="rounded-2xl border border-white/10 bg-navy-900/80 px-4 py-3 text-sm text-gray-300">

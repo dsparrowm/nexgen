@@ -46,7 +46,12 @@ export const listConversations = async (req: AuthRequest, res: Response): Promis
 export const getConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
-    const result = await getAdminConversation(conversationId);
+    const page = typeof req.query.page === 'string' ? Number(req.query.page) : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
+    const result = await getAdminConversation(conversationId, {
+      page: Number.isFinite(page) ? page : undefined,
+      limit: Number.isFinite(limit) ? limit : undefined,
+    });
 
     if (!result) {
       res.status(404).json({
@@ -62,7 +67,8 @@ export const getConversation = async (req: AuthRequest, res: Response): Promise<
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, { viewerRole: 'admin' }),
+        pagination: result.pagination,
       },
     });
   } catch (error) {
@@ -78,7 +84,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const adminId = req.user?.userId;
     const { conversationId } = req.params;
-    const { message } = req.body;
+    const { message, clientMessageId } = req.body;
 
     if (!adminId) {
       res.status(401).json({
@@ -105,14 +111,22 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { conversation, messages } = await addAdminMessage(conversationId, adminId, message);
-    broadcastSupportConversationSnapshot({ conversation, messages }, 'message_created');
+    const { conversation, messages, createdMessageId } = await addAdminMessage(conversationId, adminId, message, clientMessageId);
+    broadcastSupportConversationSnapshot(
+      { conversation, messages },
+      'message_created',
+      { createdMessageId, clientMessageId }
+    );
 
     res.status(201).json({
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, {
+          highlightedMessageId: createdMessageId,
+          clientMessageId,
+          viewerRole: 'admin',
+        }),
       },
       message: 'Reply sent successfully',
     });
@@ -145,7 +159,7 @@ export const setStatus = async (req: AuthRequest, res: Response): Promise<void> 
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, { viewerRole: 'admin' }),
       },
       message: 'Conversation status updated successfully',
     });
@@ -179,7 +193,7 @@ export const assignToAdmin = async (req: AuthRequest, res: Response): Promise<vo
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, { viewerRole: 'admin' }),
       },
       message: 'Conversation assigned successfully',
     });
@@ -202,7 +216,7 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
       success: true,
       data: {
         conversation: serializeConversationDetail(conversation),
-        messages: serializeMessages(conversation, messages),
+        messages: serializeMessages(conversation, messages, { viewerRole: 'admin' }),
       },
       message: 'Conversation marked as read',
     });

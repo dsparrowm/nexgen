@@ -14,6 +14,9 @@ export interface SupportChatMessage {
     content: string
     createdAt: string
     status?: 'sending' | 'sent' | 'failed'
+    clientMessageId?: string | null
+    readAt?: string | null
+    isRead?: boolean
 }
 
 export interface SupportChatIdentity {
@@ -51,11 +54,21 @@ export interface SupportGuestConversationResponse {
     conversation?: SupportConversation
     visitorToken?: string
     messages?: SupportChatMessage[]
+    pagination?: SupportConversationPagination
 }
 
 export interface SupportUserConversationResponse {
     conversation?: SupportConversation
     messages?: SupportChatMessage[]
+    pagination?: SupportConversationPagination
+}
+
+export interface SupportConversationPagination {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasMore: boolean
 }
 
 export interface SupportConversationListResponse {
@@ -68,6 +81,9 @@ type RawSupportMessage = {
     message?: string
     senderType?: string
     createdAt?: string
+    clientMessageId?: string | null
+    readAt?: string | null
+    isRead?: boolean
 }
 
 function normalizeMessageRole(senderType?: string): SupportChatRole {
@@ -90,6 +106,9 @@ function normalizeSupportMessage(message: RawSupportMessage): SupportChatMessage
         role: normalizeMessageRole(message.senderType),
         content: message.content || message.message || '',
         createdAt: message.createdAt || new Date().toISOString(),
+        clientMessageId: message.clientMessageId ?? null,
+        readAt: message.readAt ?? null,
+        isRead: message.isRead ?? false,
     }
 }
 
@@ -259,6 +278,7 @@ export function createGuestConversation(payload: {
     phone?: string
     subject?: string
     message: string
+    clientMessageId?: string
 }) {
     return apiRequest<SupportGuestConversationResponse>('public/support/conversations', {
         method: 'POST',
@@ -266,8 +286,16 @@ export function createGuestConversation(payload: {
     })
 }
 
-export function getGuestConversation(conversationId: string, visitorToken: string) {
+export function getGuestConversation(conversationId: string, visitorToken: string, params?: { page?: number; limit?: number }) {
     const query = new URLSearchParams({ visitorToken })
+
+    if (params?.page) {
+        query.append('page', params.page.toString())
+    }
+
+    if (params?.limit) {
+        query.append('limit', params.limit.toString())
+    }
 
     return apiRequest<SupportGuestConversationResponse>(
         `public/support/conversations/${conversationId}?${query.toString()}`,
@@ -280,6 +308,7 @@ export function sendGuestMessage(
     payload: {
         visitorToken: string
         message: string
+        clientMessageId?: string
     }
 ) {
     return apiRequest<SupportGuestConversationResponse>(`public/support/conversations/${conversationId}/messages`, {
@@ -297,6 +326,7 @@ export function listUserConversations() {
 export function createUserConversation(payload: {
     subject?: string
     message: string
+    clientMessageId?: string
 }) {
     return apiRequest<SupportUserConversationResponse>('user/support/conversations', {
         method: 'POST',
@@ -304,8 +334,20 @@ export function createUserConversation(payload: {
     })
 }
 
-export function getUserConversation(conversationId: string) {
-    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${conversationId}`, {
+export function getUserConversation(conversationId: string, params?: { page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+
+    if (params?.page) {
+        query.append('page', params.page.toString())
+    }
+
+    if (params?.limit) {
+        query.append('limit', params.limit.toString())
+    }
+
+    const queryString = query.toString()
+
+    return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${conversationId}${queryString ? `?${queryString}` : ''}`, {
         method: 'GET',
     })
 }
@@ -314,6 +356,7 @@ export function sendUserMessage(
     conversationId: string,
     payload: {
         message: string
+        clientMessageId?: string
     }
 ) {
     return apiRequest<SupportUserConversationResponse>(`user/support/conversations/${conversationId}/messages`, {
