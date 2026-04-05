@@ -6,21 +6,26 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermission } from '@/components/ProtectedRoute'
+import { adminRoutes, getAdminRouteMeta } from '@/lib/adminRoutes'
 import {
     LayoutDashboard,
     Users,
-    CreditCard,
-    Settings,
-    BarChart3,
-    Shield,
     Bell,
     LogOut,
     Menu,
     X,
     Activity,
     DollarSign,
-    ArrowLeftRight,
-    MessageCircle
+    MessageCircle,
+    Pickaxe,
+    BadgeCheck,
+    HandCoins,
+    Wallet,
+    CandlestickChart,
+    Megaphone,
+    TrendingUp,
+    Settings,
+    Shield
 } from 'lucide-react'
 
 // Inline NexgenLogo component
@@ -52,16 +57,90 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const pathname = usePathname()
     const { admin, logout } = useAuth()
     const { canManageSettings, isSuperAdmin } = usePermission()
+    const routeMeta = getAdminRouteMeta(pathname)
 
-    const navigation = [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/admin', exact: true },
-        { name: 'User Management', icon: Users, href: '/admin/users' },
-        { name: 'Transaction Management', icon: ArrowLeftRight, href: '/admin/transactions' },
-        { name: 'Credit Management', icon: CreditCard, href: '/admin/credits' },
-        { name: 'Support Inbox', icon: MessageCircle, href: '/admin/support' },
-        { name: 'Reports & Analytics', icon: BarChart3, href: '/admin/reports' },
-        ...(canManageSettings() ? [{ name: 'System Settings', icon: Settings, href: '/admin/settings' }] : []),
-        ...(isSuperAdmin() ? [{ name: 'Security & Audit', icon: Shield, href: '/admin/security' }] : []),
+    const navigationSections = [
+        {
+            label: 'Operations',
+            items: [
+                {
+                    name: 'Operations Center',
+                    description: 'Platform health and queues',
+                    icon: LayoutDashboard,
+                    href: adminRoutes.operations,
+                    exact: true,
+                },
+                {
+                    name: 'Customers',
+                    description: 'Accounts and customer state',
+                    icon: Users,
+                    href: adminRoutes.customers,
+                },
+                {
+                    name: 'Compliance',
+                    description: 'KYC and verification workflows',
+                    icon: BadgeCheck,
+                    href: '/admin/compliance',
+                },
+            ],
+        },
+        {
+            label: 'Finance',
+            items: [
+                {
+                    name: 'Treasury',
+                    description: 'Ledger, credits, payouts',
+                    icon: Wallet,
+                    href: adminRoutes.treasury,
+                },
+                {
+                    name: 'Assets Desk',
+                    description: 'Crypto portfolio controls',
+                    icon: CandlestickChart,
+                    href: adminRoutes.assets,
+                },
+                {
+                    name: 'Mining Desk',
+                    description: 'Plans, capacity, lifecycle',
+                    icon: Pickaxe,
+                    href: adminRoutes.miningDesk,
+                },
+            ],
+        },
+        {
+            label: 'Engagement',
+            items: [
+                {
+                    name: 'Communications',
+                    description: 'Support and announcements',
+                    icon: Megaphone,
+                    href: adminRoutes.communications,
+                },
+                {
+                    name: 'Growth',
+                    description: 'Referrals and promotions',
+                    icon: TrendingUp,
+                    href: adminRoutes.growth,
+                },
+            ],
+        },
+        {
+            label: 'Intelligence',
+            items: [
+                {
+                    name: 'Analytics',
+                    description: 'Reports and business metrics',
+                    icon: Activity,
+                    href: adminRoutes.analytics,
+                },
+                {
+                    name: 'Platform',
+                    description: 'Settings and security',
+                    icon: Settings,
+                    href: adminRoutes.platform,
+                },
+            ],
+        },
     ]
 
     const handleLogout = async () => {
@@ -107,27 +186,92 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-4 py-6 space-y-2">
-                        {navigation.map((item) => {
-                            const active = isActive(item.href, item.exact)
-                            return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    onClick={() => setSidebarOpen(false)}
-                                    className={`
-                                        group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200
-                                        ${active
-                                            ? 'bg-gradient-to-r from-gold-500/20 to-gold-600/10 text-gold-300 border border-gold-500/30'
-                                            : 'text-gray-300 hover:text-white hover:bg-navy-700/50'
-                                        }
-                                    `}
-                                >
-                                    <item.icon className={`mr-3 h-5 w-5 ${active ? 'text-gold-400' : 'text-gray-400 group-hover:text-white'}`} />
-                                    {item.name}
-                                </Link>
-                            )
-                        })}
+                    <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
+                        {navigationSections.map((section) => (
+                            <div key={section.label}>
+                                <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">
+                                    {section.label}
+                                </p>
+                                <div className="space-y-2">
+                                    {section.items.map((item) => {
+                                        const active = isActive(item.href, item.exact)
+                                        return (
+                                            <Link
+                                                key={item.name}
+                                                href={item.href}
+                                                onClick={() => setSidebarOpen(false)}
+                                                className={`
+                                                    group flex items-start rounded-xl border px-3 py-3 transition-all duration-200
+                                                    ${active
+                                                        ? 'border-gold-500/30 bg-gradient-to-r from-gold-500/20 to-gold-600/10 text-gold-300'
+                                                        : 'border-transparent text-gray-300 hover:border-gold-500/10 hover:bg-navy-700/50 hover:text-white'
+                                                    }
+                                                `}
+                                            >
+                                                <item.icon className={`mr-3 mt-0.5 h-5 w-5 shrink-0 ${active ? 'text-gold-400' : 'text-gray-400 group-hover:text-white'}`} />
+                                                <span className="min-w-0">
+                                                    <span className="block text-sm font-medium">{item.name}</span>
+                                                    <span className="mt-0.5 block text-xs text-gray-500 group-hover:text-gray-300">
+                                                        {item.description}
+                                                    </span>
+                                                </span>
+                                            </Link>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+
+                        {canManageSettings() && (
+                            <div>
+                                <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">
+                                    Restricted
+                                </p>
+                                <div className="space-y-2">
+                                    <Link
+                                        href={adminRoutes.platformSettings}
+                                        onClick={() => setSidebarOpen(false)}
+                                        className={`
+                                            group flex items-start rounded-xl border px-3 py-3 transition-all duration-200
+                                            ${isActive(adminRoutes.platformSettings) || isActive('/admin/settings')
+                                                ? 'border-gold-500/30 bg-gradient-to-r from-gold-500/20 to-gold-600/10 text-gold-300'
+                                                : 'border-transparent text-gray-300 hover:border-gold-500/10 hover:bg-navy-700/50 hover:text-white'
+                                            }
+                                        `}
+                                    >
+                                        <Settings className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-gray-400 group-hover:text-white" />
+                                        <span className="min-w-0">
+                                            <span className="block text-sm font-medium">System Settings</span>
+                                            <span className="mt-0.5 block text-xs text-gray-500 group-hover:text-gray-300">
+                                                Platform configuration
+                                            </span>
+                                        </span>
+                                    </Link>
+
+                                    {isSuperAdmin() && (
+                                        <Link
+                                            href={adminRoutes.platformSecurity}
+                                            onClick={() => setSidebarOpen(false)}
+                                            className={`
+                                                group flex items-start rounded-xl border px-3 py-3 transition-all duration-200
+                                                ${isActive(adminRoutes.platformSecurity) || isActive('/admin/security')
+                                                    ? 'border-gold-500/30 bg-gradient-to-r from-gold-500/20 to-gold-600/10 text-gold-300'
+                                                    : 'border-transparent text-gray-300 hover:border-gold-500/10 hover:bg-navy-700/50 hover:text-white'
+                                                }
+                                            `}
+                                        >
+                                            <Shield className="mr-3 mt-0.5 h-5 w-5 shrink-0 text-gray-400 group-hover:text-white" />
+                                            <span className="min-w-0">
+                                                <span className="block text-sm font-medium">Security & Audit</span>
+                                                <span className="mt-0.5 block text-xs text-gray-500 group-hover:text-gray-300">
+                                                    Admin security controls
+                                                </span>
+                                            </span>
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </nav>
 
                     {/* Admin Profile */}
@@ -170,20 +314,23 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             </button>
                             <div>
                                 <h1 className="text-xl font-semibold text-white">
-                                    Admin Dashboard
+                                    {routeMeta.title}
                                 </h1>
                                 <p className="text-sm text-gray-400">
-                                    Manage your investment platform
+                                    {routeMeta.description}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex items-center space-x-4">
                             {/* Notifications */}
-                            <button className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors">
+                            <Link
+                                href={adminRoutes.communications}
+                                className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors"
+                            >
                                 <Bell className="w-5 h-5" />
                                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                            </button>
+                            </Link>
 
                             {/* Quick Stats */}
                             <div className="hidden md:flex items-center space-x-4 px-4 py-2 bg-navy-800/50 rounded-lg">

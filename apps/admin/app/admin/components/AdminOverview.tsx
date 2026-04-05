@@ -22,7 +22,10 @@ import {
     Wallet,
     PieChart,
     RefreshCw,
-    MessageCircle
+    MessageCircle,
+    Pickaxe,
+    BadgeCheck,
+    HandCoins
 } from 'lucide-react'
 
 interface DashboardStats {
@@ -174,7 +177,7 @@ const AdminOverview = () => {
             icon: UserPlus,
             color: 'text-blue-500',
             bgColor: 'bg-blue-500/10',
-            href: '/admin/users/add'
+            href: '/admin/customers/add'
         },
         {
             title: 'Credit User',
@@ -182,7 +185,7 @@ const AdminOverview = () => {
             icon: CreditCard,
             color: 'text-green-500',
             bgColor: 'bg-green-500/10',
-            href: '/admin/credits/add'
+            href: '/admin/treasury/credits/add'
         },
         {
             title: 'View Reports',
@@ -190,7 +193,31 @@ const AdminOverview = () => {
             icon: PieChart,
             color: 'text-purple-500',
             bgColor: 'bg-purple-500/10',
-            href: '/admin/reports'
+            href: '/admin/analytics'
+        },
+        {
+            title: 'Review KYC',
+            description: 'Approve identity documents',
+            icon: BadgeCheck,
+            color: 'text-emerald-500',
+            bgColor: 'bg-emerald-500/10',
+            href: '/admin/compliance/kyc'
+        },
+        {
+            title: 'Manage Mining',
+            description: 'Control mining plans',
+            icon: Pickaxe,
+            color: 'text-orange-500',
+            bgColor: 'bg-orange-500/10',
+            href: '/admin/mining-desk'
+        },
+        {
+            title: 'Run Payouts',
+            description: 'Process investor earnings',
+            icon: HandCoins,
+            color: 'text-amber-500',
+            bgColor: 'bg-amber-500/10',
+            href: '/admin/treasury/payouts'
         },
         {
             title: 'User Management',
@@ -198,7 +225,7 @@ const AdminOverview = () => {
             icon: Users,
             color: 'text-gold-500',
             bgColor: 'bg-gold-500/10',
-            href: '/admin/users'
+            href: '/admin/customers'
         },
         {
             title: 'Support Inbox',
@@ -206,7 +233,7 @@ const AdminOverview = () => {
             icon: MessageCircle,
             color: 'text-cyan-500',
             bgColor: 'bg-cyan-500/10',
-            href: '/admin/support'
+            href: '/admin/communications/support'
         }
     ]
 
@@ -242,7 +269,7 @@ const AdminOverview = () => {
             priority: 'high',
             icon: AlertTriangle,
             color: 'text-red-500',
-            href: '/admin/users?filter=kyc-pending'
+            href: '/admin/compliance/kyc'
         },
         {
             id: 2,
@@ -251,7 +278,7 @@ const AdminOverview = () => {
             priority: 'medium',
             icon: Wallet,
             color: 'text-yellow-500',
-            href: '/admin/transactions?filter=pending-withdrawals'
+            href: '/admin/treasury/ledger'
         },
         {
             id: 3,
@@ -260,7 +287,7 @@ const AdminOverview = () => {
             priority: 'low',
             icon: CheckCircle,
             color: 'text-blue-500',
-            href: '/admin/support'
+            href: '/admin/communications/support'
         }
     ] : []
 
@@ -440,7 +467,7 @@ const AdminOverview = () => {
                         >
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-lg font-bold text-white">Recent Activities</h3>
-                                <Link href="/admin/transactions" className="text-gold-500 hover:text-gold-400 transition-colors">
+                                <Link href="/admin/treasury/ledger" className="text-gold-500 hover:text-gold-400 transition-colors">
                                     <Eye className="w-5 h-5" />
                                 </Link>
                             </div>
@@ -449,7 +476,7 @@ const AdminOverview = () => {
                                 {recentActivities.slice(0, 5).map((activity) => (
                                     <Link
                                         key={activity.id}
-                                        href={`/admin/transactions?id=${activity.id}`}
+                                        href={`/admin/treasury/ledger?id=${activity.id}`}
                                         className="flex items-center justify-between p-3 rounded-xl bg-navy-800/30 hover:bg-navy-800/50 transition-colors cursor-pointer block"
                                     >
                                         <div className="flex items-center space-x-3">

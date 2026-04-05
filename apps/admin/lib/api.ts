@@ -93,6 +93,143 @@ export interface SupportConversationPagination {
     hasMore: boolean;
 }
 
+export interface KycDocumentRecord {
+    id: string;
+    userId: string;
+    type: string;
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejectionReason?: string | null;
+    uploadedAt: string;
+    reviewedAt?: string | null;
+    reviewedBy?: string | null;
+    user: {
+        id: string;
+        email: string;
+        username: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        kycStatus?: string;
+        createdAt?: string;
+    };
+}
+
+export interface MiningOperationRecord {
+    id: string;
+    name: string;
+    description?: string | null;
+    minInvestment: number | string;
+    maxInvestment: number | string;
+    dailyReturn: number | string;
+    duration: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+    totalCapacity: number | string;
+    currentCapacity: number | string;
+    totalInvested?: number | string;
+    activeInvestments?: number;
+    startDate: string;
+    endDate?: string | null;
+    imageUrl?: string | null;
+    features?: string[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PayoutRecord {
+    id: string;
+    amount: number | string;
+    date: string;
+    status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+    description?: string | null;
+    createdAt: string;
+    investment: {
+        id: string;
+        user: {
+            id: string;
+            email: string;
+            username: string;
+        };
+        miningOperation: {
+            id: string;
+            name: string;
+        };
+    };
+}
+
+export interface AdminAssetCatalogItem {
+    symbol: 'BTC' | 'ETH' | 'USDT' | 'BNB';
+    name: string;
+    network: string;
+    description: string;
+    referencePrice: number;
+    minInvestment: number;
+    precision: number;
+    allocationColor: string;
+}
+
+export interface AdminAssetPosition {
+    id: string;
+    symbol: 'BTC' | 'ETH' | 'USDT' | 'BNB';
+    name: string;
+    network: string;
+    description: string;
+    status: 'ACTIVE' | 'CLOSED';
+    amountInvested: number;
+    unitsHeld: number;
+    averageEntryPrice: number;
+    currentPrice: number;
+    currentValue: number;
+    profitLoss: number;
+    lastValuationAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    allocationColor: string;
+    user: {
+        id: string;
+        email: string;
+        username: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        role?: string;
+        isActive?: boolean;
+        kycStatus?: string;
+    } | null;
+}
+
+export interface AdminAssetDashboard {
+    catalog: AdminAssetCatalogItem[];
+    positions: AdminAssetPosition[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+    };
+    summary: {
+        supportedAssets: number;
+        totalPositions: number;
+        activePositions: number;
+        totalInvested: number;
+        currentValue: number;
+        totalPnL: number;
+    };
+}
+
+export type MiningOperationStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+export type MiningRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type KycDocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW';
+export type KycReviewAction = 'approve' | 'reject';
+export type PayoutStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type AdminMiningOperation = MiningOperationRecord;
+export type AdminKycDocument = KycDocumentRecord;
+export type AdminPayout = PayoutRecord;
+export type AdminAsset = AdminAssetCatalogItem;
+export type AdminAssetPositionRecord = AdminAssetPosition;
+
 class ApiClient {
     private baseUrl: string;
     private isRefreshing = false;
@@ -479,6 +616,168 @@ class ApiClient {
 
         const query = queryParams.toString();
         return this.request(`/admin/credits/history${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Get KYC statistics
+     */
+    async getKycStats(): Promise<ApiResponse<any>> {
+        return this.request('/admin/kyc/stats');
+    }
+
+    /**
+     * Get KYC documents with optional filters
+     */
+    async getKycDocuments(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        userId?: string;
+        type?: string;
+    }): Promise<ApiResponse<{ documents: KycDocumentRecord[]; pagination: any }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.userId) queryParams.append('userId', params.userId);
+        if (params?.type) queryParams.append('type', params.type);
+
+        const query = queryParams.toString();
+        return this.request(`/admin/kyc${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Review a KYC document
+     */
+    async reviewKycDocument(documentId: string, action: 'approve' | 'reject', rejectionReason?: string): Promise<ApiResponse<any>> {
+        return this.put(`/admin/kyc/${documentId}/review`, { action, rejectionReason });
+    }
+
+    /**
+     * Get mining operations with optional filters
+     */
+    async getMiningOperations(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        search?: string;
+    }): Promise<ApiResponse<{ operations: MiningOperationRecord[]; pagination: any }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.search) queryParams.append('search', params.search);
+
+        const query = queryParams.toString();
+        return this.request(`/admin/mining${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Create a mining operation
+     */
+    async createMiningOperation(data: any): Promise<ApiResponse<{ operation: MiningOperationRecord }>> {
+        return this.post('/admin/mining', data);
+    }
+
+    /**
+     * Update a mining operation
+     */
+    async updateMiningOperation(operationId: string, data: any): Promise<ApiResponse<{ operation: MiningOperationRecord }>> {
+        return this.put(`/admin/mining/${operationId}`, data);
+    }
+
+    /**
+     * Delete a mining operation
+     */
+    async deleteMiningOperation(operationId: string): Promise<ApiResponse<any>> {
+        return this.delete(`/admin/mining/${operationId}`);
+    }
+
+    /**
+     * Get payout history
+     */
+    async getPayouts(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        userId?: string;
+        startDate?: string;
+        endDate?: string;
+    }): Promise<ApiResponse<{ payouts: PayoutRecord[]; pagination: any }>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.userId) queryParams.append('userId', params.userId);
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+        const query = queryParams.toString();
+        return this.request(`/admin/payouts/all${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Process today's payouts
+     */
+    async processDailyPayouts(): Promise<ApiResponse<{ processed: number; totalAmount: number; errors?: string[] }>> {
+        return this.post('/admin/payouts/process');
+    }
+
+    /**
+     * Get asset dashboard data
+     */
+    async getAssetDashboard(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        userId?: string;
+        symbol?: string;
+        status?: string;
+    }): Promise<ApiResponse<AdminAssetDashboard>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.userId) queryParams.append('userId', params.userId);
+        if (params?.symbol) queryParams.append('symbol', params.symbol);
+        if (params?.status) queryParams.append('status', params.status);
+
+        const query = queryParams.toString();
+        return this.request(`/admin/assets${query ? `?${query}` : ''}`);
+    }
+
+    /**
+     * Get supported asset catalog
+     */
+    async getAssetCatalog(): Promise<ApiResponse<{ assets: AdminAssetCatalogItem[]; supportedAssets: AdminAssetCatalogItem[] }>> {
+        return this.request('/admin/assets/catalog');
+    }
+
+    /**
+     * Get a single asset position
+     */
+    async getAssetPosition(positionId: string): Promise<ApiResponse<{ position: AdminAssetPosition }>> {
+        return this.request(`/admin/assets/${positionId}`);
+    }
+
+    /**
+     * Update an asset position
+     */
+    async updateAssetPosition(positionId: string, data: {
+        status?: 'ACTIVE' | 'CLOSED';
+        amountInvested?: number;
+        unitsHeld?: number;
+        averageEntryPrice?: number;
+        currentPrice?: number;
+        currentValue?: number;
+        profitLoss?: number;
+        lastValuationAt?: string | null;
+        reason?: string;
+    }): Promise<ApiResponse<{ position: AdminAssetPosition }>> {
+        return this.request(`/admin/assets/${positionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
     }
 
     /**

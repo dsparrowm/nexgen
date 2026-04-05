@@ -150,7 +150,7 @@ const UserDetailsPage = () => {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <button
-                                onClick={() => router.push('/admin/users')}
+                                onClick={() => router.push('/admin/customers')}
                                 className="p-2 text-gray-400 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -163,7 +163,7 @@ const UserDetailsPage = () => {
                         {user && (
                             <div className="flex items-center space-x-3">
                                 <button
-                                    onClick={() => router.push(`/admin/users/${userId}/edit`)}
+                                    onClick={() => router.push(`/admin/customers/${userId}/edit`)}
                                     className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
                                 >
                                     <Edit className="w-4 h-4" />

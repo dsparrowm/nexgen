@@ -118,7 +118,7 @@ const AddUserForm = () => {
             if (response.success) {
                 setSuccess(true)
                 setTimeout(() => {
-                    router.push('/admin/users')
+                    router.push('/admin/customers')
                 }, 2000)
             } else {
                 setError(response.error?.message || 'Failed to create user')

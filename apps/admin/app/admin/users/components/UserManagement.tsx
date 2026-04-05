@@ -195,10 +195,10 @@ const UserManagement = () => {
         try {
             switch (action) {
                 case 'edit':
-                    router.push(`/admin/users/${userId}/edit`)
+                    router.push(`/admin/customers/${userId}/edit`)
                     break
                 case 'view':
-                    router.push(`/admin/users/${userId}`)
+                    router.push(`/admin/customers/${userId}`)
                     break
                 case 'delete':
                     await handleDeleteUser(userId)
@@ -388,7 +388,7 @@ const UserManagement = () => {
                         <p className="text-gray-300">Manage all user accounts and permissions</p>
                     </div>
                     <button
-                        onClick={() => router.push('/admin/users/add')}
+                        onClick={() => router.push('/admin/customers/add')}
                         className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg"
                     >
                         <Plus className="w-5 h-5" />

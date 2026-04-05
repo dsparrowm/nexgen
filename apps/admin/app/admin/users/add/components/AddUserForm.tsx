@@ -104,7 +104,7 @@ const AddUserForm: React.FC = () => {
             if (response.success) {
                 setSubmitSuccess(true)
                 setTimeout(() => {
-                    router.push('/admin/users')
+                    router.push('/admin/customers')
                 }, 2000)
             } else {
                 setSubmitError(response.error?.message || 'Failed to create user')
@@ -118,7 +118,7 @@ const AddUserForm: React.FC = () => {
     }
 
     const handleCancel = () => {
-        router.push('/admin/users')
+        router.push('/admin/customers')
     }
 
     return (

@@ -144,7 +144,7 @@ const AddCreditsForm = () => {
             if (response.success) {
                 setSuccess(true)
                 setTimeout(() => {
-                    router.push('/admin/credits')
+                    router.push('/admin/treasury/credits')
                 }, 2000)
             } else {
                 setError(response.error?.message || 'Failed to add credits')

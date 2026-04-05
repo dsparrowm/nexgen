@@ -173,7 +173,7 @@ const EditUserPage = () => {
 
                 // Redirect after 1.5 seconds
                 setTimeout(() => {
-                    router.push(`/admin/users/${userId}`)
+                    router.push(`/admin/customers/${userId}`)
                 }, 1500)
             } else {
                 setError(response.error?.message || 'Failed to update user')
@@ -187,7 +187,7 @@ const EditUserPage = () => {
     }
 
     const handleCancel = () => {
-        router.push(`/admin/users/${userId}`)
+        router.push(`/admin/customers/${userId}`)
     }
 
     if (isLoading) {
@@ -215,7 +215,7 @@ const EditUserPage = () => {
                             <p className="text-xl text-white mb-2">Error Loading User</p>
                             <p className="text-gray-400 mb-6">{error}</p>
                             <button
-                                onClick={() => router.push('/admin/users')}
+                                onClick={() => router.push('/admin/customers')}
                                 className="px-6 py-2 bg-gold-500 text-dark-900 rounded-lg hover:bg-gold-600 transition-colors"
                             >
                                 Back to Users

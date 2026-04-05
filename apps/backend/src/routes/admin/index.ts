@@ -10,6 +10,7 @@ import reportRoutes from './report.routes';
 import settingsRoutes from './settings.routes';
 import securityRoutes from './security.routes';
 import supportRoutes from './support.routes';
+import assetsRoutes from './assets.routes';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/reports', reportRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/security', securityRoutes);
 router.use('/support', supportRoutes);
+router.use('/assets', assetsRoutes);
 
 export default router;
