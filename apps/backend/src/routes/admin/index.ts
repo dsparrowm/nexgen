@@ -11,6 +11,9 @@ import settingsRoutes from './settings.routes';
 import securityRoutes from './security.routes';
 import supportRoutes from './support.routes';
 import assetsRoutes from './assets.routes';
+import notificationRoutes from './notification.routes';
+import referralRoutes from './referral.routes';
+import complianceRoutes from './compliance.routes';
 
 const router = Router();
 
@@ -27,5 +30,8 @@ router.use('/settings', settingsRoutes);
 router.use('/security', securityRoutes);
 router.use('/support', supportRoutes);
 router.use('/assets', assetsRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/referrals', referralRoutes);
+router.use('/compliance', complianceRoutes);
 
 export default router;

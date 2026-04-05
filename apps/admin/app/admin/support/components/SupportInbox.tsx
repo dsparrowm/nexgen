@@ -242,13 +242,18 @@ const SupportInbox: React.FC = () => {
             if (detailResponse.success && detailResponse.data) {
                 const conversation = normalizeConversation(detailResponse.data)
                 const nextMessages = normalizeMessages(detailResponse.data.messages)
+                const shouldMerge = background || page > 1
 
                 if (conversation) {
-                    setMessages((current) => mergeSupportMessages(current, nextMessages))
+                    setMessages((current) => (
+                        shouldMerge ? mergeSupportMessages(current, nextMessages) : nextMessages
+                    ))
                     setSelectedConversation((current) => ({
                         ...(current || conversation),
                         ...conversation,
-                        messages: mergeSupportMessages(current?.messages || [], nextMessages),
+                        messages: shouldMerge
+                            ? mergeSupportMessages(current?.messages || [], nextMessages)
+                            : nextMessages,
                     }))
                     setHistoryPage(detailResponse.data.pagination?.page || page)
                     setHistoryHasMore(detailResponse.data.pagination?.hasMore || false)
@@ -390,6 +395,8 @@ const SupportInbox: React.FC = () => {
 
     useEffect(() => {
         if (selectedConversationId) {
+            setMessages([])
+            setSelectedConversation(null)
             loadConversation(selectedConversationId)
         }
         setSelectedConversationPresence(null)

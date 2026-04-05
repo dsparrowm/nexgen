@@ -239,9 +239,9 @@ const InvestmentManagement = () => {
                         bg: 'bg-gold-500/10',
                     },
                     {
-                        title: 'Available balance',
+                        title: 'Available cash balance',
                         value: showBalance ? formatCurrency(availableBalance) : '****',
-                        helper: 'Ready to deploy',
+                        helper: 'Ready to deploy as spendable USD',
                         icon: RefreshCw,
                         color: 'text-purple-500',
                         bg: 'bg-purple-500/10',
@@ -273,7 +273,7 @@ const InvestmentManagement = () => {
                     <div className="mb-6 flex items-center justify-between">
                         <div>
                             <h3 className="text-xl font-bold text-white">Buy assets</h3>
-                            <p className="text-sm text-gray-400">Choose a symbol and invest from your available balance.</p>
+                            <p className="text-sm text-gray-400">Choose a symbol and invest from your available cash balance.</p>
                         </div>
                         <button
                             onClick={() => refetchAssets()}

@@ -230,6 +230,46 @@ export type AdminPayout = PayoutRecord;
 export type AdminAsset = AdminAssetCatalogItem;
 export type AdminAssetPositionRecord = AdminAssetPosition;
 
+export interface PlatformFeatureFlags {
+    enableBroadcastNotifications: boolean;
+    enableReferralGovernance: boolean;
+    enableComplianceQueue: boolean;
+    enableTreasuryApprovals: boolean;
+    enablePlatformAccessControl: boolean;
+    enableAssetDesk: boolean;
+}
+
+export interface PlatformAccessControlRole {
+    canManageUsers: boolean;
+    canManageTreasury: boolean;
+    canManageAssets: boolean;
+    canManageMining: boolean;
+    canManageCompliance: boolean;
+    canManageCommunications: boolean;
+    canManageGrowth: boolean;
+    canManageSettings: boolean;
+}
+
+export interface PlatformAccessControl {
+    ADMIN: PlatformAccessControlRole;
+    SUPER_ADMIN: PlatformAccessControlRole;
+}
+
+export interface CommunicationPolicy {
+    allowScheduledBroadcasts: boolean;
+    requireTemplateApproval: boolean;
+    allowSuppressionList: boolean;
+    defaultChannel: 'email' | 'sms' | 'in-app';
+}
+
+export interface GrowthPromotions {
+    referralBonusAmount: number;
+    welcomeBonusAmount: number;
+    leaderboardEnabled: boolean;
+    promotionCampaignsEnabled: boolean;
+    autoApproveReferralBonuses: boolean;
+}
+
 class ApiClient {
     private baseUrl: string;
     private isRefreshing = false;
@@ -803,6 +843,62 @@ class ApiClient {
      */
     async updateSystemSettings(settings: any): Promise<ApiResponse<any>> {
         return this.request('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
+    }
+
+    /**
+     * Get feature flags
+     */
+    async getFeatureFlags(): Promise<ApiResponse<PlatformFeatureFlags>> {
+        return this.request('/admin/settings/feature-flags');
+    }
+
+    /**
+     * Update feature flags
+     */
+    async updateFeatureFlags(featureFlags: PlatformFeatureFlags): Promise<ApiResponse<PlatformFeatureFlags>> {
+        return this.request('/admin/settings/feature-flags', { method: 'PUT', body: JSON.stringify(featureFlags) });
+    }
+
+    /**
+     * Get platform access control
+     */
+    async getAccessControl(): Promise<ApiResponse<PlatformAccessControl>> {
+        return this.request('/admin/settings/access-control');
+    }
+
+    /**
+     * Update platform access control
+     */
+    async updateAccessControl(accessControl: PlatformAccessControl): Promise<ApiResponse<PlatformAccessControl>> {
+        return this.request('/admin/settings/access-control', { method: 'PUT', body: JSON.stringify(accessControl) });
+    }
+
+    /**
+     * Get communications policy
+     */
+    async getCommunicationPolicy(): Promise<ApiResponse<CommunicationPolicy>> {
+        return this.request('/admin/settings/communications-policy');
+    }
+
+    /**
+     * Update communications policy
+     */
+    async updateCommunicationPolicy(policy: CommunicationPolicy): Promise<ApiResponse<CommunicationPolicy>> {
+        return this.request('/admin/settings/communications-policy', { method: 'PUT', body: JSON.stringify(policy) });
+    }
+
+    /**
+     * Get growth promotions settings
+     */
+    async getGrowthPromotions(): Promise<ApiResponse<GrowthPromotions>> {
+        return this.request('/admin/settings/growth-promotions');
+    }
+
+    /**
+     * Update growth promotions settings
+     */
+    async updateGrowthPromotions(promotions: GrowthPromotions): Promise<ApiResponse<GrowthPromotions>> {
+        return this.request('/admin/settings/growth-promotions', { method: 'PUT', body: JSON.stringify(promotions) });
     }
 
     /**

@@ -182,7 +182,7 @@ const WithdrawalManagement = () => {
                 <div className="bg-gradient-to-r from-navy-800 to-navy-900 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 text-sm">Available Balance</p>
+                            <p className="text-gray-400 text-sm">Available cash balance</p>
                             <p className="text-2xl font-bold text-white">{formatCurrency(availableBalance)}</p>
                         </div>
                         <div className="text-right">
@@ -235,7 +235,7 @@ const WithdrawalManagement = () => {
                                 <p className="mt-1 text-sm text-red-500">{errors.amount.message}</p>
                             )}
                             <p className="mt-1 text-xs text-gray-400">
-                                Available: {formatCurrency(availableBalance)} | Min: ${minWithdrawal.toFixed(minWithdrawal < 1 ? 3 : 2)}
+                                Available cash: {formatCurrency(availableBalance)} | Min: ${minWithdrawal.toFixed(minWithdrawal < 1 ? 3 : 2)}
                             </p>
                         </div>
 

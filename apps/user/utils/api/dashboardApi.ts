@@ -47,9 +47,12 @@ export interface DashboardAssetPortfolio extends AssetPortfolioSummary {
 export interface DashboardData {
     user: DashboardUser;
     portfolio?: {
+        cashBalance?: number;
         miningInvested?: number;
         cryptoInvested?: number;
         cryptoCurrentValue?: number;
+        mainBalance?: number;
+        totalValue?: number;
         totalCurrentValue?: number;
     };
     stats?: {

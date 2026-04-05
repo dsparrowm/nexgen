@@ -79,10 +79,15 @@ const DashboardOverview = () => {
 
     const portfolioSummary = data?.assetPortfolio || assetSummary
     const allocationData = portfolioSummary?.allocations || []
-    const cryptoBalance = Number(portfolioSummary?.currentValue || 0)
+    const mainBalance = Number(
+        data?.portfolio?.mainBalance ??
+        data?.portfolio?.totalValue ??
+        data?.portfolio?.totalCurrentValue ??
+        (Number(data?.user?.balance || 0) + Number(data?.portfolio?.miningInvested || 0) + Number(portfolioSummary?.currentValue || 0))
+    )
     const totalBalanceSubtitle = portfolioSummary?.activePositions
-        ? `${portfolioSummary.activePositions} crypto ${portfolioSummary.activePositions === 1 ? 'position' : 'positions'} with live USD value`
-        : 'No crypto holdings yet'
+        ? `${portfolioSummary.activePositions} crypto ${portfolioSummary.activePositions === 1 ? 'position' : 'positions'} plus mining profits and cash`
+        : 'Portfolio value includes cash, mining, and crypto holdings'
     const assetBalanceDetails = supportedAssets.map((asset) => {
         const assetTotals = assetPositions
             .filter((position) => position.assetSymbol === asset.symbol)
@@ -111,8 +116,8 @@ const DashboardOverview = () => {
 
     const statsCards: StatCard[] = [
         {
-            title: 'Crypto Balance',
-            value: showBalance ? formatCurrency(cryptoBalance) : '****',
+            title: 'Main Balance',
+            value: showBalance ? formatCurrency(mainBalance) : '****',
             subtitle: totalBalanceSubtitle,
             icon: DollarSign,
             color: 'text-green-500',
@@ -134,7 +139,7 @@ const DashboardOverview = () => {
             bgColor: 'bg-blue-500/10',
         },
         {
-            title: 'Crypto Portfolio',
+            title: 'Crypto Holdings',
             value: showBalance ? formatCurrency(portfolioSummary?.currentValue || 0) : '****',
             subtitle: portfolioSummary?.activePositions
                 ? `${portfolioSummary.activePositions} ${portfolioSummary.activePositions === 1 ? 'Position' : 'Positions'}`

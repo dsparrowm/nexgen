@@ -3,16 +3,16 @@
 import React from 'react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../../components/AdminLayout'
-import ReferralManagement from './components/ReferralManagement'
+import GrowthPromotionsWorkspace from './components/GrowthPromotionsWorkspace'
 
-const ReferralWorkspacePage: React.FC = () => {
+const GrowthPromotionsPage: React.FC = () => {
     return (
         <ProtectedRoute>
             <AdminLayout>
-                <ReferralManagement />
+                <GrowthPromotionsWorkspace />
             </AdminLayout>
         </ProtectedRoute>
     )
 }
 
-export default ReferralWorkspacePage
+export default GrowthPromotionsPage

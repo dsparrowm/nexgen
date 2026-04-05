@@ -39,8 +39,9 @@ const PlatformPage: React.FC = () => {
                         },
                         {
                             title: 'Permissions & feature flags',
-                            description: 'Admin role scopes and release controls should eventually sit here instead of being hard-coded across pages.',
-                            status: 'Needs Backend',
+                            description: 'Admin role scopes and release controls now persist through the platform settings workspace.',
+                            href: adminRoutes.platformSettings,
+                            status: 'Live',
                             icon: SlidersHorizontal,
                         },
                     ]}

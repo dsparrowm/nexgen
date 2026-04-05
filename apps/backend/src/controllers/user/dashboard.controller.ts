@@ -142,6 +142,8 @@ export const getDashboardOverview = async (req: AuthRequest, res: Response): Pro
                 activeInvestments: activeInvestments._count.id,
                 totalInvested: activeInvestments._sum.amount || 0,
                 totalValue: totalPortfolioValue,
+                mainBalance: totalPortfolioValue,
+                cashBalance: Number(user.balance),
                 assetInvested: assetPortfolio.summary.totalInvested,
                 assetCurrentValue: assetPortfolio.summary.currentValue,
                 assetProfitLoss: assetPortfolio.summary.totalPnL,

@@ -38,9 +38,10 @@ const TreasuryPage: React.FC = () => {
                             icon: HandCoins,
                         },
                         {
-                            title: 'Future finance controls',
-                            description: 'Refund tooling, exception queues, and liability reconciliation should expand from this treasury foundation instead of becoming separate orphan pages.',
-                            status: 'Planned',
+                            title: 'Transaction approvals',
+                            description: 'Approve deposits, withdrawals, refunds, and fees from the live transaction queue.',
+                            href: adminRoutes.transactions,
+                            status: 'Live',
                             icon: ShieldCheck,
                         },
                     ]}

@@ -9,14 +9,17 @@ export const adminRoutes = {
     treasuryCredits: '/admin/treasury/credits',
     treasuryCreditsAdd: '/admin/treasury/credits/add',
     treasuryPayouts: '/admin/treasury/payouts',
+    transactions: '/admin/transactions',
     assets: '/admin/assets',
     miningDesk: '/admin/mining',
     complianceKyc: '/admin/compliance/kyc',
     communications: '/admin/communications',
     communicationsSupport: '/admin/communications/support',
     communicationsNotifications: '/admin/communications/notifications',
+    communicationsGovernance: '/admin/communications/governance',
     growth: '/admin/growth',
     growthReferrals: '/admin/growth/referrals',
+    growthPromotions: '/admin/growth/promotions',
     analytics: '/admin/analytics',
     platform: '/admin/platform',
     platformSettings: '/admin/platform/settings',
@@ -51,6 +54,13 @@ const prefixRouteMetaEntries: Array<{ match: string; meta: AdminRouteMeta }> = [
         },
     },
     {
+        match: adminRoutes.transactions,
+        meta: {
+            title: 'Treasury Ledger',
+            description: 'Approve deposits, withdrawals, refunds, and fee adjustments.',
+        },
+    },
+    {
         match: adminRoutes.assets,
         meta: {
             title: 'Assets Desk',
@@ -76,6 +86,13 @@ const prefixRouteMetaEntries: Array<{ match: string; meta: AdminRouteMeta }> = [
         meta: {
             title: 'Communications',
             description: 'Coordinate support, notifications, and customer messaging.',
+        },
+    },
+    {
+        match: adminRoutes.growthPromotions,
+        meta: {
+            title: 'Growth Controls',
+            description: 'Manage promotion rules, bonus policies, and referral incentives.',
         },
     },
     {

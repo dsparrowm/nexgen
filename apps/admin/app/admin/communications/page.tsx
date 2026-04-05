@@ -25,15 +25,16 @@ const CommunicationsPage: React.FC = () => {
                         },
                         {
                             title: 'Notification center',
-                            description: 'Campaigns, broadcast announcements, and targeted in-app notifications should be managed here once admin-facing notification APIs are added.',
+                            description: 'Broadcast system announcements and security alerts to all active customer accounts, with campaign history and audit logging.',
                             href: adminRoutes.communicationsNotifications,
-                            status: 'Planned',
+                            status: 'Live',
                             icon: Bell,
                         },
                         {
                             title: 'Outbound messaging governance',
-                            description: 'Template review, suppression controls, and approval rules should grow here so support and system messaging stay auditable.',
-                            status: 'Needs Backend',
+                            description: 'Template review, suppression controls, approvals, and scheduled sends now persist through a live governance workspace.',
+                            href: adminRoutes.communicationsGovernance,
+                            status: 'Live',
                             icon: Send,
                         },
                         {

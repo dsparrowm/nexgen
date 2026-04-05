@@ -418,9 +418,11 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
             },
             portfolio: {
                 miningInvested,
+                cashBalance: Number(user.balance),
                 cryptoInvested: assetPortfolio.summary.totalInvested,
                 cryptoCurrentValue: assetPortfolio.summary.currentValue,
-                totalCurrentValue: Number(user.balance) + miningInvested + assetPortfolio.summary.currentValue
+                totalCurrentValue: Number(user.balance) + miningInvested + assetPortfolio.summary.currentValue,
+                mainBalance: Number(user.balance) + miningInvested + assetPortfolio.summary.currentValue
             },
             assetPortfolio,
             recentTransactions,

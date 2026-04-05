@@ -13,20 +13,21 @@ const GrowthPage: React.FC = () => {
             <AdminLayout>
                 <SectionLanding
                     eyebrow="Growth"
-                    title="Referral and incentive controls should be owned from one growth workspace"
-                    description="Referral logic already affects user earnings, but the back office still lacks direct growth tooling. This workspace is where referral reporting, campaign controls, and incentive governance should live."
+                    title="Referral operations now have a live admin home"
+                    description="Referral visibility and bonus governance now run from this workspace. Broader campaign tooling and lifecycle growth controls can layer in here next without mixing them into unrelated admin domains."
                     cards={[
                         {
                             title: 'Referral operations',
-                            description: 'Referral visibility, leaderboard integrity checks, and campaign-level governance should consolidate here.',
+                            description: 'Admin can now review referral performance, leaderboard standings, and recent bonus activity from one live workspace.',
                             href: adminRoutes.growthReferrals,
-                            status: 'Planned',
+                            status: 'Live',
                             icon: Users,
                         },
                         {
                             title: 'Promotion controls',
-                            description: 'Bonus rules, welcome campaigns, and incentive toggles should live with referral governance instead of being hard-coded into unrelated flows.',
-                            status: 'Needs Backend',
+                            description: 'Bonus rules, welcome campaigns, and incentive toggles now persist in a dedicated growth workspace.',
+                            href: adminRoutes.growthPromotions,
+                            status: 'Live',
                             icon: Gift,
                         },
                         {
@@ -38,8 +39,9 @@ const GrowthPage: React.FC = () => {
                         },
                         {
                             title: 'Leaderboard oversight',
-                            description: 'Abuse review and ranking integrity should be a deliberate operational surface, not just a passive user leaderboard endpoint.',
-                            status: 'Needs Backend',
+                            description: 'Top referrers, conversion counts, and bonus totals are now visible to admin even though deeper abuse tooling still belongs in a later phase.',
+                            href: adminRoutes.growthReferrals,
+                            status: 'Live',
                             icon: Trophy,
                         },
                     ]}

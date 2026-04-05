@@ -25,7 +25,8 @@ import {
     Megaphone,
     TrendingUp,
     Settings,
-    Shield
+    Shield,
+    ArrowLeftRight
 } from 'lucide-react'
 
 // Inline NexgenLogo component
@@ -92,6 +93,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     description: 'Ledger, credits, payouts',
                     icon: Wallet,
                     href: adminRoutes.treasury,
+                },
+                {
+                    name: 'Transactions',
+                    description: 'Approve deposits and withdrawals',
+                    icon: ArrowLeftRight,
+                    href: adminRoutes.transactions,
                 },
                 {
                     name: 'Assets Desk',
