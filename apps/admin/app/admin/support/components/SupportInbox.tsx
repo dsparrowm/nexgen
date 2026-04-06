@@ -166,6 +166,7 @@ const SupportInbox: React.FC = () => {
     const [historyPage, setHistoryPage] = useState(1)
     const [historyHasMore, setHistoryHasMore] = useState(false)
     const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false)
+    const [showJumpToLatest, setShowJumpToLatest] = useState(false)
     const messageScrollRef = useRef<HTMLDivElement | null>(null)
     const pendingScrollAdjustmentRef = useRef<{ previousScrollHeight: number; previousScrollTop: number } | null>(null)
     const stickToBottomRef = useRef(true)
@@ -248,6 +249,9 @@ const SupportInbox: React.FC = () => {
                     setMessages((current) => (
                         shouldMerge ? mergeSupportMessages(current, nextMessages) : nextMessages
                     ))
+                    if (!shouldMerge) {
+                        setShowJumpToLatest(false)
+                    }
                     setSelectedConversation((current) => ({
                         ...(current || conversation),
                         ...conversation,
@@ -257,7 +261,9 @@ const SupportInbox: React.FC = () => {
                     }))
                     setHistoryPage(detailResponse.data.pagination?.page || page)
                     setHistoryHasMore(detailResponse.data.pagination?.hasMore || false)
-                    stickToBottomRef.current = true
+                    if (!background) {
+                        stickToBottomRef.current = true
+                    }
                     if (!background) {
                         await apiClient.markSupportConversationRead(conversationId)
                     }
@@ -422,6 +428,9 @@ const SupportInbox: React.FC = () => {
 
         if (stickToBottomRef.current) {
             container.scrollTop = container.scrollHeight
+            setShowJumpToLatest(false)
+        } else if (messages.length > 0) {
+            setShowJumpToLatest(true)
         }
     }, [messages, selectedConversationId])
 
@@ -474,6 +483,9 @@ const SupportInbox: React.FC = () => {
 
         const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
         stickToBottomRef.current = distanceFromBottom < 120
+        if (stickToBottomRef.current) {
+            setShowJumpToLatest(false)
+        }
 
         if (container.scrollTop < 140) {
             void loadOlderMessages()
@@ -551,10 +563,24 @@ const SupportInbox: React.FC = () => {
     }, [loadConversations, loadConversation, selectedConversationId, statusFilter, searchQuery])
 
     useEffect(() => {
-        if (messageScrollRef.current) {
-            messageScrollRef.current.scrollTop = messageScrollRef.current.scrollHeight
+        const container = messageScrollRef.current
+        if (!container || !stickToBottomRef.current) {
+            return
         }
+
+        container.scrollTop = container.scrollHeight
     }, [messages, selectedConversationId])
+
+    const scrollToLatest = () => {
+        const container = messageScrollRef.current
+        if (!container) {
+            return
+        }
+
+        stickToBottomRef.current = true
+        setShowJumpToLatest(false)
+        container.scrollTop = container.scrollHeight
+    }
 
     const handleSendReply = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -641,12 +667,12 @@ const SupportInbox: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="flex h-full min-h-0 flex-col gap-6">
             <motion.div
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
-                className="rounded-3xl border border-gold-500/20 bg-gradient-to-r from-gold-500/10 via-navy-800/60 to-blue-500/10 p-6"
+                className="shrink-0 rounded-3xl border border-gold-500/20 bg-gradient-to-r from-gold-500/10 via-navy-800/60 to-blue-500/10 p-6"
             >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -677,7 +703,7 @@ const SupportInbox: React.FC = () => {
                 </div>
             </motion.div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <form onSubmit={handleSearchSubmit} className="flex flex-1 items-center gap-3">
                     <div className="relative flex-1">
                         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -771,12 +797,12 @@ const SupportInbox: React.FC = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
                 <motion.aside
                     initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.45, delay: 0.05 }}
-                    className="rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
+                    className="flex min-h-0 flex-col rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
                 >
                     <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
                         <div>
@@ -788,7 +814,7 @@ const SupportInbox: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="max-h-[720px] overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                         {isLoadingList && !conversations.length ? (
                             <div className="flex items-center justify-center px-6 py-12 text-gray-400">
                                 <div className="flex flex-col items-center gap-3">
@@ -860,7 +886,7 @@ const SupportInbox: React.FC = () => {
                     initial={{ opacity: 0, x: 16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.45, delay: 0.1 }}
-                    className="flex min-h-[720px] flex-col overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
+                    className="relative flex min-h-0 flex-col overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
                 >
                     {isLoadingThread && !selectedConversation ? (
                         <div className="flex flex-1 items-center justify-center">
@@ -1022,6 +1048,19 @@ const SupportInbox: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {showJumpToLatest && (
+                                <div className="absolute bottom-28 right-6 z-10">
+                                    <button
+                                        type="button"
+                                        onClick={scrollToLatest}
+                                        className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-dark-800/95 px-4 py-2 text-sm font-medium text-gold-200 shadow-lg shadow-black/20 transition-colors hover:bg-dark-700"
+                                    >
+                                        <span className="h-2 w-2 rounded-full bg-gold-400" />
+                                        New messages
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="border-t border-white/5 px-6 py-5">
                                 <form onSubmit={handleSendReply} className="space-y-3">

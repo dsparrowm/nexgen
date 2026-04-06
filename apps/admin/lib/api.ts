@@ -60,6 +60,7 @@ export interface SupportConversationSummary {
     customerEmail?: string;
     customerPhone?: string;
     lastMessage?: string;
+    lastMessageSenderType?: SupportSenderType;
     lastMessageAt?: string;
     unreadCount?: number;
     assignedAdminName?: string;

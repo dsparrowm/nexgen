@@ -104,19 +104,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                         </div>
                     </SidebarHeader>
 
-                    <SidebarContent>
-                        <SidebarMenu>
-                            {navigation.map((item) => (
-                                <SidebarMenuItem
-                                    key={item.id}
-                                    href={item.href}
-                                    isActive={activeSection === item.id}
-                                >
-                                    <item.icon className="w-5 h-5 mr-3" />
-                                    {item.name}
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
+                    <SidebarContent className="flex h-full flex-col">
+                        <div className="flex-1">
+                            <SidebarMenu>
+                                {navigation.map((item) => (
+                                    <SidebarMenuItem
+                                        key={item.id}
+                                        href={item.href}
+                                        isActive={activeSection === item.id}
+                                    >
+                                        <item.icon className="w-5 h-5 mr-3" />
+                                        {item.name}
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </div>
 
                         {/* User Profile Section */}
                         <div className="mt-auto px-3 py-4 border-t border-gold-500/20">
