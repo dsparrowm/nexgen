@@ -1,6 +1,6 @@
 import db from '@/services/database';
-import { getAssetCatalog, getSupportedAsset, type AssetSymbol, type SupportedAsset } from '@/constants/assets';
-import { getLiveAssetQuotes } from '@/services/cryptoPrice.service';
+import { getSupportedAsset, type AssetSymbol, type SupportedAsset } from '@/constants/assets';
+import { getLiveAssetQuotes, getLiveSupportedAssets } from '@/services/cryptoPrice.service';
 
 const round = (value: number, decimals: number): number => {
     if (!Number.isFinite(value)) {
@@ -157,8 +157,10 @@ export const getAssetPortfolioSnapshot = async (userId: string): Promise<AssetPo
         0
     );
 
+    const supportedAssets = await getLiveSupportedAssets();
+
     return {
-        supportedAssets: getAssetCatalog(),
+        supportedAssets,
         positions: serializedPositions,
         summary: {
             totalInvested: round(totalInvested, 2),
