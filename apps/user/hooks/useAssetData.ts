@@ -15,6 +15,7 @@ import {
     type BuyAssetPayload,
     type SupportedAsset,
 } from '@/utils/api/assetsApi';
+import { getLiveAssetQuotes } from '@/utils/api/liveAssetPrices';
 
 const LIVE_PRICE_REFRESH_MS = 60_000;
 
@@ -42,17 +43,47 @@ export function useAssetData(): UseAssetDataReturn {
             setLoading(true);
             setError(null);
 
-            const [assets, positionsResponse] = await Promise.all([
+            const [assets, positionsResponse, liveQuotes] = await Promise.all([
                 getSupportedAssets(),
                 getAssetPositions(),
+                getLiveAssetQuotes(),
             ]);
 
-            setSupportedAssets(assets.length > 0 ? assets : DEFAULT_SUPPORTED_ASSETS);
-            setAssetPositions(positionsResponse.positions || []);
-            setAssetSummary(
-                positionsResponse.summary ||
-                    calculateAssetPortfolioSummary(positionsResponse.positions || [], assets.length > 0 ? assets : DEFAULT_SUPPORTED_ASSETS)
-            );
+            const liveAssets = (assets.length > 0 ? assets : DEFAULT_SUPPORTED_ASSETS).map((asset) => {
+                const liveQuote = liveQuotes.get(asset.symbol)
+
+                if (!liveQuote) {
+                    return asset
+                }
+
+                return {
+                    ...asset,
+                    currentPrice: liveQuote.currentPrice > 0 ? liveQuote.currentPrice : asset.currentPrice,
+                    priceChange24h: liveQuote.priceChange24h,
+                }
+            })
+
+            const livePositions = (positionsResponse.positions || []).map((position) => {
+                const liveQuote = liveQuotes.get(position.assetSymbol)
+                const currentPrice = liveQuote?.currentPrice && liveQuote.currentPrice > 0
+                    ? liveQuote.currentPrice
+                    : Number(position.currentPrice || 0)
+                const amountInvested = Number(position.amountInvested || 0)
+                const currentValue = Number((position.unitsHeld || 0) * currentPrice)
+                const unrealizedPnL = currentValue - amountInvested
+
+                return {
+                    ...position,
+                    currentPrice,
+                    currentValue,
+                    unrealizedPnL,
+                    unrealizedPnLPercent: amountInvested > 0 ? (unrealizedPnL / amountInvested) * 100 : 0,
+                }
+            })
+
+            setSupportedAssets(liveAssets)
+            setAssetPositions(livePositions)
+            setAssetSummary(calculateAssetPortfolioSummary(livePositions, liveAssets))
         } catch (err) {
             console.error('Asset data fetch error:', err);
             setError((err as Error).message || 'Failed to fetch asset data');
