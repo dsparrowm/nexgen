@@ -28,7 +28,7 @@ export default function SupportPage() {
                             </div>
                             <p className="text-gray-300 mb-4">Send us an email and we'll get back to you within 24 hours.</p>
                             <a
-                                href="mailto:support@nexgen.com"
+                                href="mailto:support@nexgencrypto.live"
                                 className="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
                             >
                                 Email Us
