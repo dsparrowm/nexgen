@@ -1,5 +1,6 @@
 import db from '@/services/database';
 import { getAssetCatalog, getSupportedAsset, type AssetSymbol, type SupportedAsset } from '@/constants/assets';
+import { getLiveAssetQuotes } from '@/services/cryptoPrice.service';
 
 const round = (value: number, decimals: number): number => {
     if (!Number.isFinite(value)) {
@@ -90,7 +91,7 @@ const buildAllocation = (positions: AssetPositionView[]): AssetPortfolioAllocati
         .sort((a, b) => b.currentValue - a.currentValue);
 };
 
-export const serializeAssetPosition = (position: any): AssetPositionView => {
+export const serializeAssetPosition = (position: any, currentPriceOverride?: number): AssetPositionView => {
     const asset = getSupportedAsset(position.symbol) ?? {
         symbol: position.symbol,
         name: position.symbol,
@@ -105,9 +106,9 @@ export const serializeAssetPosition = (position: any): AssetPositionView => {
     const amountInvested = round(Number(position.amountInvested), 2);
     const unitsHeld = round(Number(position.unitsHeld), asset.precision);
     const averageEntryPrice = round(Number(position.averageEntryPrice), 2);
-    const currentPrice = round(Number(position.currentPrice), 2);
-    const currentValue = round(Number(position.currentValue ?? unitsHeld * currentPrice), 2);
-    const profitLoss = round(Number(position.profitLoss ?? currentValue - amountInvested), 2);
+    const currentPrice = round(currentPriceOverride ?? Number(position.currentPrice), 2);
+    const currentValue = round(unitsHeld * currentPrice, 2);
+    const profitLoss = round(currentValue - amountInvested, 2);
 
     return {
         id: position.id,
@@ -138,7 +139,10 @@ export const getAssetPortfolioSnapshot = async (userId: string): Promise<AssetPo
         userId
     );
 
-    const serializedPositions = positions.map(serializeAssetPosition);
+    const liveQuotes = positions.length > 0 ? await getLiveAssetQuotes() : new Map<AssetSymbol, { currentPrice: number }>();
+    const serializedPositions = positions.map((position) =>
+        serializeAssetPosition(position, liveQuotes.get(position.symbol as AssetSymbol)?.currentPrice)
+    );
     const allocation = buildAllocation(serializedPositions);
     const totalInvested = serializedPositions.reduce(
         (sum: number, position: AssetPositionView) => sum + position.amountInvested,

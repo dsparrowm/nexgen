@@ -4,8 +4,9 @@ import { PaymentMethod, TransactionStatus, TransactionType } from '@prisma/clien
 import { nanoid } from 'nanoid';
 import db from '@/services/database';
 import { logger } from '@/utils/logger';
-import { getAssetCatalog, getSupportedAsset, isSupportedAssetSymbol } from '@/constants/assets';
+import { getSupportedAsset, isSupportedAssetSymbol } from '@/constants/assets';
 import { getAssetPortfolioSnapshot, serializeAssetPosition } from '@/services/assetPortfolio.service';
+import { getLiveAssetQuote, getLiveSupportedAssets } from '@/services/cryptoPrice.service';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -42,11 +43,13 @@ const round = (value: number, decimals: number): number => {
 
 export const getSupportedAssets = async (_req: Request, res: Response): Promise<void> => {
     try {
+        const supportedAssets = await getLiveSupportedAssets();
+
         res.status(200).json({
             success: true,
             data: {
-                assets: getAssetCatalog(),
-                supportedAssets: getAssetCatalog()
+                assets: supportedAssets,
+                supportedAssets
             }
         });
     } catch (error) {
@@ -172,8 +175,9 @@ export const buyAssetPosition = async (req: AuthRequest, res: Response): Promise
             )
         ]);
 
-        const purchaseUnits = round(amount / asset.referencePrice, asset.precision);
-        const currentPrice = round(asset.referencePrice, 2);
+        const liveQuote = await getLiveAssetQuote(asset.symbol);
+        const currentPrice = round(liveQuote.currentPrice || asset.referencePrice, 2);
+        const purchaseUnits = round(amount / currentPrice, asset.precision);
         const now = new Date();
         const existingAssetPositionCount = Number(existingAssetPositions[0]?.count || 0);
 

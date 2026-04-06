@@ -77,14 +77,11 @@ const DashboardOverview = () => {
 
     const earningsChange = stats?.earnings?.byMonth ? calculatePercentageChange(0, stats.earnings.byMonth) : null;
 
-    const portfolioSummary = data?.assetPortfolio || assetSummary
+    const portfolioSummary = assetSummary.currentValue > 0 || assetSummary.allocations.length > 0
+        ? assetSummary
+        : (data?.assetPortfolio || assetSummary)
     const allocationData = portfolioSummary?.allocations || []
-    const mainBalance = Number(
-        data?.portfolio?.mainBalance ??
-        data?.portfolio?.totalValue ??
-        data?.portfolio?.totalCurrentValue ??
-        (Number(data?.user?.balance || 0) + Number(data?.portfolio?.miningInvested || 0) + Number(portfolioSummary?.currentValue || 0))
-    )
+    const mainBalance = Number(data?.user?.balance || 0) + Number(data?.portfolio?.miningInvested || 0) + Number(portfolioSummary?.currentValue || 0)
     const totalBalanceSubtitle = portfolioSummary?.activePositions
         ? `${portfolioSummary.activePositions} crypto ${portfolioSummary.activePositions === 1 ? 'position' : 'positions'} plus mining profits and cash`
         : 'Portfolio value includes cash, mining, and crypto holdings'

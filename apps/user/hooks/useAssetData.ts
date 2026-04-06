@@ -16,6 +16,8 @@ import {
     type SupportedAsset,
 } from '@/utils/api/assetsApi';
 
+const LIVE_PRICE_REFRESH_MS = 60_000;
+
 interface UseAssetDataReturn {
     supportedAssets: SupportedAsset[];
     assetPositions: AssetPosition[];
@@ -77,6 +79,14 @@ export function useAssetData(): UseAssetDataReturn {
 
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchData();
+        }, LIVE_PRICE_REFRESH_MS);
+
+        return () => clearInterval(interval);
     }, [fetchData]);
 
     return {
