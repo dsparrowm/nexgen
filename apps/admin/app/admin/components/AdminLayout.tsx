@@ -100,20 +100,34 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         try {
             const context = new AudioContextCtor()
             const oscillator = context.createOscillator()
+            const overtone = context.createOscillator()
+            const sub = context.createOscillator()
             const gain = context.createGain()
 
-            oscillator.type = 'sine'
-            oscillator.frequency.setValueAtTime(880, context.currentTime)
-            oscillator.frequency.exponentialRampToValueAtTime(660, context.currentTime + 0.18)
+            oscillator.type = 'square'
+            oscillator.frequency.setValueAtTime(1200, context.currentTime)
+            oscillator.frequency.exponentialRampToValueAtTime(900, context.currentTime + 0.12)
+            overtone.type = 'sawtooth'
+            overtone.frequency.setValueAtTime(1800, context.currentTime)
+            overtone.frequency.exponentialRampToValueAtTime(1400, context.currentTime + 0.12)
+            sub.type = 'triangle'
+            sub.frequency.setValueAtTime(600, context.currentTime)
+            sub.frequency.exponentialRampToValueAtTime(480, context.currentTime + 0.12)
 
             gain.gain.setValueAtTime(0.0001, context.currentTime)
-            gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.01)
-            gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.24)
+            gain.gain.exponentialRampToValueAtTime(1, context.currentTime + 0.01)
+            gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.5)
 
             oscillator.connect(gain)
+            overtone.connect(gain)
+            sub.connect(gain)
             gain.connect(context.destination)
             oscillator.start()
-            oscillator.stop(context.currentTime + 0.28)
+            overtone.start()
+            sub.start()
+            oscillator.stop(context.currentTime + 0.52)
+            overtone.stop(context.currentTime + 0.52)
+            sub.stop(context.currentTime + 0.52)
             oscillator.onended = () => {
                 void context.close()
             }

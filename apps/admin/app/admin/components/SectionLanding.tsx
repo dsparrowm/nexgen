@@ -13,6 +13,10 @@ interface SectionCard {
     href?: string
     status: SectionCardStatus
     icon: LucideIcon
+    badge?: {
+        label: string
+        count?: number
+    }
 }
 
 interface SectionLandingProps {
@@ -59,7 +63,15 @@ const SectionLanding: React.FC<SectionLandingProps> = ({ eyebrow, title, descrip
                                         <card.icon className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-semibold text-white">{card.title}</h2>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h2 className="text-xl font-semibold text-white">{card.title}</h2>
+                                            {card.badge ? (
+                                                <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-100 shadow-[0_0_0_1px_rgba(239,68,68,0.2),0_0_18px_rgba(239,68,68,0.18)]">
+                                                    {card.badge.label}
+                                                    {typeof card.badge.count === 'number' ? ` ${card.badge.count > 99 ? '99+' : card.badge.count}` : ''}
+                                                </span>
+                                            ) : null}
+                                        </div>
                                         <p className="mt-2 text-sm leading-6 text-gray-300">{card.description}</p>
                                     </div>
                                 </div>

@@ -1,13 +1,47 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Bell, MessageCircle, Send, ShieldAlert } from 'lucide-react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../components/AdminLayout'
 import SectionLanding from '../components/SectionLanding'
+import { apiClient } from '@/lib/api'
 import { adminRoutes } from '@/lib/adminRoutes'
 
 const CommunicationsPage: React.FC = () => {
+    const [supportUnreadCount, setSupportUnreadCount] = useState(0)
+
+    useEffect(() => {
+        let mounted = true
+
+        const loadSupportUnreadCount = async () => {
+            try {
+                const response = await apiClient.getSupportConversations({ status: 'ALL', limit: 200 })
+                if (!mounted || !response.success || !response.data) {
+                    return
+                }
+
+                const unreadCount = (response.data.conversations || []).filter(
+                    (conversation) => Number(conversation.unreadCount || 0) > 0
+                ).length
+
+                setSupportUnreadCount(unreadCount)
+            } catch (error) {
+                console.error('Failed to load communications support unread count:', error)
+            }
+        }
+
+        void loadSupportUnreadCount()
+        const interval = window.setInterval(() => {
+            void loadSupportUnreadCount()
+        }, 30000)
+
+        return () => {
+            mounted = false
+            window.clearInterval(interval)
+        }
+    }, [])
+
     return (
         <ProtectedRoute>
             <AdminLayout>
@@ -22,6 +56,10 @@ const CommunicationsPage: React.FC = () => {
                             href: adminRoutes.communicationsSupport,
                             status: 'Live',
                             icon: MessageCircle,
+                            badge: supportUnreadCount > 0 ? {
+                                label: 'New messages',
+                                count: supportUnreadCount,
+                            } : undefined,
                         },
                         {
                             title: 'Notification center',
