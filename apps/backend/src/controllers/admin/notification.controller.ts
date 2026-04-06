@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { NotificationType, UserRole } from '@prisma/client';
 import db from '@/services/database';
 import { logger } from '@/utils/logger';
+import { broadcastUserNotificationsUpdated } from '@/realtime/supportChatSocket';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -226,6 +227,17 @@ export const sendBroadcastNotification = async (req: AuthRequest, res: Response)
             recipientCount: result.length,
             title,
         });
+
+        for (const notification of result) {
+            if (notification.userId) {
+                broadcastUserNotificationsUpdated(notification.userId, {
+                    reason: 'created',
+                    notificationId: notification.id,
+                    title: notification.title,
+                    message: notification.message,
+                });
+            }
+        }
 
         res.status(201).json({
             success: true,

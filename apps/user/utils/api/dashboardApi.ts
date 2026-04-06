@@ -68,6 +68,46 @@ export interface DashboardData {
     unreadNotifications?: number;
 }
 
+export type NotificationType =
+    | 'SYSTEM_ANNOUNCEMENT'
+    | 'TRANSACTION'
+    | 'PAYMENT'
+    | 'REFERRAL'
+    | 'INVESTMENT'
+    | 'MINING'
+    | 'SECURITY'
+    | 'SUPPORT'
+    | 'WELCOME'
+    | 'OTHER';
+
+export interface NotificationRecord {
+    id: string;
+    title: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    type: NotificationType;
+    metadata?: Record<string, unknown> | null;
+}
+
+export interface NotificationPagination {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+}
+
+export interface NotificationListResponse {
+    notifications: NotificationRecord[];
+    pagination: NotificationPagination;
+}
+
+export interface NotificationStatsResponse {
+    total: number;
+    unread: number;
+    read: number;
+}
+
 export interface DashboardStats {
     investments: {
         total: number;
@@ -262,7 +302,7 @@ export async function getNotifications(params?: { page?: number; limit?: number 
     const queryString = queryParams.toString();
     const endpoint = `/user/notifications${queryString ? `?${queryString}` : ''}`;
 
-    return apiFetch<any>(endpoint, {
+    return apiFetch<NotificationListResponse>(endpoint, {
         method: 'GET',
     });
 }
@@ -271,7 +311,7 @@ export async function getNotifications(params?: { page?: number; limit?: number 
  * Get notification stats
  */
 export async function getNotificationStats() {
-    return apiFetch<any>('user/notifications/stats', {
+    return apiFetch<NotificationStatsResponse>('user/notifications/stats', {
         method: 'GET',
     });
 }

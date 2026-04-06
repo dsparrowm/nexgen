@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
@@ -24,6 +24,9 @@ import { toast } from 'sonner'
 import { DashboardSidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem } from '../../../lib/sidebar'
 import NexgenLogo from '../../../utils/NexgenLogo'
 import { useDashboardData } from '@/hooks/useDashboardData'
+import { getNotificationStats } from '@/utils/api/dashboardApi'
+import { getToken } from '../../../utils/auth'
+import { createNotificationSocket } from '@/utils/api/notificationSocket'
 
 interface DashboardLayoutProps {
     children: React.ReactNode
@@ -35,7 +38,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
     const { data } = useDashboardData()
+    const lastNotificationToastIdRef = useRef<string | null>(null)
 
     const user = data?.user
     const displayName = user?.firstName && user?.lastName
@@ -56,6 +61,89 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
             toast.error('Error logging out')
         }
     }
+
+    const loadUnreadNotifications = useCallback(async () => {
+        try {
+            const response = await getNotificationStats()
+            if (response.success && response.data) {
+                setUnreadNotificationCount(Number(response.data.unread || 0))
+            }
+        } catch (error) {
+            console.error('Failed to load notification stats:', error)
+        }
+    }, [])
+
+    useEffect(() => {
+        void loadUnreadNotifications()
+
+        const refreshInterval = window.setInterval(() => {
+            void loadUnreadNotifications()
+        }, 30000)
+
+        const handleNotificationUpdate = () => {
+            void loadUnreadNotifications()
+        }
+
+        window.addEventListener('user-notifications-updated', handleNotificationUpdate)
+
+        let socket: any = null
+        let mounted = true
+
+        const connectNotificationSocket = async () => {
+            const token = getToken()
+            if (!token || !mounted) {
+                return
+            }
+
+            try {
+                socket = await createNotificationSocket({ token, type: 'user' })
+                if (!mounted || !socket) {
+                    socket?.disconnect?.()
+                    return
+                }
+
+                socket.on('notifications:updated', (payload: {
+                    reason?: string
+                    notificationId?: string | null
+                    title?: string | null
+                    message?: string | null
+                }) => {
+                    if (
+                        payload?.reason === 'created'
+                        && payload.notificationId
+                        && lastNotificationToastIdRef.current !== payload.notificationId
+                    ) {
+                        lastNotificationToastIdRef.current = payload.notificationId
+                        toast(payload.title || 'New notification', {
+                            description: payload.message || 'You have a new platform notification.',
+                            duration: 7000,
+                            action: {
+                                label: 'View',
+                                onClick: () => {
+                                    router.push('/dashboard/notifications')
+                                },
+                            },
+                        })
+                    }
+
+                    window.dispatchEvent(new Event('user-notifications-updated'))
+                })
+
+                socket.connect?.()
+            } catch (error) {
+                console.error('Failed to connect user notification socket:', error)
+            }
+        }
+
+        void connectNotificationSocket()
+
+        return () => {
+            mounted = false
+            window.clearInterval(refreshInterval)
+            window.removeEventListener('user-notifications-updated', handleNotificationUpdate)
+            socket?.disconnect?.()
+        }
+    }, [loadUnreadNotifications])
 
     const navigation = [
         { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', href: '/dashboard' },
@@ -159,7 +247,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                 <Menu className="w-5 h-5" />
                             </button>
                             <h1 className="text-xl font-semibold text-white capitalize">
-                                {activeSection === 'investments' ? 'Assets' : activeSection}
+                                {activeSection === 'investments'
+                                    ? 'Assets'
+                                    : activeSection === 'notifications'
+                                        ? 'Notifications'
+                                        : activeSection}
                             </h1>
                         </div>
 
@@ -171,7 +263,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                 title="Notifications"
                             >
                                 <Bell className="w-5 h-5" />
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+                                {unreadNotificationCount > 0 ? (
+                                    <span className="absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center">
+                                        <span className="absolute inset-[-6px] rounded-full bg-red-500/55 animate-ping" />
+                                        <span className="relative inline-flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-[0_0_0_1px_rgba(220,38,38,0.6),0_0_22px_rgba(239,68,68,0.42)]">
+                                            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                                        </span>
+                                    </span>
+                                ) : null}
                             </button>
 
                             {/* User Menu */}

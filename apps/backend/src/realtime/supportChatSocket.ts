@@ -55,6 +55,7 @@ type ConversationParticipant = {
 };
 
 const ADMIN_ROOM = 'support:admins';
+const USER_NOTIFICATIONS_ROOM_PREFIX = 'user:notifications:';
 
 let io: SocketIOServer | null = null;
 const conversationParticipants = new Map<string, Map<string, ConversationParticipant>>();
@@ -63,6 +64,10 @@ const adminSocketIds = new Set<string>();
 
 function getConversationRoom(conversationId: string) {
   return `support:conversation:${conversationId}`;
+}
+
+function getUserNotificationsRoom(userId: string) {
+  return `${USER_NOTIFICATIONS_ROOM_PREFIX}${userId}`;
 }
 
 function getSocketRole(socket: Socket<any, any, any, SupportSocketData>): SupportRole {
@@ -291,6 +296,10 @@ export function initializeSupportChatSocketServer(server: HttpServer) {
       broadcastGlobalPresence();
     }
 
+    if (socket.data.authType === 'user' && socket.data.user?.userId) {
+      socket.join(getUserNotificationsRoom(socket.data.user.userId));
+    }
+
     socket.on('support:join', async (payload: SupportJoinPayload, callback?: (response: any) => void) => {
       try {
         const result = await canJoinConversation(socket, payload);
@@ -430,6 +439,23 @@ export function broadcastSupportConversationSnapshot(
   options: SupportBroadcastOptions = {}
 ) {
   emitConversationSnapshot(result, reason, options);
+}
+
+export function broadcastUserNotificationsUpdated(
+  userId: string,
+  payload: { reason?: string; notificationId?: string; title?: string; message?: string } = {}
+) {
+  if (!io || !userId) {
+    return;
+  }
+
+  io.to(getUserNotificationsRoom(userId)).emit('notifications:updated', {
+    userId,
+    reason: payload.reason || 'updated',
+    notificationId: payload.notificationId || null,
+    title: payload.title || null,
+    message: payload.message || null,
+  });
 }
 
 export function getSupportChatSocketServer() {

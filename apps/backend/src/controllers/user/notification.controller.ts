@@ -3,6 +3,7 @@ import { param, validationResult } from 'express-validator';
 import { NotificationType } from '@prisma/client';
 import db from '@/services/database';
 import { logger } from '@/utils/logger';
+import { broadcastUserNotificationsUpdated } from '@/realtime/supportChatSocket';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -127,6 +128,10 @@ export const markNotificationAsRead = async (req: AuthRequest, res: Response): P
         });
 
         logger.info(`Notification marked as read: ${notificationId}`, { userId });
+        broadcastUserNotificationsUpdated(userId, {
+            reason: 'read',
+            notificationId,
+        });
 
         res.status(200).json({
             success: true,
@@ -165,6 +170,9 @@ export const markAllNotificationsAsRead = async (req: AuthRequest, res: Response
         });
 
         logger.info(`All notifications marked as read for user: ${userId}`, { count: result.count });
+        broadcastUserNotificationsUpdated(userId, {
+            reason: 'bulk_read',
+        });
 
         res.status(200).json({
             success: true,
