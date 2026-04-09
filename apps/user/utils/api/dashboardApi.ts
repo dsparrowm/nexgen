@@ -150,6 +150,7 @@ async function apiFetch<T>(
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
     const token = getAuthToken();
+    const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -158,7 +159,7 @@ async function apiFetch<T>(
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
             ...options,
             headers,
         });
@@ -284,7 +285,7 @@ export async function getTransactions(params?: {
     if (params?.status) queryParams.append('status', params.status);
 
     const queryString = queryParams.toString();
-    const endpoint = `/user/transactions${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `user/transactions${queryString ? `?${queryString}` : ''}`;
 
     return apiFetch<any>(endpoint, {
         method: 'GET',
@@ -300,7 +301,7 @@ export async function getNotifications(params?: { page?: number; limit?: number 
     if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const queryString = queryParams.toString();
-    const endpoint = `/user/notifications${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `user/notifications${queryString ? `?${queryString}` : ''}`;
 
     return apiFetch<NotificationListResponse>(endpoint, {
         method: 'GET',
@@ -320,7 +321,7 @@ export async function getNotificationStats() {
  * Mark notification as read
  */
 export async function markNotificationAsRead(notificationId: string) {
-    return apiFetch<any>(`/user/notifications/${notificationId}/read`, {
+    return apiFetch<any>(`user/notifications/${notificationId}/read`, {
         method: 'PUT',
     });
 }

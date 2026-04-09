@@ -123,6 +123,7 @@ export interface StartMiningResponse {
 
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
     const token = localStorage.getItem('authToken');
+    const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -136,7 +137,7 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
         ...options,
         headers,
     });

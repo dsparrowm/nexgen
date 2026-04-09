@@ -230,7 +230,9 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<SupportChatResponse<T>> {
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const normalizedEndpoint = endpoint.replace(/^\/+/, '')
+
+        const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
             ...options,
             headers: {
                 ...getSupportHeaders(),

@@ -118,6 +118,7 @@ async function apiFetch<T>(
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
     const token = getAuthToken();
+    const normalizedEndpoint = endpoint.replace(/^\/+/, '');
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -126,7 +127,7 @@ async function apiFetch<T>(
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
             ...options,
             headers,
         });
