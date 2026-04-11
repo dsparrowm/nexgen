@@ -53,7 +53,7 @@ const DepositManagement = () => {
             name: 'Bitcoin',
             symbol: 'BTC',
             icon: Bitcoin,
-            walletAddress: 'bc1q8qtqnvgadky4q7mdc5ccqstjuzg2335eew9z6k',
+            walletAddress: 'bc1qv9w4rs7trun9k22wykhtd88vwcql8rt8a3g422',
             network: 'Bitcoin Network',
             minDeposit: 0.0001,
             available: true
@@ -63,7 +63,7 @@ const DepositManagement = () => {
             name: 'Ethereum',
             symbol: 'ETH',
             icon: CreditCard, // Using CreditCard as placeholder, should be Ethereum icon
-            walletAddress: '0x669f3ea06160e967f780a89c65265d6be6ec0ff5',
+            walletAddress: '0xE9A080c04BbB2467c2f46c3205Bb87C79de65A7E',
             network: 'Ethereum Network',
             minDeposit: 0.001,
             available: true
@@ -73,7 +73,7 @@ const DepositManagement = () => {
             name: 'Tether (USDT)',
             symbol: 'USDT',
             icon: DollarSign,
-            walletAddress: '0x669f3ea06160e967f780a89c65265d6be6ec0ff5',
+            walletAddress: '0xE9A080c04BbB2467c2f46c3205Bb87C79de65A7E',
             network: 'TRON (ERC-20)',
             minDeposit: 10,
             available: true
@@ -83,7 +83,7 @@ const DepositManagement = () => {
             name: 'BNB',
             symbol: 'BNB',
             icon: Coins,
-            walletAddress: '0x669f3ea06160e967f780a89c65265d6be6ec0ff5',
+            walletAddress: '0xE9A080c04BbB2467c2f46c3205Bb87C79de65A7E',
             network: 'BNB Smart Chain (BEP-20)',
             minDeposit: 0.01,
             available: true
