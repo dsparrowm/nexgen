@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
     DollarSign,
@@ -10,9 +10,11 @@ import {
     ArrowRight,
     AlertCircle,
     CheckCircle,
-    Loader
+    Loader,
+    QrCode
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import QRCode from 'qrcode'
 import { createDeposit } from '@/utils/api/transactionApi'
 import { formatCurrency } from '@/utils/formatters'
 
@@ -31,6 +33,8 @@ const DepositManagement = () => {
         type: 'success' | 'error' | null
         message: string
     }>({ type: null, message: '' })
+    const [qrCodeUrl, setQrCodeUrl] = useState('')
+    const [isGeneratingQr, setIsGeneratingQr] = useState(false)
 
     const {
         register,
@@ -43,9 +47,6 @@ const DepositManagement = () => {
             cryptocurrency: 'BTC'
         }
     })
-
-    const selectedAmount = watch('amount')
-    const selectedCryptocurrency = watch('cryptocurrency')
 
     const cryptocurrencies = [
         {
@@ -89,6 +90,60 @@ const DepositManagement = () => {
             available: true
         }
     ]
+
+    const selectedAmount = watch('amount')
+    const selectedCryptocurrency = watch('cryptocurrency')
+    const selectedCrypto = cryptocurrencies.find(c => c.id === selectedCryptocurrency)
+    const SelectedCryptoIcon = selectedCrypto?.icon
+    const qrPayload = selectedCrypto
+        ? selectedCrypto.id === 'BTC'
+            ? `bitcoin:${selectedCrypto.walletAddress}?label=${encodeURIComponent('NexGen Deposit')}&message=${encodeURIComponent(selectedCrypto.network)}`
+            : selectedCrypto.walletAddress
+        : ''
+
+    useEffect(() => {
+        let isMounted = true
+
+        const generateQrCode = async () => {
+            if (!qrPayload) {
+                setQrCodeUrl('')
+                return
+            }
+
+            setIsGeneratingQr(true)
+
+            try {
+                const url = await QRCode.toDataURL(qrPayload, {
+                    errorCorrectionLevel: 'M',
+                    margin: 1,
+                    width: 220,
+                    color: {
+                        dark: '#0f172a',
+                        light: '#ffffff'
+                    }
+                })
+
+                if (isMounted) {
+                    setQrCodeUrl(url)
+                }
+            } catch (error) {
+                console.error('Failed to generate QR code:', error)
+                if (isMounted) {
+                    setQrCodeUrl('')
+                }
+            } finally {
+                if (isMounted) {
+                    setIsGeneratingQr(false)
+                }
+            }
+        }
+
+        generateQrCode()
+
+        return () => {
+            isMounted = false
+        }
+    }, [qrPayload])
 
     const quickAmounts = [50, 100, 250, 500, 1000]
 
@@ -305,51 +360,86 @@ const DepositManagement = () => {
                             >
                                 <h4 className="text-lg font-semibold text-white mb-4">Deposit Address</h4>
                                 <div className="space-y-4">
-                                    {(() => {
-                                        const selectedCrypto = cryptocurrencies.find(c => c.id === selectedCryptocurrency)
-                                        if (!selectedCrypto) return null
-
-                                        const Icon = selectedCrypto.icon
-                                        return (
-                                            <div className="flex items-center justify-between p-4 bg-navy-900/50 rounded-lg">
-                                                <div className="flex items-center">
-                                                    <Icon className="w-8 h-8 text-gold-500 mr-3" />
-                                                    <div>
-                                                        <div className="text-white font-medium">{selectedCrypto.name} ({selectedCrypto.symbol})</div>
-                                                        <div className="text-gray-400 text-sm">{selectedCrypto.network}</div>
-                                                    </div>
+                                    {selectedCrypto && (
+                                        <div className="flex items-center justify-between p-4 bg-navy-900/50 rounded-lg">
+                                            <div className="flex items-center">
+                                                {SelectedCryptoIcon && (
+                                                    <SelectedCryptoIcon className="w-8 h-8 text-gold-500 mr-3" />
+                                                )}
+                                                <div>
+                                                    <div className="text-white font-medium">{selectedCrypto.name} ({selectedCrypto.symbol})</div>
+                                                    <div className="text-gray-400 text-sm">{selectedCrypto.network}</div>
                                                 </div>
                                             </div>
-                                        )
-                                    })()}
+                                        </div>
+                                    )}
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-2">
                                             Wallet Address
                                         </label>
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="text"
-                                                readOnly
-                                                value={cryptocurrencies.find(c => c.id === selectedCryptocurrency)?.walletAddress || ''}
-                                                className="flex-1 px-4 py-3 bg-navy-900 border border-navy-700 rounded-lg text-white font-mono text-sm"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const address = cryptocurrencies.find(c => c.id === selectedCryptocurrency)?.walletAddress
-                                                    if (address) {
-                                                        copyToClipboard(address)
-                                                    }
-                                                }}
-                                                className="px-4 py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                                            >
-                                                Copy
-                                            </button>
+                                        <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+                                            <div className="rounded-xl border border-gold-500/20 bg-navy-900/60 p-4 flex flex-col items-center justify-center">
+                                                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-300">
+                                                    <QrCode className="h-4 w-4 text-gold-500" />
+                                                    Scan QR Code
+                                                </div>
+                                                {selectedCrypto && (
+                                                    <div className="mb-3 rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-400">
+                                                        {selectedCrypto.network}
+                                                    </div>
+                                                )}
+                                                <div className="flex h-[220px] w-[220px] items-center justify-center rounded-lg bg-white p-3">
+                                                    {isGeneratingQr ? (
+                                                        <div className="flex flex-col items-center gap-2 text-gray-500">
+                                                            <Loader className="h-6 w-6 animate-spin text-gold-500" />
+                                                            <span className="text-xs">Generating QR...</span>
+                                                        </div>
+                                                    ) : qrCodeUrl ? (
+                                                        <img
+                                                            src={qrCodeUrl}
+                                                            alt={`${selectedCrypto?.name || 'Deposit'} wallet QR code`}
+                                                            className="h-full w-full object-contain"
+                                                        />
+                                                    ) : (
+                                                        <div className="text-center text-xs text-gray-500">
+                                                            QR code unavailable
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="mt-3 text-center text-xs leading-relaxed text-gray-400">
+                                                    {selectedCrypto?.id === 'BTC'
+                                                        ? 'Bitcoin wallets can open this as a payment request. If your wallet does not support it, use the address below.'
+                                                        : 'Most wallets will scan the address directly. Some wallets may not auto-detect the network, so confirm the network label before sending.'}
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={selectedCrypto?.walletAddress || ''}
+                                                        className="flex-1 px-4 py-3 bg-navy-900 border border-navy-700 rounded-lg text-white font-mono text-sm"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const address = selectedCrypto?.walletAddress
+                                                            if (address) {
+                                                                copyToClipboard(address)
+                                                            }
+                                                        }}
+                                                        className="px-4 py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        Copy
+                                                    </button>
+                                                </div>
+                                                <p className="text-xs text-gray-400">
+                                                    Send only {selectedCryptocurrency} to this address. Sending other cryptocurrencies may result in permanent loss.
+                                                </p>
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-2">
-                                            Send only {selectedCryptocurrency} to this address. Sending other cryptocurrencies may result in permanent loss.
-                                        </p>
                                         {copyStatus.type && (
                                             <motion.div
                                                 initial={{ opacity: 0, y: 5 }}

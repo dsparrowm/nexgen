@@ -182,7 +182,7 @@ To customize email templates, edit the HTML strings in `/apps/backend/src/servic
 
 2. **Test the forgot password flow:**
    ```bash
-   curl -X POST http://localhost:8000/api/auth/forgot-password \
+   curl -X POST http://localhost:8000/api/auth/user/forgot-password \
      -H "Content-Type: application/json" \
      -d '{"email": "test@example.com"}'
    ```

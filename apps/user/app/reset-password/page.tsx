@@ -80,7 +80,7 @@ const ResetPasswordContent = () => {
         setError('');
 
         try {
-            const response = await axiosInstance.post('/api/auth/reset-password', {
+            const response = await axiosInstance.post('/api/auth/user/reset-password', {
                 token,
                 password: formData.password,
             });
