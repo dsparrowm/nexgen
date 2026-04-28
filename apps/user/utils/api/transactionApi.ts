@@ -216,15 +216,17 @@ export async function createDeposit(data: {
     currency: string;
     paymentMethod: string;
 }) {
-    const response = await apiFetch<Transaction>('user/transactions/deposit', {
+    const response = await apiFetch<any>('user/transactions/deposit', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 
     if (response.success && response.data) {
+        const transaction = response.data.transaction || response.data;
+
         return {
             ...response,
-            data: normalizeTransaction(response.data),
+            data: normalizeTransaction(transaction),
         };
     }
 
