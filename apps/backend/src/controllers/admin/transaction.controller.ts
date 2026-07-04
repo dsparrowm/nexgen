@@ -1,7 +1,25 @@
 import { Request, Response } from 'express';
-import { TransactionStatus, UserRole } from '@prisma/client';
+import { body, param, validationResult } from 'express-validator';
+import {
+    PaymentMethod,
+    TransactionStatus,
+    TransactionType,
+    UserRole,
+} from '@prisma/client';
 import db from '@/services/database';
+import {
+    applyTransactionEffects,
+    computeNetAmount,
+    reconcileTransactionEffects,
+} from '@/services/transactionBalance.service';
 import { logger } from '@/utils/logger';
+
+const TRANSACTION_TYPES = Object.values(TransactionType);
+const TRANSACTION_STATUSES = Object.values(TransactionStatus);
+const PAYMENT_METHODS = Object.values(PaymentMethod);
+
+const isAdmin = (role?: string) =>
+    role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 
 export interface AuthRequest extends Request {
     user?: {
@@ -18,7 +36,7 @@ export interface AuthRequest extends Request {
 export const getAllTransactions = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.userId;
-        if (!userId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+        if (!userId || !isAdmin(req.user?.role)) {
             res.status(403).json({
                 success: false,
                 error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
@@ -113,7 +131,7 @@ export const getAllTransactions = async (req: AuthRequest, res: Response): Promi
 export const getTransactionById = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.userId;
-        if (!userId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+        if (!userId || !isAdmin(req.user?.role)) {
             res.status(403).json({
                 success: false,
                 error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
@@ -166,8 +184,8 @@ export const getTransactionById = async (req: AuthRequest, res: Response): Promi
  */
 export const approveTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.userId;
-        if (!userId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+        const adminId = req.user?.userId;
+        if (!adminId || !isAdmin(req.user?.role)) {
             res.status(403).json({
                 success: false,
                 error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
@@ -199,17 +217,15 @@ export const approveTransaction = async (req: AuthRequest, res: Response): Promi
             return;
         }
 
-        // Update transaction status and process the transaction
         await db.prisma.$transaction(async (prisma) => {
-            // Update transaction status
             await prisma.transaction.update({
                 where: { id },
                 data: {
                     status: TransactionStatus.COMPLETED,
                     processedAt: new Date(),
                     metadata: {
-                        ...(transaction.metadata as any || {}),
-                        approvedBy: userId,
+                        ...(transaction.metadata as Record<string, unknown> || {}),
+                        approvedBy: adminId,
                         approvedAt: new Date().toISOString(),
                         approvalNotes: notes || '',
                         processedAt: new Date().toISOString()
@@ -217,63 +233,15 @@ export const approveTransaction = async (req: AuthRequest, res: Response): Promi
                 }
             });
 
-            // For deposits, add to user balance
-            if (transaction.type === 'DEPOSIT') {
-                await prisma.user.update({
-                    where: { id: transaction.userId },
-                    data: {
-                        balance: {
-                            increment: transaction.amount
-                        }
-                    }
-                });
-            }
-            // For withdrawals, subtract from user balance
-            else if (transaction.type === 'WITHDRAWAL') {
-                await prisma.user.update({
-                    where: { id: transaction.userId },
-                    data: {
-                        balance: {
-                            decrement: transaction.amount
-                        }
-                    }
-                });
-            }
-            // For refunds, add to user balance
-            else if (transaction.type === 'REFUND') {
-                await prisma.user.update({
-                    where: { id: transaction.userId },
-                    data: {
-                        balance: {
-                            increment: transaction.amount
-                        }
-                    }
-                });
-            }
-            // For fees, subtract from user balance
-            else if (transaction.type === 'FEE') {
-                await prisma.user.update({
-                    where: { id: transaction.userId },
-                    data: {
-                        balance: {
-                            decrement: transaction.amount
-                        }
-                    }
-                });
-            }
-            // For bonuses, add to user balance
-            else if (transaction.type === 'BONUS' || transaction.type === 'REFERRAL_BONUS') {
-                await prisma.user.update({
-                    where: { id: transaction.userId },
-                    data: {
-                        balance: {
-                            increment: transaction.amount
-                        }
-                    }
-                });
-            }
+            await applyTransactionEffects(
+                prisma,
+                transaction.userId,
+                transaction.type,
+                Number(transaction.amount),
+                TransactionStatus.COMPLETED
+            );
 
-            logger.info(`Transaction ${id} approved by admin ${userId}`, {
+            logger.info(`Transaction ${id} approved by admin ${adminId}`, {
                 transactionId: id,
                 type: transaction.type,
                 amount: transaction.amount,
@@ -288,6 +256,16 @@ export const approveTransaction = async (req: AuthRequest, res: Response): Promi
         });
 
     } catch (error) {
+        if (error instanceof Error && error.message === 'INSUFFICIENT_BALANCE') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Insufficient user balance to approve this transaction',
+                    code: 'INSUFFICIENT_BALANCE',
+                },
+            });
+            return;
+        }
         logger.error('Approve transaction error:', error);
         res.status(500).json({
             success: false,
@@ -301,8 +279,8 @@ export const approveTransaction = async (req: AuthRequest, res: Response): Promi
  */
 export const rejectTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.userId;
-        if (!userId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+        const adminId = req.user?.userId;
+        if (!adminId || !isAdmin(req.user?.role)) {
             res.status(403).json({
                 success: false,
                 error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
@@ -342,7 +320,7 @@ export const rejectTransaction = async (req: AuthRequest, res: Response): Promis
                 processedAt: new Date(),
                 metadata: {
                     ...(transaction.metadata as any || {}),
-                    rejectedBy: userId,
+                    rejectedBy: adminId,
                     rejectedAt: new Date().toISOString(),
                     rejectionReason: reason || 'Rejected by admin',
                     rejectionNotes: notes || '',
@@ -351,7 +329,7 @@ export const rejectTransaction = async (req: AuthRequest, res: Response): Promis
             }
         });
 
-        logger.info(`Transaction ${id} rejected by admin ${userId}`, {
+        logger.info(`Transaction ${id} rejected by admin ${adminId}`, {
             transactionId: id,
             reason: reason || 'Rejected by admin',
             userId: transaction.userId
@@ -377,8 +355,8 @@ export const rejectTransaction = async (req: AuthRequest, res: Response): Promis
  */
 export const getTransactionStats = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.userId;
-        if (!userId || req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+        const adminId = req.user?.userId;
+        if (!adminId || !isAdmin(req.user?.role)) {
             res.status(403).json({
                 success: false,
                 error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
@@ -444,3 +422,521 @@ export const getTransactionStats = async (req: AuthRequest, res: Response): Prom
         });
     }
 };
+
+async function validateLinkedRecords(
+    userId: string,
+    investmentId?: string | null,
+    assetPositionId?: string | null
+): Promise<string | null> {
+    if (investmentId) {
+        const investment = await db.prisma.investment.findUnique({
+            where: { id: investmentId },
+            select: { userId: true },
+        });
+        if (!investment) {
+            return 'Investment not found';
+        }
+        if (investment.userId !== userId) {
+            return 'Investment does not belong to the selected user';
+        }
+    }
+
+    if (assetPositionId) {
+        const assetPosition = await db.prisma.assetPosition.findUnique({
+            where: { id: assetPositionId },
+            select: { userId: true },
+        });
+        if (!assetPosition) {
+            return 'Asset position not found';
+        }
+        if (assetPosition.userId !== userId) {
+            return 'Asset position does not belong to the selected user';
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Create a transaction (admin)
+ */
+export const createTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array(),
+                },
+            });
+            return;
+        }
+
+        const adminId = req.user?.userId;
+        if (!adminId || !isAdmin(req.user?.role)) {
+            res.status(403).json({
+                success: false,
+                error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' },
+            });
+            return;
+        }
+
+        const {
+            userId,
+            type,
+            amount,
+            status = TransactionStatus.PENDING,
+            description,
+            fee = 0,
+            paymentMethod,
+            failureReason,
+            reference,
+            investmentId,
+            assetPositionId,
+        } = req.body;
+
+        const transactionAmount = Number(amount);
+        const transactionFee = Number(fee) || 0;
+
+        const user = await db.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, balance: true },
+        });
+
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'User not found', code: 'USER_NOT_FOUND' },
+            });
+            return;
+        }
+
+        const linkError = await validateLinkedRecords(userId, investmentId, assetPositionId);
+        if (linkError) {
+            res.status(400).json({
+                success: false,
+                error: { message: linkError, code: 'INVALID_LINKED_RECORD' },
+            });
+            return;
+        }
+
+        const transactionReference =
+            reference || `ADM-${type}-${userId}-${Date.now()}`;
+
+        const existingReference = await db.prisma.transaction.findUnique({
+            where: { reference: transactionReference },
+        });
+
+        if (existingReference) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Reference already exists', code: 'DUPLICATE_REFERENCE' },
+            });
+            return;
+        }
+
+        const netAmount = computeNetAmount(type as TransactionType, transactionAmount);
+
+        try {
+            const transaction = await db.prisma.$transaction(async (prisma) => {
+                const created = await prisma.transaction.create({
+                    data: {
+                        userId,
+                        type: type as TransactionType,
+                        amount: transactionAmount,
+                        netAmount,
+                        fee: transactionFee,
+                        status: status as TransactionStatus,
+                        description: description || `Admin-created ${type} transaction`,
+                        reference: transactionReference,
+                        paymentMethod: paymentMethod as PaymentMethod | undefined,
+                        failureReason:
+                            status === TransactionStatus.FAILED ? failureReason : undefined,
+                        investmentId: investmentId || undefined,
+                        assetPositionId: assetPositionId || undefined,
+                        processedAt:
+                            status === TransactionStatus.COMPLETED ||
+                            status === TransactionStatus.FAILED
+                                ? new Date()
+                                : undefined,
+                        metadata: {
+                            createdByAdmin: adminId,
+                            createdAt: new Date().toISOString(),
+                        },
+                    },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                email: true,
+                                username: true,
+                                firstName: true,
+                                lastName: true,
+                            },
+                        },
+                    },
+                });
+
+                await applyTransactionEffects(
+                    prisma,
+                    userId,
+                    type as TransactionType,
+                    transactionAmount,
+                    status as TransactionStatus
+                );
+
+                await prisma.auditLog.create({
+                    data: {
+                        userId: adminId,
+                        action: 'TRANSACTION_CREATED',
+                        resource: 'transaction',
+                        resourceId: created.id,
+                        newValues: {
+                            userId,
+                            type,
+                            amount: transactionAmount,
+                            status,
+                            reference: transactionReference,
+                        },
+                        ipAddress: req.ip,
+                        userAgent: req.get('User-Agent'),
+                    },
+                });
+
+                return created;
+            });
+
+            logger.info(`Admin ${adminId} created transaction ${transaction.id}`);
+
+            res.status(201).json({
+                success: true,
+                message: 'Transaction created successfully',
+                data: { transaction },
+            });
+        } catch (error) {
+            if (error instanceof Error && error.message === 'INSUFFICIENT_BALANCE') {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        message: 'Insufficient user balance for this transaction',
+                        code: 'INSUFFICIENT_BALANCE',
+                    },
+                });
+                return;
+            }
+            throw error;
+        }
+    } catch (error) {
+        logger.error('Create transaction error:', error);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Internal server error', code: 'CREATE_TRANSACTION_FAILED' },
+        });
+    }
+};
+
+/**
+ * Update a transaction (admin)
+ */
+export const updateTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: errors.array(),
+                },
+            });
+            return;
+        }
+
+        const adminId = req.user?.userId;
+        if (!adminId || !isAdmin(req.user?.role)) {
+            res.status(403).json({
+                success: false,
+                error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' },
+            });
+            return;
+        }
+
+        const { id } = req.params;
+        const existing = await db.prisma.transaction.findUnique({ where: { id } });
+
+        if (!existing) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'Transaction not found', code: 'TRANSACTION_NOT_FOUND' },
+            });
+            return;
+        }
+
+        const {
+            userId = existing.userId,
+            type = existing.type,
+            amount = Number(existing.amount),
+            status = existing.status,
+            description = existing.description,
+            fee = Number(existing.fee),
+            paymentMethod = existing.paymentMethod,
+            failureReason = existing.failureReason,
+            reference = existing.reference,
+            investmentId = existing.investmentId,
+            assetPositionId = existing.assetPositionId,
+        } = req.body;
+
+        const transactionAmount = Number(amount);
+        const transactionFee = Number(fee) || 0;
+
+        const user = await db.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true },
+        });
+
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'User not found', code: 'USER_NOT_FOUND' },
+            });
+            return;
+        }
+
+        const linkError = await validateLinkedRecords(userId, investmentId, assetPositionId);
+        if (linkError) {
+            res.status(400).json({
+                success: false,
+                error: { message: linkError, code: 'INVALID_LINKED_RECORD' },
+            });
+            return;
+        }
+
+        if (reference !== existing.reference) {
+            const duplicateReference = await db.prisma.transaction.findUnique({
+                where: { reference },
+            });
+            if (duplicateReference) {
+                res.status(400).json({
+                    success: false,
+                    error: { message: 'Reference already exists', code: 'DUPLICATE_REFERENCE' },
+                });
+                return;
+            }
+        }
+
+        const netAmount = computeNetAmount(type as TransactionType, transactionAmount);
+        const newStatus = status as TransactionStatus;
+        const processedAt =
+            newStatus === TransactionStatus.COMPLETED || newStatus === TransactionStatus.FAILED
+                ? existing.processedAt || new Date()
+                : null;
+
+        try {
+            const transaction = await db.prisma.$transaction(async (prisma) => {
+                await reconcileTransactionEffects(
+                    prisma,
+                    existing.userId,
+                    userId,
+                    existing.type,
+                    Number(existing.amount),
+                    existing.status,
+                    type as TransactionType,
+                    transactionAmount,
+                    newStatus
+                );
+
+                const updated = await prisma.transaction.update({
+                    where: { id },
+                    data: {
+                        userId,
+                        type: type as TransactionType,
+                        amount: transactionAmount,
+                        netAmount,
+                        fee: transactionFee,
+                        status: newStatus,
+                        description,
+                        reference,
+                        paymentMethod: paymentMethod as PaymentMethod | null,
+                        failureReason:
+                            newStatus === TransactionStatus.FAILED ? failureReason : null,
+                        investmentId: investmentId || null,
+                        assetPositionId: assetPositionId || null,
+                        processedAt,
+                        metadata: {
+                            ...(existing.metadata as Record<string, unknown> || {}),
+                            updatedByAdmin: adminId,
+                            updatedAt: new Date().toISOString(),
+                        },
+                    },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                email: true,
+                                username: true,
+                                firstName: true,
+                                lastName: true,
+                            },
+                        },
+                    },
+                });
+
+                await prisma.auditLog.create({
+                    data: {
+                        userId: adminId,
+                        action: 'TRANSACTION_UPDATED',
+                        resource: 'transaction',
+                        resourceId: id,
+                        oldValues: {
+                            userId: existing.userId,
+                            type: existing.type,
+                            amount: Number(existing.amount),
+                            status: existing.status,
+                            reference: existing.reference,
+                        },
+                        newValues: {
+                            userId,
+                            type,
+                            amount: transactionAmount,
+                            status: newStatus,
+                            reference,
+                        },
+                        ipAddress: req.ip,
+                        userAgent: req.get('User-Agent'),
+                    },
+                });
+
+                return updated;
+            });
+
+            logger.info(`Admin ${adminId} updated transaction ${id}`);
+
+            res.status(200).json({
+                success: true,
+                message: 'Transaction updated successfully',
+                data: { transaction },
+            });
+        } catch (error) {
+            if (error instanceof Error && error.message === 'INSUFFICIENT_BALANCE') {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        message: 'Insufficient user balance for this transaction update',
+                        code: 'INSUFFICIENT_BALANCE',
+                    },
+                });
+                return;
+            }
+            throw error;
+        }
+    } catch (error) {
+        logger.error('Update transaction error:', error);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Internal server error', code: 'UPDATE_TRANSACTION_FAILED' },
+        });
+    }
+};
+
+export const createTransactionValidation = [
+    body('userId')
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid user ID is required'),
+    body('type')
+        .isIn(TRANSACTION_TYPES)
+        .withMessage('Valid transaction type is required'),
+    body('amount')
+        .isFloat({ min: 0.01 })
+        .withMessage('Amount must be greater than 0'),
+    body('status')
+        .optional()
+        .isIn(TRANSACTION_STATUSES)
+        .withMessage('Valid transaction status is required'),
+    body('description')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Description must be 500 characters or fewer'),
+    body('fee')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Fee must be 0 or greater'),
+    body('paymentMethod')
+        .optional()
+        .isIn(PAYMENT_METHODS)
+        .withMessage('Valid payment method is required'),
+    body('failureReason')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Failure reason must be 500 characters or fewer'),
+    body('reference')
+        .optional()
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Reference must be between 1 and 100 characters'),
+    body('investmentId')
+        .optional({ nullable: true })
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid investment ID is required'),
+    body('assetPositionId')
+        .optional({ nullable: true })
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid asset position ID is required'),
+];
+
+export const updateTransactionValidation = [
+    param('id')
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid transaction ID is required'),
+    body('userId')
+        .optional()
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid user ID is required'),
+    body('type')
+        .optional()
+        .isIn(TRANSACTION_TYPES)
+        .withMessage('Valid transaction type is required'),
+    body('amount')
+        .optional()
+        .isFloat({ min: 0.01 })
+        .withMessage('Amount must be greater than 0'),
+    body('status')
+        .optional()
+        .isIn(TRANSACTION_STATUSES)
+        .withMessage('Valid transaction status is required'),
+    body('description')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Description must be 500 characters or fewer'),
+    body('fee')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Fee must be 0 or greater'),
+    body('paymentMethod')
+        .optional({ nullable: true })
+        .isIn(PAYMENT_METHODS)
+        .withMessage('Valid payment method is required'),
+    body('failureReason')
+        .optional({ nullable: true })
+        .isLength({ max: 500 })
+        .withMessage('Failure reason must be 500 characters or fewer'),
+    body('reference')
+        .optional()
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Reference must be between 1 and 100 characters'),
+    body('investmentId')
+        .optional({ nullable: true })
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid investment ID is required'),
+    body('assetPositionId')
+        .optional({ nullable: true })
+        .isString()
+        .matches(/^c[a-z0-9]{24}$/)
+        .withMessage('Valid asset position ID is required'),
+];

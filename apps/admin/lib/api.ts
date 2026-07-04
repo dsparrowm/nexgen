@@ -47,6 +47,91 @@ interface LoginResponse {
     tokens: Tokens;
 }
 
+export type TransactionType =
+    | 'DEPOSIT'
+    | 'WITHDRAWAL'
+    | 'INVESTMENT'
+    | 'PAYOUT'
+    | 'FEE'
+    | 'REFUND'
+    | 'BONUS'
+    | 'REFERRAL_BONUS';
+
+export type TransactionStatus =
+    | 'PENDING'
+    | 'PROCESSING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'CANCELLED'
+    | 'REFUNDED';
+
+export type PaymentMethod =
+    | 'STRIPE_CARD'
+    | 'STRIPE_BANK'
+    | 'COINBASE_CRYPTO'
+    | 'CRYPTO'
+    | 'BANK_TRANSFER'
+    | 'MANUAL';
+
+export interface TransactionUser {
+    id: string;
+    email: string;
+    username: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    balance?: number;
+}
+
+export interface TransactionRecord {
+    id: string;
+    userId: string;
+    user: TransactionUser;
+    investmentId?: string | null;
+    assetPositionId?: string | null;
+    type: TransactionType;
+    amount: number;
+    status: TransactionStatus;
+    description?: string | null;
+    reference: string;
+    paymentMethod?: PaymentMethod | null;
+    paymentId?: string | null;
+    fee: number;
+    netAmount: number;
+    processedAt?: string | null;
+    failureReason?: string | null;
+    metadata?: Record<string, unknown> | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateTransactionPayload {
+    userId: string;
+    type: TransactionType;
+    amount: number;
+    status?: TransactionStatus;
+    description?: string;
+    fee?: number;
+    paymentMethod?: PaymentMethod;
+    failureReason?: string;
+    reference?: string;
+    investmentId?: string;
+    assetPositionId?: string;
+}
+
+export interface UpdateTransactionPayload {
+    userId?: string;
+    type?: TransactionType;
+    amount?: number;
+    status?: TransactionStatus;
+    description?: string;
+    fee?: number;
+    paymentMethod?: PaymentMethod | null;
+    failureReason?: string | null;
+    reference?: string;
+    investmentId?: string | null;
+    assetPositionId?: string | null;
+}
+
 export type SupportConversationStatus = 'OPEN' | 'PENDING' | 'CLOSED' | 'RESOLVED';
 export type SupportSenderType = 'VISITOR' | 'CUSTOMER' | 'ADMIN' | 'SYSTEM';
 export type SupportConversationPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -557,6 +642,23 @@ class ApiClient {
      */
     async rejectTransaction(transactionId: string, reason?: string, notes?: string): Promise<ApiResponse<any>> {
         return this.post(`/admin/transactions/${transactionId}/reject`, { reason, notes });
+    }
+
+    /**
+     * Create a transaction
+     */
+    async createTransaction(data: CreateTransactionPayload): Promise<ApiResponse<{ transaction: TransactionRecord }>> {
+        return this.post('/admin/transactions', data);
+    }
+
+    /**
+     * Update a transaction
+     */
+    async updateTransaction(
+        transactionId: string,
+        data: UpdateTransactionPayload
+    ): Promise<ApiResponse<{ transaction: TransactionRecord }>> {
+        return this.put(`/admin/transactions/${transactionId}`, data);
     }
 
     /**

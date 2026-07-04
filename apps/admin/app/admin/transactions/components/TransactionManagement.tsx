@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { apiClient } from '@/lib/api'
+import { apiClient, TransactionRecord } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
+import TransactionFormModal from './TransactionFormModal'
 import {
     Search,
-    Filter,
     CheckCircle,
     XCircle,
     Clock,
@@ -17,39 +17,13 @@ import {
     ArrowUpCircle,
     ArrowDownCircle,
     RefreshCw,
-    MoreVertical,
-    Loader2
+    Loader2,
+    Plus,
+    Pencil
 } from 'lucide-react'
 
-// Transaction interface
-interface Transaction {
-    id: string
-    userId: string
-    user: {
-        id: string
-        email: string
-        username: string
-        firstName: string
-        lastName: string
-    }
-    type: 'DEPOSIT' | 'WITHDRAWAL' | 'BONUS' | 'FEE' | 'INVESTMENT' | 'PAYOUT'
-    amount: number
-    status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
-    description: string
-    reference: string
-    paymentMethod: string
-    paymentId: string | null
-    fee: number
-    netAmount: number
-    processedAt: string | null
-    failureReason: string | null
-    metadata: any
-    createdAt: string
-    updatedAt: string
-}
-
 const TransactionManagement = () => {
-    const [transactions, setTransactions] = useState<Transaction[]>([])
+    const [transactions, setTransactions] = useState<TransactionRecord[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
@@ -58,10 +32,19 @@ const TransactionManagement = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [totalTransactions, setTotalTransactions] = useState(0)
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+    const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null)
     const [showDetailsModal, setShowDetailsModal] = useState(false)
     const [processingTransaction, setProcessingTransaction] = useState<string | null>(null)
+    const [isFormOpen, setIsFormOpen] = useState(false)
+    const [editingTransaction, setEditingTransaction] = useState<TransactionRecord | null>(null)
     const { addToast } = useToast()
+
+    const normalizeTransaction = (transaction: TransactionRecord): TransactionRecord => ({
+        ...transaction,
+        amount: Number(transaction.amount),
+        fee: Number(transaction.fee),
+        netAmount: Number(transaction.netAmount),
+    })
 
     // Fetch transactions
     const fetchTransactions = async (page = 1) => {
@@ -89,7 +72,8 @@ const TransactionManagement = () => {
             const response = await apiClient.getTransactions(params)
 
             if (response.success) {
-                setTransactions(response.data?.transactions || [])
+                const normalized = (response.data?.transactions || []).map(normalizeTransaction)
+                setTransactions(normalized)
                 setTotalPages(response.data?.pagination?.pages || 1)
                 setTotalTransactions(response.data?.pagination?.total || 0)
                 setCurrentPage(page)
@@ -117,6 +101,26 @@ const TransactionManagement = () => {
 
         return () => clearTimeout(timeoutId)
     }, [searchTerm])
+
+    const openCreateForm = () => {
+        setEditingTransaction(null)
+        setIsFormOpen(true)
+    }
+
+    const openEditForm = (transaction: TransactionRecord) => {
+        setEditingTransaction(transaction)
+        setIsFormOpen(true)
+        setShowDetailsModal(false)
+    }
+
+    const handleFormSuccess = () => {
+        addToast(
+            'success',
+            'Success',
+            editingTransaction ? 'Transaction updated successfully' : 'Transaction created successfully'
+        )
+        fetchTransactions(currentPage)
+    }
 
     const handleApproveTransaction = async (transactionId: string) => {
         setProcessingTransaction(transactionId)
@@ -159,9 +163,11 @@ const TransactionManagement = () => {
     const getStatusBadge = (status: string) => {
         const badges = {
             PENDING: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+            PROCESSING: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
             COMPLETED: 'bg-green-500/20 text-green-400 border-green-500/30',
             FAILED: 'bg-red-500/20 text-red-400 border-red-500/30',
-            CANCELLED: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+            CANCELLED: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+            REFUNDED: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
         }
         return badges[status as keyof typeof badges] || badges.PENDING
     }
@@ -195,7 +201,7 @@ const TransactionManagement = () => {
     }
 
     const formatAmount = (amount: number, type: string) => {
-        const isNegative = type === 'WITHDRAWAL' || type === 'FEE'
+        const isNegative = type === 'WITHDRAWAL' || type === 'FEE' || type === 'INVESTMENT'
         const displayAmount = isNegative ? -Math.abs(amount) : amount
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -220,15 +226,24 @@ const TransactionManagement = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Transaction Management</h1>
-                    <p className="text-gray-400">Review and manage deposit/withdrawal requests</p>
+                    <p className="text-gray-400">Manage ledger entries, deposits, withdrawals, and approvals</p>
                 </div>
-                <button
-                    onClick={() => fetchTransactions(currentPage)}
-                    className="flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={openCreateForm}
+                        className="flex items-center gap-2 px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add Transaction
+                    </button>
+                    <button
+                        onClick={() => fetchTransactions(currentPage)}
+                        className="flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -312,9 +327,11 @@ const TransactionManagement = () => {
                         >
                             <option value="all">All Status</option>
                             <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
                             <option value="completed">Completed</option>
                             <option value="failed">Failed</option>
                             <option value="cancelled">Cancelled</option>
+                            <option value="refunded">Refunded</option>
                         </select>
 
                         <select
@@ -325,10 +342,12 @@ const TransactionManagement = () => {
                             <option value="all">All Types</option>
                             <option value="deposit">Deposit</option>
                             <option value="withdrawal">Withdrawal</option>
-                            <option value="bonus">Bonus</option>
-                            <option value="fee">Fee</option>
                             <option value="investment">Investment</option>
                             <option value="payout">Payout</option>
+                            <option value="fee">Fee</option>
+                            <option value="refund">Refund</option>
+                            <option value="bonus">Bonus</option>
+                            <option value="referral_bonus">Referral Bonus</option>
                         </select>
                     </div>
                 </div>
@@ -409,6 +428,14 @@ const TransactionManagement = () => {
                                                         title="View Details"
                                                     >
                                                         <Eye className="w-4 h-4" />
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => openEditForm(transaction)}
+                                                        className="text-gold-400 hover:text-gold-300 transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
                                                     </button>
 
                                                     {transaction.status === 'PENDING' && (
@@ -557,13 +584,14 @@ const TransactionManagement = () => {
                                     <p className="text-white">{selectedTransaction.description || 'N/A'}</p>
                                 </div>
 
-                                {selectedTransaction.type === 'WITHDRAWAL' && selectedTransaction.metadata?.withdrawalAddress && (
+                                {selectedTransaction.type === 'WITHDRAWAL' &&
+                                    typeof selectedTransaction.metadata?.withdrawalAddress === 'string' && (
                                     <div>
                                         <label className="text-sm text-gray-400">Withdrawal Address</label>
                                         <p className="text-white font-mono bg-dark-900/50 p-2 rounded border">
                                             {selectedTransaction.metadata.withdrawalAddress}
                                         </p>
-                                        {selectedTransaction.metadata.currency && (
+                                        {typeof selectedTransaction.metadata?.currency === 'string' && (
                                             <p className="text-gray-400 text-xs mt-1">
                                                 Currency: {selectedTransaction.metadata.currency}
                                             </p>
@@ -614,8 +642,17 @@ const TransactionManagement = () => {
                                 </div>
                             </div>
 
+                            <div className="flex gap-3 mt-6 pt-6 border-t border-gold-500/20">
+                                <button
+                                    onClick={() => openEditForm(selectedTransaction)}
+                                    className="flex-1 bg-gold-600 hover:bg-gold-700 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                    Edit Transaction
+                                </button>
+                            </div>
+
                             {selectedTransaction.status === 'PENDING' && (
-                                <div className="flex gap-3 mt-6 pt-6 border-t border-gold-500/20">
+                                <div className="flex gap-3 mt-3">
                                     <button
                                         onClick={() => {
                                             handleApproveTransaction(selectedTransaction.id)
@@ -657,6 +694,16 @@ const TransactionManagement = () => {
                     </motion.div>
                 </div>
             )}
+
+            <TransactionFormModal
+                isOpen={isFormOpen}
+                transaction={editingTransaction}
+                onClose={() => {
+                    setIsFormOpen(false)
+                    setEditingTransaction(null)
+                }}
+                onSuccess={handleFormSuccess}
+            />
         </div>
     )
 }

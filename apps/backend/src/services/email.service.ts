@@ -4,7 +4,20 @@ import React from 'react';
 import { logger } from '@/utils/logger';
 import { EmailVerificationTemplate, WelcomeEmailTemplate } from '@/templates/emails';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+
+const getResendClient = (): Resend => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        throw new Error('RESEND_API_KEY is not configured');
+    }
+
+    if (!resendClient) {
+        resendClient = new Resend(apiKey);
+    }
+
+    return resendClient;
+};
 
 // Ensure we have a fallback FRONTEND_URL when the env var is not set
 // Prefer the production site as a safe default for email links; dev can still
@@ -23,7 +36,17 @@ interface EmailOptions {
  * Send an email using Resend
  */
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
+    if (!process.env.RESEND_API_KEY) {
+        const message = `Email not sent (RESEND_API_KEY missing): ${options.subject} -> ${options.to}`;
+        if (process.env.NODE_ENV === 'development') {
+            logger.warn(message);
+            return;
+        }
+        throw new Error('Email service is not configured');
+    }
+
     try {
+        const resend = getResendClient();
         const { data, error } = await resend.emails.send({
             from: options.from || `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
             to: options.to,
