@@ -146,41 +146,54 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         setError(null)
         setFieldErrors({})
         setShowBalanceWarning(false)
+        setSearchResults([])
+        setShowResults(false)
     }, [isOpen, transaction])
 
-    useEffect(() => {
-        const searchUsers = async () => {
-            if (searchQuery.length < 2 || (selectedUser && searchQuery.includes(selectedUser.email))) {
+    const loadUsers = async (query: string) => {
+        setIsSearching(true)
+        try {
+            const response = await apiClient.getUsers({
+                page: 1,
+                limit: 10,
+                search: query.trim() || undefined,
+            })
+
+            if (response.success && response.data) {
+                const transformedUsers = response.data.users.map((user: UserSearchResult) => ({
+                    ...user,
+                    balance: Number(user.balance),
+                }))
+                setSearchResults(transformedUsers)
+            } else {
                 setSearchResults([])
-                return
             }
+        } catch (err) {
+            console.error('Error searching users:', err)
+            setSearchResults([])
+        } finally {
+            setIsSearching(false)
+        }
+    }
 
-            setIsSearching(true)
-            try {
-                const response = await apiClient.getUsers({
-                    page: 1,
-                    limit: 5,
-                    search: searchQuery,
-                })
-
-                if (response.success && response.data) {
-                    const transformedUsers = response.data.users.map((user: UserSearchResult) => ({
-                        ...user,
-                        balance: Number(user.balance),
-                    }))
-                    setSearchResults(transformedUsers)
-                    setShowResults(true)
-                }
-            } catch (err) {
-                console.error('Error searching users:', err)
-            } finally {
-                setIsSearching(false)
-            }
+    useEffect(() => {
+        if (!isOpen || !showResults) {
+            return
         }
 
-        const debounce = setTimeout(searchUsers, 300)
+        const debounce = setTimeout(() => {
+            void loadUsers(searchQuery)
+        }, 300)
+
         return () => clearTimeout(debounce)
-    }, [searchQuery, selectedUser])
+    }, [isOpen, searchQuery, showResults])
+
+    const handleUserSearchFocus = () => {
+        setShowResults(true)
+        if (searchResults.length === 0) {
+            void loadUsers(searchQuery)
+        }
+    }
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -314,8 +327,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-gold-500/20 bg-dark-900 p-6 shadow-2xl"
+                className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-900 shadow-2xl"
             >
+                <div className="p-6 pb-0">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-white">
@@ -378,8 +392,11 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-                    <div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="mt-6 flex flex-1 flex-col overflow-hidden">
+                    <div className="flex-1 space-y-6 overflow-y-auto px-6 pb-6">
+                    <div className="relative z-20">
                         <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
                             <User className="w-4 h-4 text-gold-500" />
                             User
@@ -391,11 +408,10 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value)
-                                    if (!e.target.value) {
-                                        setSelectedUser(null)
-                                    }
+                                    setSelectedUser(null)
+                                    setShowResults(true)
                                 }}
-                                onFocus={() => searchResults.length > 0 && setShowResults(true)}
+                                onFocus={handleUserSearchFocus}
                                 className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-navy-900/60 text-white outline-none ${
                                     fieldErrors.user ? 'border-red-500/50' : 'border-gold-500/20'
                                 }`}
@@ -404,6 +420,40 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                             {isSearching && (
                                 <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold-500 animate-spin" />
                             )}
+
+                            <AnimatePresence>
+                                {showResults && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-30 mt-2 w-full rounded-xl border border-gold-500/20 bg-navy-800 shadow-xl overflow-hidden"
+                                    >
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map((user) => (
+                                                <button
+                                                    key={user.id}
+                                                    type="button"
+                                                    onClick={() => handleUserSelect(user)}
+                                                    className="w-full px-4 py-3 text-left hover:bg-gold-500/10 transition-colors border-b border-gold-500/10 last:border-0"
+                                                >
+                                                    <p className="text-white font-medium">
+                                                        {user.firstName} {user.lastName}
+                                                    </p>
+                                                    <p className="text-sm text-gray-400">{user.email}</p>
+                                                    <p className="text-xs text-gold-400 mt-1">
+                                                        Balance: ${user.balance.toFixed(2)}
+                                                    </p>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-3 text-sm text-gray-400">
+                                                {isSearching ? 'Searching users...' : 'No users found'}
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                         {fieldErrors.user && (
                             <p className="mt-1 text-sm text-red-400">{fieldErrors.user}</p>
@@ -414,33 +464,17 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                             </p>
                         )}
 
-                        <AnimatePresence>
-                            {showResults && searchResults.length > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute z-10 mt-1 w-full max-w-[calc(48rem-3rem)] rounded-xl border border-gold-500/20 bg-dark-800 shadow-xl overflow-hidden"
-                                >
-                                    {searchResults.map((user) => (
-                                        <button
-                                            key={user.id}
-                                            type="button"
-                                            onClick={() => handleUserSelect(user)}
-                                            className="w-full px-4 py-3 text-left hover:bg-navy-700/50 transition-colors border-b border-gold-500/10 last:border-0"
-                                        >
-                                            <p className="text-white font-medium">
-                                                {user.firstName} {user.lastName}
-                                            </p>
-                                            <p className="text-sm text-gray-400">{user.email}</p>
-                                            <p className="text-xs text-gold-400 mt-1">
-                                                Balance: ${user.balance.toFixed(2)}
-                                            </p>
-                                        </button>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        {selectedUser && (
+                            <div className="mt-4 rounded-xl border border-gold-500/30 bg-gold-500/10 p-4">
+                                <p className="text-white font-medium">
+                                    {selectedUser.firstName} {selectedUser.lastName}
+                                </p>
+                                <p className="text-sm text-gray-400">{selectedUser.email}</p>
+                                <p className="text-sm text-gold-400 mt-1">
+                                    Balance: ${selectedUser.balance.toFixed(2)}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -594,7 +628,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                         </label>
                     )}
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gold-500/20">
+                    </div>
+
+                    <div className="flex justify-end gap-3 border-t border-gold-500/20 px-6 py-4">
                         <button
                             type="button"
                             onClick={onClose}
