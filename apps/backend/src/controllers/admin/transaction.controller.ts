@@ -21,6 +21,19 @@ const PAYMENT_METHODS = Object.values(PaymentMethod);
 const isAdmin = (role?: string) =>
     role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 
+const parseTransactionDate = (value: unknown): Date | null => {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    const date = new Date(value as string);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return date;
+};
+
 export interface AuthRequest extends Request {
     user?: {
         userId: string;
@@ -495,10 +508,20 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
             reference,
             investmentId,
             assetPositionId,
+            transactionDate,
         } = req.body;
 
         const transactionAmount = Number(amount);
         const transactionFee = Number(fee) || 0;
+        const parsedTransactionDate = parseTransactionDate(transactionDate);
+
+        if (transactionDate && !parsedTransactionDate) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Invalid transaction date', code: 'INVALID_TRANSACTION_DATE' },
+            });
+            return;
+        }
 
         const user = await db.prisma.user.findUnique({
             where: { id: userId },
@@ -556,6 +579,7 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
                             status === TransactionStatus.FAILED ? failureReason : undefined,
                         investmentId: investmentId || undefined,
                         assetPositionId: assetPositionId || undefined,
+                        createdAt: parsedTransactionDate || undefined,
                         processedAt:
                             status === TransactionStatus.COMPLETED ||
                             status === TransactionStatus.FAILED
@@ -599,6 +623,7 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
                             amount: transactionAmount,
                             status,
                             reference: transactionReference,
+                            createdAt: parsedTransactionDate?.toISOString() || new Date().toISOString(),
                         },
                         ipAddress: req.ip,
                         userAgent: req.get('User-Agent'),
@@ -690,6 +715,18 @@ export const updateTransaction = async (req: AuthRequest, res: Response): Promis
 
         const transactionAmount = Number(amount);
         const transactionFee = Number(fee) || 0;
+        const parsedTransactionDate =
+            req.body.transactionDate !== undefined
+                ? parseTransactionDate(req.body.transactionDate)
+                : existing.createdAt;
+
+        if (req.body.transactionDate !== undefined && !parsedTransactionDate) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Invalid transaction date', code: 'INVALID_TRANSACTION_DATE' },
+            });
+            return;
+        }
 
         const user = await db.prisma.user.findUnique({
             where: { id: userId },
@@ -763,6 +800,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response): Promis
                             newStatus === TransactionStatus.FAILED ? failureReason : null,
                         investmentId: investmentId || null,
                         assetPositionId: assetPositionId || null,
+                        createdAt: parsedTransactionDate || existing.createdAt,
                         processedAt,
                         metadata: {
                             ...(existing.metadata as Record<string, unknown> || {}),
@@ -795,6 +833,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response): Promis
                             amount: Number(existing.amount),
                             status: existing.status,
                             reference: existing.reference,
+                            createdAt: existing.createdAt.toISOString(),
                         },
                         newValues: {
                             userId,
@@ -802,6 +841,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response): Promis
                             amount: transactionAmount,
                             status: newStatus,
                             reference,
+                            createdAt: parsedTransactionDate?.toISOString(),
                         },
                         ipAddress: req.ip,
                         userAgent: req.get('User-Agent'),
@@ -885,6 +925,10 @@ export const createTransactionValidation = [
         .isString()
         .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid asset position ID is required'),
+    body('transactionDate')
+        .optional()
+        .isISO8601()
+        .withMessage('Valid transaction date is required'),
 ];
 
 export const updateTransactionValidation = [
@@ -939,4 +983,8 @@ export const updateTransactionValidation = [
         .isString()
         .matches(/^c[a-z0-9]{24}$/)
         .withMessage('Valid asset position ID is required'),
+    body('transactionDate')
+        .optional()
+        .isISO8601()
+        .withMessage('Valid transaction date is required'),
 ];

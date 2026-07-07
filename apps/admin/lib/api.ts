@@ -116,6 +116,7 @@ export interface CreateTransactionPayload {
     reference?: string;
     investmentId?: string;
     assetPositionId?: string;
+    transactionDate?: string;
 }
 
 export interface UpdateTransactionPayload {
@@ -130,6 +131,7 @@ export interface UpdateTransactionPayload {
     reference?: string;
     investmentId?: string | null;
     assetPositionId?: string | null;
+    transactionDate?: string;
 }
 
 export type SupportConversationStatus = 'OPEN' | 'PENDING' | 'CLOSED' | 'RESOLVED';

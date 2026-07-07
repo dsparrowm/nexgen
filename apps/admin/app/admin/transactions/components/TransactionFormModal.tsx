@@ -64,6 +64,27 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     'MANUAL',
 ]
 
+const toDateTimeLocalValue = (value: Date | string) => {
+    const date = typeof value === 'string' ? new Date(value) : value
+    const pad = (part: number) => String(part).padStart(2, '0')
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const createDefaultFormState = (): FormState => ({
+    amount: '',
+    fee: '0',
+    type: 'DEPOSIT',
+    status: 'PENDING',
+    description: '',
+    reference: '',
+    paymentMethod: '',
+    failureReason: '',
+    investmentId: '',
+    assetPositionId: '',
+    transactionDate: toDateTimeLocalValue(new Date()),
+})
+
 interface FormState {
     amount: string
     fee: string
@@ -75,20 +96,10 @@ interface FormState {
     failureReason: string
     investmentId: string
     assetPositionId: string
+    transactionDate: string
 }
 
-const defaultFormState: FormState = {
-    amount: '',
-    fee: '0',
-    type: 'DEPOSIT',
-    status: 'PENDING',
-    description: '',
-    reference: '',
-    paymentMethod: '',
-    failureReason: '',
-    investmentId: '',
-    assetPositionId: '',
-}
+const defaultFormState: FormState = createDefaultFormState()
 
 const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     isOpen,
@@ -125,6 +136,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 failureReason: transaction.failureReason || '',
                 investmentId: transaction.investmentId || '',
                 assetPositionId: transaction.assetPositionId || '',
+                transactionDate: toDateTimeLocalValue(transaction.createdAt),
             })
             setSelectedUser({
                 id: transaction.user.id,
@@ -138,7 +150,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 `${transaction.user.firstName || ''} ${transaction.user.lastName || ''} (${transaction.user.email})`.trim()
             )
         } else {
-            setFormData(defaultFormState)
+            setFormData(createDefaultFormState())
             setSelectedUser(null)
             setSearchQuery('')
         }
@@ -235,6 +247,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             errors.failureReason = 'Failure reason is required for failed transactions'
         }
 
+        if (!formData.transactionDate) {
+            errors.transactionDate = 'Transaction date is required'
+        } else if (Number.isNaN(new Date(formData.transactionDate).getTime())) {
+            errors.transactionDate = 'Please enter a valid transaction date'
+        }
+
         setFieldErrors(errors)
         return Object.keys(errors).length === 0
     }
@@ -266,6 +284,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             reference: formData.reference || undefined,
             investmentId: formData.investmentId || undefined,
             assetPositionId: formData.assetPositionId || undefined,
+            transactionDate: new Date(formData.transactionDate).toISOString(),
         }
 
         return payload
@@ -541,6 +560,22 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                                     fieldErrors.fee ? 'border-red-500/50' : 'border-gold-500/20'
                                 }`}
                             />
+                        </label>
+
+                        <label className="space-y-2">
+                            <span className="text-sm font-medium text-gray-300">Transaction Date</span>
+                            <input
+                                type="datetime-local"
+                                name="transactionDate"
+                                value={formData.transactionDate}
+                                onChange={handleInputChange}
+                                className={`w-full rounded-xl border bg-navy-900/60 px-4 py-3 text-white outline-none ${
+                                    fieldErrors.transactionDate ? 'border-red-500/50' : 'border-gold-500/20'
+                                }`}
+                            />
+                            {fieldErrors.transactionDate && (
+                                <p className="text-sm text-red-400">{fieldErrors.transactionDate}</p>
+                            )}
                         </label>
 
                         <label className="space-y-2">
