@@ -1,53 +1,15 @@
 "use client"
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Eye, EyeOff, Lock, Mail, Shield, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { NexgenLogo } from '@/components/NexgenLogo'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
-// Inline NexgenLogo component
-type LogoSize = 'sm' | 'md' | 'lg' | 'xl';
-
-const NexgenLogo = ({ size = "lg" }: { size?: LogoSize }) => {
-    const sizeClasses: Record<LogoSize, string> = {
-        sm: "w-8 h-8",
-        md: "w-10 h-10",
-        lg: "w-16 h-16",
-        xl: "w-20 h-20"
-    }
-
-    const textSizeClasses: Record<LogoSize, string> = {
-        sm: "text-lg",
-        md: "text-xl",
-        lg: "text-3xl",
-        xl: "text-4xl"
-    }
-
-    return (
-        <div className="flex items-center justify-center space-x-3 mb-8">
-            <div className={`${sizeClasses[size]} bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-lg`}>
-                <span className={`font-bold text-navy-900 text-2xl`}>N</span>
-            </div>
-            <div className="text-center">
-                <h1 className={`font-display ${textSizeClasses[size]} font-bold text-white`}>
-                    NexGen
-                </h1>
-                <p className="text-gold-500 text-sm font-medium">Admin Portal</p>
-            </div>
-        </div>
-    )
-}
-
-interface LoginProps {
-    // No props needed - using context
-}
-
-const Login: React.FC<LoginProps> = () => {
-    const { login } = useAuth();
-    const [formData, setFormData] = useState({
-        email: '',
-        password: ''
-    })
+const Login: React.FC = () => {
+    const { login } = useAuth()
+    const [formData, setFormData] = useState({ email: '', password: '' })
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
@@ -55,16 +17,9 @@ const Login: React.FC<LoginProps> = () => {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }))
-        // Clear error when user starts typing
+        setFormData((prev) => ({ ...prev, [name]: value }))
         if (errors[name as keyof typeof errors]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: undefined
-            }))
+            setErrors((prev) => ({ ...prev, [name]: undefined }))
         }
     }
 
@@ -89,19 +44,16 @@ const Login: React.FC<LoginProps> = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
         if (!validateForm()) return
 
         setIsLoading(true)
-        setErrors({}) // Clear previous errors
+        setErrors({})
 
         try {
             const result = await login(formData.email, formData.password)
-
             if (!result.success) {
                 setErrors({ general: result.error || 'Login failed. Please try again.' })
             }
-            // On success, the AuthContext will handle state and the page will redirect
         } catch (error) {
             console.error('Login error:', error)
             setErrors({ general: 'An unexpected error occurred. Please try again.' })
@@ -111,171 +63,110 @@ const Login: React.FC<LoginProps> = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-dark-900 via-navy-900 to-dark-800 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-            {/* Background Effects */}
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gold-500/5 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-navy-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="flex min-h-screen">
+            {/* Brand panel */}
+            <div className="relative hidden w-[45%] flex-col justify-between bg-zinc-900 p-10 lg:flex">
+                <div className="absolute left-0 top-0 h-full w-1 bg-gold-500" />
+                <NexgenLogo size="lg" variant="login" className="[&_p]:text-white [&_p:last-child]:text-zinc-400" />
+                <div>
+                    <h2 className="text-2xl font-semibold tracking-tight text-white">
+                        Operations dashboard
+                    </h2>
+                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-400">
+                        Monitor platform health, clear queues, and manage customer operations from one place.
+                    </p>
+                </div>
+                <p className="text-xs text-zinc-500">
+                    Secure admin portal. All login attempts are monitored.
+                </p>
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="max-w-md w-full space-y-8 relative z-10"
-            >
-                {/* Login Card */}
-                <div className="bg-dark-800/80 backdrop-blur-xl rounded-3xl p-8 border border-gold-500/20 shadow-2xl">
-                    {/* Logo */}
-                    <NexgenLogo size="lg" />
-
-                    {/* Welcome Text */}
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
-                        <p className="text-gray-400">Sign in to access your admin dashboard</p>
+            {/* Form panel */}
+            <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
+                <div className="w-full max-w-sm">
+                    <div className="mb-8 lg:hidden">
+                        <NexgenLogo size="md" variant="login" />
                     </div>
 
-                    {/* Login Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* General Error Message */}
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Welcome back</h1>
+                        <p className="mt-1 text-sm text-zinc-500">Sign in to your admin account</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {errors.general && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"
-                            >
-                                <div className="flex items-center">
-                                    <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
-                                    <p className="text-sm text-red-500">{errors.general}</p>
-                                </div>
-                            </motion.div>
+                            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                                <p className="text-sm text-red-700">{errors.general}</p>
+                            </div>
                         )}
 
-                        {/* Email Field */}
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                                Email Address
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={handleInputChange}
-                                    className={`block w-full pl-10 pr-3 py-3 border rounded-xl bg-navy-800/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-colors ${errors.email ? 'border-red-500' : 'border-gold-500/30'
-                                        }`}
-                                    placeholder="admin@nexgencrypto.live"
-                                />
-                            </div>
-                            {errors.email && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="mt-1 text-sm text-red-500"
-                                >
-                                    {errors.email}
-                                </motion.p>
-                            )}
-                        </div>
+                        <Input
+                            label="Email address"
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="admin@nexgencrypto.live"
+                            error={errors.email}
+                            leftIcon={<Mail className="h-4 w-4" />}
+                        />
 
-                        {/* Password Field */}
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={formData.password}
-                                    onChange={handleInputChange}
-                                    className={`block w-full pl-10 pr-10 py-3 border rounded-xl bg-navy-800/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-colors ${errors.password ? 'border-red-500' : 'border-gold-500/30'
-                                        }`}
-                                    placeholder="Enter your password"
-                                />
+                        <Input
+                            label="Password"
+                            id="password"
+                            name="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            placeholder="Enter your password"
+                            error={errors.password}
+                            leftIcon={<Lock className="h-4 w-4" />}
+                            rightIcon={
                                 <button
                                     type="button"
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    className="text-zinc-400 hover:text-zinc-600"
+                                    tabIndex={-1}
                                 >
-                                    {showPassword ? (
-                                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gold-500 transition-colors" />
-                                    ) : (
-                                        <Eye className="h-5 w-5 text-gray-400 hover:text-gold-500 transition-colors" />
-                                    )}
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
-                            </div>
-                            {errors.password && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="mt-1 text-sm text-red-500"
-                                >
-                                    {errors.password}
-                                </motion.p>
-                            )}
-                        </div>
+                            }
+                        />
 
-                        {/* Remember Me & Forgot Password */}
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center">
+                            <label className="flex items-center gap-2 text-sm text-zinc-600">
                                 <input
                                     id="remember-me"
-                                    name="remember-me"
                                     type="checkbox"
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="h-4 w-4 text-gold-500 focus:ring-gold-500 border-gray-600 rounded bg-navy-800"
+                                    className="h-4 w-4 rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
                                 />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
-                                    Remember me
-                                </label>
-                            </div>
-                            <div className="text-sm">
-                                <a href="#" className="text-gold-500 hover:text-gold-400 transition-colors">
-                                    Forgot password?
-                                </a>
-                            </div>
+                                Remember me
+                            </label>
+                            <a href="#" className="text-sm font-medium text-gold-700 hover:text-gold-600">
+                                Forgot password?
+                            </a>
                         </div>
 
-                        {/* Login Button */}
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full btn-primary relative"
-                        >
+                        <Button type="submit" className="w-full" disabled={isLoading}>
                             {isLoading ? (
-                                <div className="flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-navy-900 mr-2"></div>
+                                <>
+                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy-900/30 border-t-navy-900" />
                                     Signing in...
-                                </div>
+                                </>
                             ) : (
-                                <div className="flex items-center justify-center">
-                                    <Shield className="w-5 h-5 mr-2" />
-                                    Sign In
-                                </div>
+                                <>
+                                    <Shield className="h-4 w-4" />
+                                    Sign in
+                                </>
                             )}
-                        </motion.button>
+                        </Button>
                     </form>
-
-                    {/* Security Notice */}
-                    <div className="mt-6 text-center">
-                        <p className="text-xs text-gray-400">
-                            This is a secure admin portal. All login attempts are monitored and logged.
-                        </p>
-                    </div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     )
 }

@@ -26,6 +26,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.21(postcss@8.5.6)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       framer-motion:
         specifier: ^11.15.0
         version: 11.18.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -47,6 +50,9 @@ importers:
       react-intersection-observer:
         specifier: ^9.13.0
         version: 9.16.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      tailwind-merge:
+        specifier: ^2.6.0
+        version: 2.6.0
       tailwindcss:
         specifier: ^3.4.0
         version: 3.4.18(yaml@1.10.2)

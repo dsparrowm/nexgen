@@ -144,3 +144,38 @@ export const getAdminRouteMeta = (pathname: string | null | undefined): AdminRou
 
     return defaultAdminRouteMeta
 }
+
+const breadcrumbDomainMap: Array<{ match: string; label: string }> = [
+    { match: adminRoutes.operations, label: 'Operations' },
+    { match: adminRoutes.customers, label: 'Operations' },
+    { match: '/admin/compliance', label: 'Operations' },
+    { match: adminRoutes.treasury, label: 'Finance' },
+    { match: adminRoutes.transactions, label: 'Finance' },
+    { match: adminRoutes.assets, label: 'Finance' },
+    { match: adminRoutes.miningDesk, label: 'Finance' },
+    { match: adminRoutes.communications, label: 'Engagement' },
+    { match: adminRoutes.growth, label: 'Engagement' },
+    { match: adminRoutes.analytics, label: 'Intelligence' },
+    { match: adminRoutes.platform, label: 'Intelligence' },
+]
+
+export const getAdminBreadcrumbs = (pathname: string | null | undefined): Array<{ label: string; href?: string }> => {
+    if (!pathname || pathname === '/admin' || pathname === '/') {
+        return []
+    }
+
+    const meta = getAdminRouteMeta(pathname)
+    const domain = breadcrumbDomainMap
+        .sort((a, b) => b.match.length - a.match.length)
+        .find((entry) => pathname.startsWith(entry.match))
+
+    const crumbs: Array<{ label: string; href?: string }> = []
+
+    if (domain) {
+        crumbs.push({ label: domain.label })
+    }
+
+    crumbs.push({ label: meta.title })
+
+    return crumbs
+}

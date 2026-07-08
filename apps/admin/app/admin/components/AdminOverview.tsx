@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
 import {
@@ -15,18 +14,24 @@ import {
     AlertTriangle,
     CheckCircle,
     Clock,
-    Eye,
-    MoreVertical,
-    ArrowUpRight,
-    ArrowDownRight,
     Wallet,
     PieChart,
     RefreshCw,
     MessageCircle,
     Pickaxe,
     BadgeCheck,
-    HandCoins
+    HandCoins,
+    ArrowRight,
+    type LucideIcon,
 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { StatCard } from '@/components/ui/StatCard'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { cn } from '@/lib/utils'
 
 interface DashboardStats {
     totalUsers: number
@@ -34,8 +39,8 @@ interface DashboardStats {
     totalInvestments: number
     totalTransactions: number
     pendingKyc: number
-    pendingWithdrawals: number
-    supportTickets: number
+    pendingWithdrawals: number | null
+    supportTickets: number | null
     recentTransactions: any[]
     changes: {
         users: string
@@ -44,6 +49,14 @@ interface DashboardStats {
         uptime: string
     }
     systemUptime: string
+}
+
+interface ActionQueueItem {
+    title: string
+    count: number | null
+    href: string
+    icon: LucideIcon
+    priority: 'high' | 'medium' | 'low'
 }
 
 const AdminOverview = () => {
@@ -66,23 +79,22 @@ const AdminOverview = () => {
             const response = await apiClient.getDashboardStats()
 
             if (response.success && response.data) {
-                // Transform API response to match component interface
                 const transformedStats: DashboardStats = {
                     totalUsers: response.data.users?.total || 0,
                     activeUsers: response.data.users?.active || 0,
                     totalInvestments: parseFloat(response.data.investments?.totalAmount || '0'),
                     totalTransactions: response.data.transactions?.total || 0,
                     pendingKyc: response.data.kyc?.pending || 0,
-                    pendingWithdrawals: 0, // Not provided by API
-                    supportTickets: 0, // Not provided by API
+                    pendingWithdrawals: null,
+                    supportTickets: null,
                     recentTransactions: response.data.transactions?.recent || [],
                     changes: {
-                        users: '+0%', // Not provided by API
-                        investments: '+0%', // Not provided by API
-                        transactions: '+0%', // Not provided by API
-                        uptime: '+0%' // Not provided by API
+                        users: '+0%',
+                        investments: '+0%',
+                        transactions: '+0%',
+                        uptime: '+0%',
                     },
-                    systemUptime: '99.9%' // Not provided by API
+                    systemUptime: '99.9%',
                 }
                 setStats(transformedStats)
             } else {
@@ -101,460 +113,319 @@ const AdminOverview = () => {
         fetchDashboardStats()
     }, [])
 
-    // Auto-refresh every 30 seconds
     useEffect(() => {
         const interval = setInterval(() => {
             fetchDashboardStats(true)
         }, 30000)
-
         return () => clearInterval(interval)
     }, [])
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
         }).format(amount)
-    }
 
-    const formatNumber = (num: number) => {
-        return new Intl.NumberFormat('en-US').format(num)
-    }
-
-    const calculateUptime = () => {
-        return stats?.systemUptime || '99.9%'
-    }
-
-    const dashboardStats = stats ? [
-        {
-            title: 'Total Users',
-            value: formatNumber(stats.totalUsers),
-            change: stats.changes.users,
-            changeType: stats.changes.users.startsWith('+') ? 'increase' : 'decrease',
-            icon: Users,
-            color: 'text-blue-500',
-            bgColor: 'bg-blue-500/10',
-            description: `${formatNumber(stats.activeUsers)} active users`
-        },
-        {
-            title: 'Total Investments',
-            value: formatCurrency(stats.totalInvestments),
-            change: stats.changes.investments,
-            changeType: stats.changes.investments.startsWith('+') ? 'increase' : 'decrease',
-            icon: DollarSign,
-            color: 'text-green-500',
-            bgColor: 'bg-green-500/10',
-            description: 'Total platform investments'
-        },
-        {
-            title: 'Total Transactions',
-            value: formatNumber(stats.totalTransactions),
-            change: stats.changes.transactions,
-            changeType: stats.changes.transactions.startsWith('+') ? 'increase' : 'decrease',
-            icon: TrendingUp,
-            color: 'text-gold-500',
-            bgColor: 'bg-gold-500/10',
-            description: 'All time transactions'
-        },
-        {
-            title: 'System Uptime',
-            value: calculateUptime(),
-            change: stats.changes.uptime,
-            changeType: stats.changes.uptime.startsWith('+') ? 'increase' : 'decrease',
-            icon: Activity,
-            color: 'text-purple-500',
-            bgColor: 'bg-purple-500/10',
-            description: 'Platform availability'
-        }
-    ] : []
-
-    const quickActions = [
-        {
-            title: 'Add New User',
-            description: 'Create new user account',
-            icon: UserPlus,
-            color: 'text-blue-500',
-            bgColor: 'bg-blue-500/10',
-            href: '/admin/customers/add'
-        },
-        {
-            title: 'Credit User',
-            description: 'Add credits to user account',
-            icon: CreditCard,
-            color: 'text-green-500',
-            bgColor: 'bg-green-500/10',
-            href: '/admin/treasury/credits/add'
-        },
-        {
-            title: 'View Reports',
-            description: 'System analytics & reports',
-            icon: PieChart,
-            color: 'text-purple-500',
-            bgColor: 'bg-purple-500/10',
-            href: '/admin/analytics'
-        },
-        {
-            title: 'Review KYC',
-            description: 'Approve identity documents',
-            icon: BadgeCheck,
-            color: 'text-emerald-500',
-            bgColor: 'bg-emerald-500/10',
-            href: '/admin/compliance/kyc'
-        },
-        {
-            title: 'Manage Mining',
-            description: 'Control mining plans',
-            icon: Pickaxe,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500/10',
-            href: '/admin/mining-desk'
-        },
-        {
-            title: 'Run Payouts',
-            description: 'Process investor earnings',
-            icon: HandCoins,
-            color: 'text-amber-500',
-            bgColor: 'bg-amber-500/10',
-            href: '/admin/treasury/payouts'
-        },
-        {
-            title: 'User Management',
-            description: 'Manage all user accounts',
-            icon: Users,
-            color: 'text-gold-500',
-            bgColor: 'bg-gold-500/10',
-            href: '/admin/customers'
-        },
-        {
-            title: 'Support Inbox',
-            description: 'Handle live customer chats',
-            icon: MessageCircle,
-            color: 'text-cyan-500',
-            bgColor: 'bg-cyan-500/10',
-            href: '/admin/communications/support'
-        }
-    ]
-
-    // Format recent activities from real transaction data
-    const recentActivities = stats?.recentTransactions.map((transaction, index) => ({
-        id: transaction.id,
-        user: transaction.user?.username || transaction.user?.email || 'Unknown User',
-        action: transaction.type,
-        amount: formatCurrency(transaction.amount),
-        time: formatRelativeTime(new Date(transaction.createdAt)),
-        status: transaction.status.toLowerCase(),
-        type: transaction.type.toLowerCase()
-    })) || []
+    const formatNumber = (num: number) => new Intl.NumberFormat('en-US').format(num)
 
     function formatRelativeTime(date: Date): string {
-        const now = new Date()
-        const diff = now.getTime() - date.getTime()
+        const diff = Date.now() - date.getTime()
         const minutes = Math.floor(diff / 60000)
         const hours = Math.floor(diff / 3600000)
         const days = Math.floor(diff / 86400000)
 
         if (minutes < 1) return 'Just now'
-        if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
-        if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`
-        return `${days} day${days > 1 ? 's' : ''} ago`
+        if (minutes < 60) return `${minutes}m ago`
+        if (hours < 24) return `${hours}h ago`
+        return `${days}d ago`
     }
 
-    const pendingTasks = stats ? [
-        {
-            id: 1,
-            title: 'KYC Verification Pending',
-            count: stats.pendingKyc,
-            priority: 'high',
-            icon: AlertTriangle,
-            color: 'text-red-500',
-            href: '/admin/compliance/kyc'
-        },
-        {
-            id: 2,
-            title: 'Withdrawal Approvals',
-            count: stats.pendingWithdrawals,
-            priority: 'medium',
-            icon: Wallet,
-            color: 'text-yellow-500',
-            href: '/admin/treasury/ledger'
-        },
-        {
-            id: 3,
-            title: 'Support Tickets',
-            count: stats.supportTickets,
-            priority: 'low',
-            icon: CheckCircle,
-            color: 'text-blue-500',
-            href: '/admin/communications/support'
-        }
-    ] : []
+    const actionQueue: ActionQueueItem[] = stats
+        ? [
+              {
+                  title: 'Pending KYC',
+                  count: stats.pendingKyc,
+                  href: '/admin/compliance/kyc',
+                  icon: BadgeCheck,
+                  priority: 'high',
+              },
+              {
+                  title: 'Withdrawal Approvals',
+                  count: stats.pendingWithdrawals,
+                  href: '/admin/transactions',
+                  icon: Wallet,
+                  priority: 'medium',
+              },
+              {
+                  title: 'Support Inbox',
+                  count: stats.supportTickets,
+                  href: '/admin/communications/support',
+                  icon: MessageCircle,
+                  priority: 'low',
+              },
+          ]
+        : []
 
-    const getStatusIcon = (status: string) => {
+    const quickActions = [
+        { title: 'Add User', icon: UserPlus, href: '/admin/customers/add' },
+        { title: 'Credit User', icon: CreditCard, href: '/admin/treasury/credits/add' },
+        { title: 'Reports', icon: PieChart, href: '/admin/analytics' },
+        { title: 'Review KYC', icon: BadgeCheck, href: '/admin/compliance/kyc' },
+        { title: 'Mining', icon: Pickaxe, href: '/admin/mining-desk' },
+        { title: 'Payouts', icon: HandCoins, href: '/admin/treasury/payouts' },
+        { title: 'Customers', icon: Users, href: '/admin/customers' },
+        { title: 'Support', icon: MessageCircle, href: '/admin/communications/support' },
+    ]
+
+    const getStatusBadge = (status: string) => {
         switch (status) {
             case 'completed':
-                return <CheckCircle className="w-4 h-4 text-green-500" />
+                return <Badge variant="success">Completed</Badge>
             case 'pending':
-                return <Clock className="w-4 h-4 text-yellow-500" />
+                return <Badge variant="warning">Pending</Badge>
             default:
-                return <AlertTriangle className="w-4 h-4 text-red-500" />
+                return <Badge variant="error">{status}</Badge>
         }
     }
 
-    const getActivityIcon = (type: string) => {
-        switch (type) {
-            case 'investment':
-                return <TrendingUp className="w-4 h-4 text-green-500" />
-            case 'withdrawal':
-                return <Wallet className="w-4 h-4 text-red-500" />
-            case 'credit':
-                return <CreditCard className="w-4 h-4 text-blue-500" />
-            case 'verification':
-                return <CheckCircle className="w-4 h-4 text-purple-500" />
-            case 'dividend':
-                return <DollarSign className="w-4 h-4 text-gold-500" />
-            default:
-                return <Activity className="w-4 h-4 text-gray-500" />
-        }
+    if (isLoading && !stats) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+            </div>
+        )
     }
+
+    if (error && !stats) {
+        return (
+            <EmptyState
+                icon={AlertTriangle}
+                title="Error loading dashboard"
+                description={error}
+                actionLabel="Retry"
+                onAction={() => fetchDashboardStats()}
+            />
+        )
+    }
+
+    if (!stats) return null
+
+    const recentActivities = stats.recentTransactions.map((transaction) => ({
+        id: transaction.id,
+        user: transaction.user?.username || transaction.user?.email || 'Unknown',
+        action: transaction.type,
+        amount: formatCurrency(transaction.amount),
+        time: formatRelativeTime(new Date(transaction.createdAt)),
+        status: transaction.status.toLowerCase(),
+    }))
 
     return (
         <div className="space-y-6">
-            {/* Loading State */}
-            {isLoading && !stats && (
-                <div className="flex items-center justify-center py-12">
-                    <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500 mb-4"></div>
-                        <p className="text-gray-400">Loading dashboard...</p>
-                    </div>
+            {/* Welcome + controls */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 className="text-xl font-semibold text-zinc-900">
+                        Welcome back, {admin?.firstName || 'Admin'}
+                    </h2>
+                    <p className="mt-0.5 text-sm text-zinc-500">
+                        Here&apos;s what needs your attention today.
+                    </p>
                 </div>
-            )}
-
-            {/* Error State */}
-            {error && !stats && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
-                            <div>
-                                <h3 className="text-lg font-semibold text-red-500">Error Loading Dashboard</h3>
-                                <p className="text-sm text-red-400 mt-1">{error}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => fetchDashboardStats()}
-                            className="btn-primary"
-                        >
-                            Retry
-                        </button>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => fetchDashboardStats(true)}
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    </Button>
+                    <SegmentedControl
+                        options={[
+                            { value: '24h', label: '24h' },
+                            { value: '7d', label: '7d' },
+                            { value: '30d', label: '30d' },
+                            { value: '90d', label: '90d' },
+                        ]}
+                        value={selectedPeriod}
+                        onChange={setSelectedPeriod}
+                    />
                 </div>
-            )}
+            </div>
 
-            {/* Dashboard Content */}
-            {stats && (
-                <>
-                    {/* Welcome Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="bg-gradient-to-r from-gold-500/10 to-blue-500/10 rounded-2xl p-6 border border-gold-500/20"
-                    >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-2">
-                                    Welcome back, {admin?.firstName || 'Admin'}
-                                </h2>
-                                <p className="text-gray-300">Here's what's happening with your investment platform today.</p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <button
-                                    onClick={() => fetchDashboardStats(true)}
-                                    disabled={isRefreshing}
-                                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors disabled:opacity-50"
-                                    title="Refresh data"
-                                >
-                                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                </button>
-                                {['24h', '7d', '30d', '90d'].map((period) => (
-                                    <button
-                                        key={period}
-                                        onClick={() => setSelectedPeriod(period)}
-                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedPeriod === period
-                                            ? 'bg-gold-500 text-navy-900'
-                                            : 'text-gray-400 hover:text-white hover:bg-navy-700/50'
-                                            }`}
-                                    >
-                                        {period}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Stats Grid */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1, duration: 0.6 }}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-                    >
-                        {dashboardStats.map((stat, index) => (
-                            <div
-                                key={index}
-                                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20 hover:border-gold-500/40 transition-all duration-300"
-                            >
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
+            {/* Action queue */}
+            <div>
+                <h3 className="mb-3 text-sm font-medium text-zinc-700">Action queue</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {actionQueue.map((item) => (
+                        <Link key={item.title} href={item.href}>
+                            <Card className="card-hover group">
+                                <CardContent className="flex items-center justify-between p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className={cn(
+                                                'rounded-lg p-2',
+                                                item.priority === 'high' && 'bg-red-50 text-red-600',
+                                                item.priority === 'medium' && 'bg-amber-50 text-amber-600',
+                                                item.priority === 'low' && 'bg-blue-50 text-blue-600'
+                                            )}
+                                        >
+                                            <item.icon className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-zinc-900">{item.title}</p>
+                                            <p className="text-xs capitalize text-zinc-500">{item.priority} priority</p>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center text-sm">
-                                        {stat.changeType === 'increase' ? (
-                                            <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+                                    <div className="flex items-center gap-2">
+                                        {item.count !== null ? (
+                                            <span className="text-2xl font-semibold text-zinc-900">{item.count}</span>
                                         ) : (
-                                            <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+                                            <span className="text-lg text-zinc-300">—</span>
                                         )}
-                                        <span className={stat.changeType === 'increase' ? 'text-green-500' : 'text-red-500'}>
-                                            {stat.change}
-                                        </span>
+                                        <ArrowRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-500" />
                                     </div>
-                                </div>
-                                <h3 className="text-2xl font-bold text-white mb-1">{stat.value}</h3>
-                                <p className="text-gray-400 text-sm font-medium">{stat.title}</p>
-                                <p className="text-gray-500 text-xs mt-1">{stat.description}</p>
-                            </div>
-                        ))}
-                    </motion.div>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+            </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Quick Actions */}
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2, duration: 0.6 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-bold text-white">Quick Actions</h3>
-                                <MoreVertical className="w-5 h-5 text-gray-400" />
-                            </div>
+            {/* KPI stats */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                    title="Total Users"
+                    value={formatNumber(stats.totalUsers)}
+                    description={`${formatNumber(stats.activeUsers)} active`}
+                    icon={Users}
+                    trend={stats.changes.users}
+                    trendDirection={stats.changes.users.startsWith('+') ? 'up' : 'down'}
+                />
+                <StatCard
+                    title="Total Investments"
+                    value={formatCurrency(stats.totalInvestments)}
+                    icon={DollarSign}
+                    trend={stats.changes.investments}
+                    trendDirection={stats.changes.investments.startsWith('+') ? 'up' : 'down'}
+                />
+                <StatCard
+                    title="Total Transactions"
+                    value={formatNumber(stats.totalTransactions)}
+                    icon={TrendingUp}
+                    trend={stats.changes.transactions}
+                    trendDirection={stats.changes.transactions.startsWith('+') ? 'up' : 'down'}
+                />
+                <StatCard
+                    title="System Uptime"
+                    value={stats.systemUptime}
+                    description="Platform availability"
+                    icon={Activity}
+                />
+            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                {quickActions.map((action, index) => (
-                                    <Link
-                                        key={index}
-                                        href={action.href}
-                                        className="p-4 bg-navy-800/50 rounded-xl border border-gold-500/20 hover:border-gold-500/40 transition-all duration-300 group cursor-pointer block"
-                                    >
-                                        <div className={`w-10 h-10 ${action.bgColor} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                                            <action.icon className={`w-5 h-5 ${action.color}`} />
-                                        </div>
-                                        <p className="text-white font-medium text-sm mb-1">{action.title}</p>
-                                        <p className="text-gray-400 text-xs">{action.description}</p>
-                                    </Link>
-                                ))}
-                            </div>
-                        </motion.div>
-
-                        {/* Recent Activities */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3, duration: 0.6 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-bold text-white">Recent Activities</h3>
-                                <Link href="/admin/treasury/ledger" className="text-gold-500 hover:text-gold-400 transition-colors">
-                                    <Eye className="w-5 h-5" />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                {/* Quick actions */}
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Quick actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-3">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                            {quickActions.map((action) => (
+                                <Link
+                                    key={action.title}
+                                    href={action.href}
+                                    className="flex flex-col items-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-center transition-colors hover:border-zinc-200 hover:bg-white"
+                                >
+                                    <action.icon className="h-4 w-4 text-zinc-500" />
+                                    <span className="text-xs font-medium text-zinc-700">{action.title}</span>
                                 </Link>
-                            </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
 
-                            <div className="space-y-4">
-                                {recentActivities.slice(0, 5).map((activity) => (
-                                    <Link
-                                        key={activity.id}
-                                        href={`/admin/treasury/ledger?id=${activity.id}`}
-                                        className="flex items-center justify-between p-3 rounded-xl bg-navy-800/30 hover:bg-navy-800/50 transition-colors cursor-pointer block"
-                                    >
-                                        <div className="flex items-center space-x-3">
-                                            <div className="p-2 rounded-lg bg-navy-700/50">
-                                                {getActivityIcon(activity.type)}
-                                            </div>
-                                            <div>
-                                                <p className="text-white font-medium text-sm">{activity.user}</p>
-                                                <p className="text-gray-400 text-xs">{activity.action}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-white text-sm font-medium">{activity.amount}</span>
-                                                {getStatusIcon(activity.status)}
-                                            </div>
-                                            <p className="text-gray-400 text-xs">{activity.time}</p>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        </motion.div>
-
-                        {/* Pending Tasks */}
-                        <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.4, duration: 0.6 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
+                {/* Recent activity table */}
+                <Card className="lg:col-span-3">
+                    <CardHeader className="flex-row items-center justify-between pb-0">
+                        <CardTitle>Recent activity</CardTitle>
+                        <Link
+                            href="/admin/transactions"
+                            className="text-xs font-medium text-gold-700 hover:text-gold-600"
                         >
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-bold text-white">Pending Tasks</h3>
-                                <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full font-medium">
-                                    {pendingTasks.reduce((sum, task) => sum + task.count, 0)} Total
-                                </span>
+                            View all
+                        </Link>
+                    </CardHeader>
+                    <CardContent className="pt-3">
+                        {recentActivities.length === 0 ? (
+                            <EmptyState
+                                icon={Clock}
+                                title="No recent activity"
+                                description="Transactions will appear here as they occur."
+                            />
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-zinc-100 text-left text-xs font-medium text-zinc-500">
+                                            <th className="pb-2 pr-4 font-medium">User</th>
+                                            <th className="pb-2 pr-4 font-medium">Action</th>
+                                            <th className="pb-2 pr-4 font-medium">Amount</th>
+                                            <th className="pb-2 pr-4 font-medium">Status</th>
+                                            <th className="pb-2 font-medium">Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-50">
+                                        {recentActivities.slice(0, 8).map((activity) => (
+                                            <tr key={activity.id} className="group">
+                                                <td className="py-2.5 pr-4 font-medium text-zinc-900">
+                                                    {activity.user}
+                                                </td>
+                                                <td className="py-2.5 pr-4 capitalize text-zinc-600">
+                                                    {activity.action}
+                                                </td>
+                                                <td className="py-2.5 pr-4 text-zinc-900">{activity.amount}</td>
+                                                <td className="py-2.5 pr-4">{getStatusBadge(activity.status)}</td>
+                                                <td className="py-2.5 text-zinc-500">{activity.time}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
 
-                            <div className="space-y-4">
-                                {pendingTasks.map((task) => (
-                                    <Link
-                                        key={task.id}
-                                        href={task.href}
-                                        className="flex items-center justify-between p-4 rounded-xl bg-navy-800/30 hover:bg-navy-800/50 transition-colors cursor-pointer block"
-                                    >
-                                        <div className="flex items-center space-x-3">
-                                            <task.icon className={`w-5 h-5 ${task.color}`} />
-                                            <div>
-                                                <p className="text-white font-medium text-sm">{task.title}</p>
-                                                <p className="text-gray-400 text-xs capitalize">{task.priority} priority</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.priority === 'high' ? 'bg-red-500/20 text-red-400' :
-                                                task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-blue-500/20 text-blue-400'
-                                                }`}>
-                                                {task.count}
-                                            </span>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-
-                            {/* System Status */}
-                            <div className="mt-6 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                        <span className="text-green-400 font-medium text-sm">System Status: Online</span>
-                                    </div>
-                                    <span className="text-green-400 text-sm">{calculateUptime()}</span>
-                                </div>
-                                <p className="text-gray-400 text-xs mt-1">All services operational</p>
-                            </div>
-                        </motion.div>
+            {/* System status */}
+            <Card>
+                <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                        </span>
+                        <span className="text-sm font-medium text-zinc-900">All systems operational</span>
                     </div>
-                </>
-            )}
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-500">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        {stats.systemUptime} uptime
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     )
 }

@@ -2,21 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Component Classes */
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased;
+  }
+}
+
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-gold-500 to-gold-600 text-navy-900 font-semibold py-3 px-6 rounded-xl hover:from-gold-400 hover:to-gold-500 transition-all duration-300 flex items-center justify-center;
+    @apply inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-navy-900 transition-colors hover:bg-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply bg-navy-800 text-white border border-gold-500/30 font-semibold py-3 px-6 rounded-xl hover:bg-navy-700 hover:border-gold-500 transition-all duration-300 flex items-center justify-center;
+    @apply inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .card-hover {
-    @apply hover:scale-105 hover:shadow-xl hover:shadow-gold-500/10 transition-all duration-300;
-  }
-
-  .text-gradient {
-    @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
+    @apply transition-shadow duration-200 hover:shadow-card-hover;
   }
 }

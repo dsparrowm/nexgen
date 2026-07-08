@@ -9,7 +9,6 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Custom color palette
                 gold: {
                     50: '#fefdf8',
                     100: '#fdf8e1',
@@ -46,15 +45,33 @@ export default {
                     800: '#1e293b',
                     900: '#0f172a',
                 },
+                surface: {
+                    DEFAULT: '#ffffff',
+                    elevated: '#ffffff',
+                    muted: '#fafafa',
+                },
+                border: {
+                    DEFAULT: '#e4e4e7',
+                    subtle: '#f4f4f5',
+                },
+                accent: {
+                    DEFAULT: '#FFD700',
+                    foreground: '#1a2332',
+                    muted: '#fefdf8',
+                },
             },
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
-                display: ['Inter', 'system-ui', 'sans-serif'],
+                sans: ['var(--font-geist-sans)', 'Inter', 'system-ui', 'sans-serif'],
+                display: ['var(--font-geist-sans)', 'Inter', 'system-ui', 'sans-serif'],
+                mono: ['var(--font-geist-mono)', 'monospace'],
+            },
+            boxShadow: {
+                card: '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+                'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
             },
             animation: {
-                'fade-in': 'fadeIn 0.5s ease-in-out',
-                'slide-up': 'slideUp 0.3s ease-out',
-                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                'fade-in': 'fadeIn 0.3s ease-in-out',
+                'slide-up': 'slideUp 0.2s ease-out',
             },
             keyframes: {
                 fadeIn: {
@@ -62,7 +79,7 @@ export default {
                     '100%': { opacity: '1' },
                 },
                 slideUp: {
-                    '0%': { transform: 'translateY(10px)', opacity: '0' },
+                    '0%': { transform: 'translateY(4px)', opacity: '0' },
                     '100%': { transform: 'translateY(0)', opacity: '1' },
                 },
             },

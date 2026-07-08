@@ -49,8 +49,8 @@ export default function RootLayout({
         <link rel="icon" href="/newLogo.png" type="image/png" />
         <link rel="shortcut icon" href="/newLogo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/newLogo.png" />
-        <meta name="theme-color" content="#1a365d" />
-        <meta name="msapplication-TileColor" content="#1a365d" />
+        <meta name="theme-color" content="#fafafa" />
+        <meta name="msapplication-TileColor" content="#fafafa" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning={true}>
         <AuthProvider>
