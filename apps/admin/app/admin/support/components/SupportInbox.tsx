@@ -735,19 +735,19 @@ const SupportInbox: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => loadConversations(true)}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
                     >
                         <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
                     <div
                         className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${socketStatus === 'connected'
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : socketStatus === 'connecting' || socketStatus === 'reconnecting'
-                                ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                ? 'border-blue-200 bg-blue-50 text-blue-700'
                                 : socketStatus === 'error'
-                                    ? 'border-red-500/30 bg-red-500/10 text-red-300'
-                                    : 'border-white/10 bg-navy-800/50 text-gray-300'
+                                    ? 'border-red-200 bg-red-50 text-red-700'
+                                    : 'border-zinc-200 bg-zinc-50 text-zinc-600'
                             }`}
                     >
                         <span
@@ -774,17 +774,17 @@ const SupportInbox: React.FC = () => {
             </div>
 
             {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                     <div className="flex items-start gap-3">
-                        <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                        <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
                         <div className="flex-1">
-                            <p className="font-medium text-red-100">Something needs attention</p>
-                            <p className="mt-1 text-red-200/80">{error}</p>
+                            <p className="font-medium text-red-900">Something needs attention</p>
+                            <p className="mt-1 text-red-700">{error}</p>
                         </div>
                         <button
                             type="button"
                             onClick={() => loadConversations()}
-                            className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-100 transition-colors hover:bg-red-500/20"
+                            className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
                         >
                             Retry
                         </button>
@@ -799,19 +799,19 @@ const SupportInbox: React.FC = () => {
                     transition={{ duration: 0.45, delay: 0.05 }}
                     className="flex min-h-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-card"
                 >
-                    <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+                    <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
                         <div>
-                            <h2 className="text-lg font-semibold text-white">Conversations</h2>
-                            <p className="text-sm text-gray-400">Select a thread to respond</p>
+                            <h2 className="text-lg font-semibold text-zinc-900">Conversations</h2>
+                            <p className="text-sm text-zinc-500">Select a thread to respond</p>
                         </div>
-                        <div className="rounded-full bg-navy-800/60 px-3 py-1 text-xs font-medium text-gray-300">
+                        <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
                             {conversations.length} total
                         </div>
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto">
                         {isLoadingList && !conversations.length ? (
-                            <div className="flex items-center justify-center px-6 py-12 text-gray-400">
+                            <div className="flex items-center justify-center px-6 py-12 text-zinc-500">
                                 <div className="flex flex-col items-center gap-3">
                                     <RefreshCw className="h-6 w-6 animate-spin text-gold-500" />
                                     <p className="text-sm">Loading conversations...</p>
@@ -828,22 +828,22 @@ const SupportInbox: React.FC = () => {
                                         key={conversation.id}
                                         type="button"
                                         onClick={() => setSelectedConversationId(conversation.id)}
-                                        className={`w-full border-b border-white/5 px-5 py-4 text-left transition-colors hover:bg-navy-800/50 ${selected ? 'bg-navy-800/70' : ''}`}
+                                        className={`w-full border-b border-zinc-100 px-5 py-4 text-left transition-colors hover:bg-zinc-50 ${selected ? 'bg-gold-50' : ''}`}
                                     >
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="truncate font-semibold text-white">{conversation.customerName}</h3>
+                                                    <h3 className="truncate font-semibold text-zinc-900">{conversation.customerName}</h3>
                                                     {conversation.unreadCount ? (
                                                         <span className="rounded-full bg-gold-500 px-2 py-0.5 text-[11px] font-bold text-navy-900">
                                                             {conversation.unreadCount}
                                                         </span>
                                                     ) : null}
                                                 </div>
-                                                <p className="mt-1 truncate text-sm text-gray-400">
+                                                <p className="mt-1 truncate text-sm text-zinc-500">
                                                     {conversation.customerEmail || 'No email provided'}
                                                 </p>
-                                                <p className="mt-2 line-clamp-2 text-sm text-gray-300">
+                                                <p className="mt-2 line-clamp-2 text-sm text-zinc-600">
                                                     {conversation.lastMessage || 'No messages yet'}
                                                 </p>
                                             </div>
@@ -865,11 +865,11 @@ const SupportInbox: React.FC = () => {
                             })
                         ) : (
                             <div className="px-6 py-14 text-center">
-                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-navy-800/60">
-                                    <Users className="h-7 w-7 text-gray-400" />
+                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+                                    <Users className="h-7 w-7 text-zinc-400" />
                                 </div>
-                                <h3 className="text-lg font-semibold text-white">No conversations found</h3>
-                                <p className="mt-2 text-sm text-gray-400">
+                                <h3 className="text-lg font-semibold text-zinc-900">No conversations found</h3>
+                                <p className="mt-2 text-sm text-zinc-500">
                                     Try a different filter or clear the search query to see more support threads.
                                 </p>
                             </div>
@@ -885,36 +885,36 @@ const SupportInbox: React.FC = () => {
                 >
                     {isLoadingThread && !selectedConversation ? (
                         <div className="flex flex-1 items-center justify-center">
-                            <div className="flex flex-col items-center gap-3 text-gray-400">
+                            <div className="flex flex-col items-center gap-3 text-zinc-500">
                                 <RefreshCw className="h-8 w-8 animate-spin text-gold-500" />
                                 <p className="text-sm">Loading conversation thread...</p>
                             </div>
                         </div>
                     ) : selectedSummary ? (
                         <>
-                            <div className="border-b border-white/5 px-6 py-5">
+                            <div className="border-b border-zinc-100 px-6 py-5">
                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <h2 className="text-2xl font-bold text-white">{selectedSummary.customerName}</h2>
+                                            <h2 className="text-2xl font-semibold text-zinc-900">{selectedSummary.customerName}</h2>
                                             <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${statusMeta[selectedSummary.status].className}`}>
                                                 {statusMeta[selectedSummary.status].icon}
                                                 {statusMeta[selectedSummary.status].label}
                                             </span>
                                         </div>
 
-                                        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-400">
-                                            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-3 py-1">
+                                        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+                                            <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1">
                                                 <Mail className="h-4 w-4" />
                                                 {selectedSummary.customerEmail || 'No email'}
                                             </span>
                                             {selectedSummary.customerPhone ? (
-                                                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-3 py-1">
+                                                <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1">
                                                     <Phone className="h-4 w-4" />
                                                     {selectedSummary.customerPhone}
                                                 </span>
                                             ) : null}
-                                            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-3 py-1">
+                                            <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1">
                                                 <Clock3 className="h-4 w-4" />
                                                 Updated {formatRelativeTime(selectedSummary.updatedAt)}
                                             </span>
@@ -926,7 +926,7 @@ const SupportInbox: React.FC = () => {
                                             type="button"
                                             onClick={handleAssignToMe}
                                             disabled={isAssigning || selectedSummary.assignedAdminId === admin?.id}
-                                            className="rounded-2xl border border-white/10 bg-navy-800/50 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {selectedSummary.assignedAdminId === admin?.id
                                                 ? 'Assigned to you'
@@ -937,37 +937,37 @@ const SupportInbox: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={handleConversationAction}
-                                            className="rounded-2xl border border-white/10 bg-navy-800/50 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-navy-800"
+                                            className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                                         >
                                             {selectedSummary.status === 'CLOSED' ? 'Reopen conversation' : 'Close conversation'}
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
                                     {selectedSummary.assignedAdminName ? (
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-3 py-1">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1">
                                             <User className="h-4 w-4" />
                                             Assigned to {selectedSummary.assignedAdminName}
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/50 px-3 py-1">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1">
                                             <User className="h-4 w-4" />
                                             Unassigned
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+                                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-600">
                                     <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${selectedConversationPresence?.customerOnline
-                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                                        : 'border-white/10 bg-navy-800/50 text-gray-300'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-zinc-200 bg-zinc-50 text-zinc-600'
                                         }`}>
                                         <span className={`h-2 w-2 rounded-full ${selectedConversationPresence?.customerOnline ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                                         {selectedConversationPresence?.customerOnline ? 'Customer online' : 'Customer offline'}
                                     </span>
                                     {selectedConversationTyping?.customerTyping && (
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-blue-200">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
                                             <span className="h-2 w-2 rounded-full bg-blue-400" />
                                             Customer typing...
                                         </span>
@@ -990,39 +990,39 @@ const SupportInbox: React.FC = () => {
                                         return (
                                             <div key={message.id} className={`flex ${isAdminMessage ? 'justify-end' : 'justify-start'}`}>
                                                 <div
-                                                    className={`max-w-[80%] rounded-3xl border px-4 py-3 shadow-lg ${isAdminMessage
-                                                        ? 'border-gold-500/20 bg-gold-500/10'
+                                                    className={`max-w-[80%] rounded-2xl border px-4 py-3 shadow-sm ${isAdminMessage
+                                                        ? 'border-gold-200 bg-gold-50'
                                                         : isSystemMessage
-                                                            ? 'border-blue-500/20 bg-blue-500/10'
-                                                            : 'border-white/10 bg-navy-800/70'
+                                                            ? 'border-blue-200 bg-blue-50'
+                                                            : 'border-zinc-200 bg-zinc-50'
                                                         }`}
                                                 >
                                                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-navy-800/70">
+                                                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-zinc-200">
                                                                 {isAdminMessage ? (
-                                                                    <ShieldAlert className="h-4 w-4 text-gold-400" />
+                                                                    <ShieldAlert className="h-4 w-4 text-gold-600" />
                                                                 ) : isSystemMessage ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                                                    <CheckCircle2 className="h-4 w-4 text-blue-600" />
                                                                 ) : (
-                                                                    <User className="h-4 w-4 text-gray-300" />
+                                                                    <User className="h-4 w-4 text-zinc-500" />
                                                                 )}
                                                             </div>
-                                                            <span className="text-sm font-semibold text-white">{message.senderName}</span>
-                                                            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-gray-300">
+                                                            <span className="text-sm font-semibold text-zinc-900">{message.senderName}</span>
+                                                            <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
                                                                 {message.senderType}
                                                             </span>
                                                             {message.isInternal ? (
-                                                                <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-medium text-yellow-200">
+                                                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
                                                                     Internal note
                                                                 </span>
                                                             ) : null}
                                                         </div>
-                                                        <span className="text-xs text-gray-400">{formatRelativeTime(message.createdAt)}</span>
+                                                        <span className="text-xs text-zinc-400">{formatRelativeTime(message.createdAt)}</span>
                                                     </div>
 
-                                                    <p className="whitespace-pre-wrap text-sm leading-6 text-gray-100">{message.message}</p>
-                                                    <p className={`mt-2 text-[11px] ${isAdminMessage ? 'text-gold-200/80' : 'text-gray-400'}`}>
+                                                    <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-700">{message.message}</p>
+                                                    <p className={`mt-2 text-[11px] ${isAdminMessage ? 'text-gold-700' : 'text-zinc-400'}`}>
                                                         {deliveryLabel}
                                                     </p>
                                                 </div>
@@ -1032,11 +1032,11 @@ const SupportInbox: React.FC = () => {
                                 ) : (
                                     <div className="flex h-full items-center justify-center">
                                         <div className="max-w-sm text-center">
-                                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-navy-800/60">
-                                                <MessageCircle className="h-7 w-7 text-gray-400" />
+                                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+                                                <MessageCircle className="h-7 w-7 text-zinc-400" />
                                             </div>
-                                            <h3 className="text-lg font-semibold text-white">No messages yet</h3>
-                                            <p className="mt-2 text-sm text-gray-400">
+                                            <h3 className="text-lg font-semibold text-zinc-900">No messages yet</h3>
+                                            <p className="mt-2 text-sm text-zinc-500">
                                                 This conversation is ready for the first reply from your team.
                                             </p>
                                         </div>
@@ -1049,7 +1049,7 @@ const SupportInbox: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={scrollToLatest}
-                                        className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-dark-800/95 px-4 py-2 text-sm font-medium text-gold-200 shadow-lg shadow-black/20 transition-colors hover:bg-dark-700"
+                                        className="inline-flex items-center gap-2 rounded-full border border-gold-200 bg-white px-4 py-2 text-sm font-medium text-gold-800 shadow-md transition-colors hover:bg-gold-50"
                                     >
                                         <span className="h-2 w-2 rounded-full bg-gold-400" />
                                         New messages
@@ -1057,9 +1057,9 @@ const SupportInbox: React.FC = () => {
                                 </div>
                             )}
 
-                            <div className="border-t border-white/5 px-6 py-5">
+                            <div className="border-t border-zinc-100 px-6 py-5">
                                 <form onSubmit={handleSendReply} className="space-y-3">
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-xs text-zinc-500">
                                         {selectedConversationTyping?.customerTyping
                                             ? 'The customer is actively typing a reply.'
                                             : selectedConversationPresence?.customerOnline
@@ -1071,11 +1071,11 @@ const SupportInbox: React.FC = () => {
                                         onChange={(event) => setReplyMessage(event.target.value)}
                                         placeholder="Type your reply to the customer..."
                                         rows={4}
-                                        className="w-full resize-none rounded-3xl border border-gold-500/20 bg-navy-800/60 px-4 py-4 text-white placeholder:text-gray-500 focus:border-gold-500/40 focus:outline-none"
+                                        className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                                     />
 
                                     <div className="flex items-center justify-between gap-3">
-                                        <p className="text-xs text-gray-400">
+                                        <p className="text-xs text-zinc-500">
                                             Replies will be added to the live support thread and synced to the customer view.
                                         </p>
 
@@ -1103,11 +1103,11 @@ const SupportInbox: React.FC = () => {
                     ) : (
                         <div className="flex flex-1 items-center justify-center px-6 py-14 text-center">
                             <div className="max-w-md">
-                                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-navy-800/60">
-                                    <MessageCircle className="h-8 w-8 text-gray-400" />
+                                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
+                                    <MessageCircle className="h-8 w-8 text-zinc-400" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-white">Select a conversation</h3>
-                                <p className="mt-3 text-sm leading-6 text-gray-400">
+                                <h3 className="text-2xl font-semibold text-zinc-900">Select a conversation</h3>
+                                <p className="mt-3 text-sm leading-6 text-zinc-500">
                                     Open any customer thread from the left panel to view their history and send a reply from the admin inbox.
                                 </p>
                             </div>

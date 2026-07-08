@@ -11,6 +11,8 @@ import {
     TransactionType,
     UpdateTransactionPayload,
 } from '@/lib/api'
+import { Button, Input, Select } from '@/components/ui'
+import { cn } from '@/lib/utils'
 import {
     AlertTriangle,
     Loader2,
@@ -342,249 +344,225 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         formData.type === 'INVESTMENT' || formData.type === 'PAYOUT'
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-900 shadow-2xl"
+                className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl"
             >
-                <div className="p-6 pb-0">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-white">
-                            {isEditing ? 'Edit Transaction' : 'Add Transaction'}
-                        </h2>
-                        <p className="mt-1 text-sm text-gray-400">
-                            {isEditing
-                                ? 'Update transaction details. Balance adjustments apply automatically for completed transactions.'
-                                : 'Create a manual ledger entry for any transaction type.'}
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="rounded-xl border border-gold-500/20 p-2 text-gray-400 transition-colors hover:text-white"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
-
-                {error && (
-                    <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-                        <div className="flex items-center gap-3">
-                            <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                            <p className="text-sm text-red-400">{error}</p>
+                <div className="border-b border-zinc-100 p-6">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-zinc-900">
+                                {isEditing ? 'Edit Transaction' : 'Add Transaction'}
+                            </h2>
+                            <p className="mt-1 text-sm text-zinc-500">
+                                {isEditing
+                                    ? 'Update transaction details. Balance adjustments apply automatically for completed transactions.'
+                                    : 'Create a manual ledger entry for any transaction type.'}
+                            </p>
                         </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-lg border border-zinc-200 p-2 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
                     </div>
-                )}
 
-                {showBalanceWarning && (
-                    <div className="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-                        <div className="flex items-start gap-3">
-                            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-sm text-yellow-300 font-medium">
-                                    This will adjust user balances
-                                </p>
-                                <p className="text-sm text-yellow-200/80 mt-1">
-                                    You are editing a completed transaction in a way that affects balance.
-                                    Confirm to apply the reconciliation.
-                                </p>
-                                <div className="flex gap-2 mt-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowBalanceWarning(false)}
-                                        className="px-3 py-1.5 text-sm rounded-lg border border-gold-500/20 text-gray-300 hover:text-white"
-                                    >
-                                        Go Back
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={submitTransaction}
-                                        disabled={isSubmitting}
-                                        className="px-3 py-1.5 text-sm rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white disabled:opacity-50"
-                                    >
-                                        {isSubmitting ? 'Saving...' : 'Confirm & Save'}
-                                    </button>
+                    {error && (
+                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                            <div className="flex items-center gap-3">
+                                <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-500" />
+                                <p className="text-sm text-red-700">{error}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {showBalanceWarning && (
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+                                <div>
+                                    <p className="text-sm font-medium text-amber-900">
+                                        This will adjust user balances
+                                    </p>
+                                    <p className="mt-1 text-sm text-amber-800">
+                                        You are editing a completed transaction in a way that affects balance.
+                                        Confirm to apply the reconciliation.
+                                    </p>
+                                    <div className="mt-3 flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => setShowBalanceWarning(false)}
+                                        >
+                                            Go Back
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={submitTransaction}
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? 'Saving...' : 'Confirm & Save'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
-
+                    )}
                 </div>
 
-                <form onSubmit={handleSubmit} className="mt-6 flex flex-1 flex-col overflow-hidden">
-                    <div className="flex-1 space-y-6 overflow-y-auto px-6 pb-6">
-                    <div className="relative z-20">
-                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
-                            <User className="w-4 h-4 text-gold-500" />
-                            User
-                        </label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value)
-                                    setSelectedUser(null)
-                                    setShowResults(true)
-                                }}
-                                onFocus={handleUserSearchFocus}
-                                className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-navy-900/60 text-white outline-none ${
-                                    fieldErrors.user ? 'border-red-500/50' : 'border-gold-500/20'
-                                }`}
-                                placeholder="Search by name, email, or username..."
-                            />
-                            {isSearching && (
-                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold-500 animate-spin" />
+                <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+                    <div className="flex-1 space-y-6 overflow-y-auto p-6">
+                        <div className="relative z-20">
+                            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700">
+                                <User className="h-4 w-4 text-gold-600" />
+                                User
+                            </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value)
+                                        setSelectedUser(null)
+                                        setShowResults(true)
+                                    }}
+                                    onFocus={handleUserSearchFocus}
+                                    className={cn(
+                                        'w-full rounded-lg border bg-white py-2.5 pl-10 pr-4 text-sm text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-gold-500',
+                                        fieldErrors.user ? 'border-red-300' : 'border-zinc-200'
+                                    )}
+                                    placeholder="Search by name, email, or username..."
+                                />
+                                {isSearching && (
+                                    <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gold-600" />
+                                )}
+
+                                <AnimatePresence>
+                                    {showResults && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="absolute z-30 mt-2 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg"
+                                        >
+                                            {searchResults.length > 0 ? (
+                                                searchResults.map((user) => (
+                                                    <button
+                                                        key={user.id}
+                                                        type="button"
+                                                        onClick={() => handleUserSelect(user)}
+                                                        className="w-full border-b border-zinc-100 px-4 py-3 text-left transition-colors last:border-0 hover:bg-zinc-50"
+                                                    >
+                                                        <p className="font-medium text-zinc-900">
+                                                            {user.firstName} {user.lastName}
+                                                        </p>
+                                                        <p className="text-sm text-zinc-500">{user.email}</p>
+                                                        <p className="mt-1 text-xs text-gold-700">
+                                                            Balance: ${user.balance.toFixed(2)}
+                                                        </p>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-3 text-sm text-zinc-500">
+                                                    {isSearching ? 'Searching users...' : 'No users found'}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                            {fieldErrors.user && (
+                                <p className="mt-1 text-sm text-red-600">{fieldErrors.user}</p>
+                            )}
+                            {isEditing && selectedUser && transaction?.userId !== selectedUser.id && (
+                                <p className="mt-1 text-sm text-amber-700">
+                                    Changing the user will move balance effects to the new user.
+                                </p>
                             )}
 
-                            <AnimatePresence>
-                                {showResults && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute z-30 mt-2 w-full rounded-xl border border-gold-500/20 bg-navy-800 shadow-xl overflow-hidden"
-                                    >
-                                        {searchResults.length > 0 ? (
-                                            searchResults.map((user) => (
-                                                <button
-                                                    key={user.id}
-                                                    type="button"
-                                                    onClick={() => handleUserSelect(user)}
-                                                    className="w-full px-4 py-3 text-left hover:bg-gold-500/10 transition-colors border-b border-gold-500/10 last:border-0"
-                                                >
-                                                    <p className="text-white font-medium">
-                                                        {user.firstName} {user.lastName}
-                                                    </p>
-                                                    <p className="text-sm text-gray-400">{user.email}</p>
-                                                    <p className="text-xs text-gold-400 mt-1">
-                                                        Balance: ${user.balance.toFixed(2)}
-                                                    </p>
-                                                </button>
-                                            ))
-                                        ) : (
-                                            <div className="px-4 py-3 text-sm text-gray-400">
-                                                {isSearching ? 'Searching users...' : 'No users found'}
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            {selectedUser && (
+                                <div className="mt-4 rounded-lg border border-gold-200 bg-gold-50 p-4">
+                                    <p className="font-medium text-zinc-900">
+                                        {selectedUser.firstName} {selectedUser.lastName}
+                                    </p>
+                                    <p className="text-sm text-zinc-600">{selectedUser.email}</p>
+                                    <p className="mt-1 text-sm font-medium text-gold-800">
+                                        Balance: ${selectedUser.balance.toFixed(2)}
+                                    </p>
+                                </div>
+                            )}
                         </div>
-                        {fieldErrors.user && (
-                            <p className="mt-1 text-sm text-red-400">{fieldErrors.user}</p>
-                        )}
-                        {isEditing && selectedUser && transaction?.userId !== selectedUser.id && (
-                            <p className="mt-1 text-sm text-yellow-400">
-                                Changing the user will move balance effects to the new user.
-                            </p>
-                        )}
 
-                        {selectedUser && (
-                            <div className="mt-4 rounded-xl border border-gold-500/30 bg-gold-500/10 p-4">
-                                <p className="text-white font-medium">
-                                    {selectedUser.firstName} {selectedUser.lastName}
-                                </p>
-                                <p className="text-sm text-gray-400">{selectedUser.email}</p>
-                                <p className="text-sm text-gold-400 mt-1">
-                                    Balance: ${selectedUser.balance.toFixed(2)}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Type</span>
-                            <select
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <Select
+                                label="Type"
                                 name="type"
                                 value={formData.type}
                                 onChange={handleInputChange}
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                             >
                                 {TRANSACTION_TYPES.map((type) => (
                                     <option key={type} value={type}>
                                         {type.replace(/_/g, ' ')}
                                     </option>
                                 ))}
-                            </select>
-                        </label>
+                            </Select>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Status</span>
-                            <select
+                            <Select
+                                label="Status"
                                 name="status"
                                 value={formData.status}
                                 onChange={handleInputChange}
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                             >
                                 {TRANSACTION_STATUSES.map((status) => (
                                     <option key={status} value={status}>
                                         {status}
                                     </option>
                                 ))}
-                            </select>
-                        </label>
+                            </Select>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Amount</span>
-                            <input
+                            <Input
+                                label="Amount"
                                 type="number"
                                 name="amount"
                                 min="0.01"
                                 step="0.01"
                                 value={formData.amount}
                                 onChange={handleInputChange}
-                                className={`w-full rounded-xl border bg-navy-900/60 px-4 py-3 text-white outline-none ${
-                                    fieldErrors.amount ? 'border-red-500/50' : 'border-gold-500/20'
-                                }`}
+                                error={fieldErrors.amount}
                             />
-                            {fieldErrors.amount && (
-                                <p className="text-sm text-red-400">{fieldErrors.amount}</p>
-                            )}
-                        </label>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Fee</span>
-                            <input
+                            <Input
+                                label="Fee"
                                 type="number"
                                 name="fee"
                                 min="0"
                                 step="0.01"
                                 value={formData.fee}
                                 onChange={handleInputChange}
-                                className={`w-full rounded-xl border bg-navy-900/60 px-4 py-3 text-white outline-none ${
-                                    fieldErrors.fee ? 'border-red-500/50' : 'border-gold-500/20'
-                                }`}
+                                error={fieldErrors.fee}
                             />
-                        </label>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Transaction Date</span>
-                            <input
+                            <Input
+                                label="Transaction Date"
                                 type="datetime-local"
                                 name="transactionDate"
                                 value={formData.transactionDate}
                                 onChange={handleInputChange}
-                                className={`w-full rounded-xl border bg-navy-900/60 px-4 py-3 text-white outline-none ${
-                                    fieldErrors.transactionDate ? 'border-red-500/50' : 'border-gold-500/20'
-                                }`}
+                                error={fieldErrors.transactionDate}
                             />
-                            {fieldErrors.transactionDate && (
-                                <p className="text-sm text-red-400">{fieldErrors.transactionDate}</p>
-                            )}
-                        </label>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Payment Method</span>
-                            <select
+                            <Select
+                                label="Payment Method"
                                 name="paymentMethod"
                                 value={formData.paymentMethod}
                                 onChange={handleInputChange}
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                             >
                                 <option value="">None</option>
                                 {PAYMENT_METHODS.map((method) => (
@@ -592,95 +570,77 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                                         {method.replace(/_/g, ' ')}
                                     </option>
                                 ))}
-                            </select>
-                        </label>
+                            </Select>
 
-                        <label className="space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Reference</span>
-                            <input
+                            <Input
+                                label="Reference"
                                 name="reference"
                                 value={formData.reference}
                                 onChange={handleInputChange}
                                 placeholder="Auto-generated if empty"
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                             />
-                        </label>
-                    </div>
+                        </div>
 
-                    {showInvestmentFields && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Investment ID</span>
-                                <input
+                        {showInvestmentFields && (
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Input
+                                    label="Investment ID"
                                     name="investmentId"
                                     value={formData.investmentId}
                                     onChange={handleInputChange}
                                     placeholder="Optional linked investment"
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                                 />
-                            </label>
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Asset Position ID</span>
-                                <input
+                                <Input
+                                    label="Asset Position ID"
                                     name="assetPositionId"
                                     value={formData.assetPositionId}
                                     onChange={handleInputChange}
                                     placeholder="Optional linked asset position"
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                                 />
-                            </label>
-                        </div>
-                    )}
+                            </div>
+                        )}
 
-                    <label className="block space-y-2">
-                        <span className="text-sm font-medium text-gray-300">Description</span>
-                        <textarea
-                            name="description"
-                            value={formData.description}
-                            onChange={handleInputChange}
-                            rows={3}
-                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                            placeholder="Transaction description"
-                        />
-                    </label>
-
-                    {formData.status === 'FAILED' && (
-                        <label className="block space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Failure Reason</span>
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-zinc-700">Description</label>
                             <textarea
-                                name="failureReason"
-                                value={formData.failureReason}
+                                name="description"
+                                value={formData.description}
                                 onChange={handleInputChange}
-                                rows={2}
-                                className={`w-full rounded-xl border bg-navy-900/60 px-4 py-3 text-white outline-none ${
-                                    fieldErrors.failureReason ? 'border-red-500/50' : 'border-gold-500/20'
-                                }`}
-                                placeholder="Reason for failure"
+                                rows={3}
+                                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                                placeholder="Transaction description"
                             />
-                            {fieldErrors.failureReason && (
-                                <p className="text-sm text-red-400">{fieldErrors.failureReason}</p>
-                            )}
-                        </label>
-                    )}
+                        </div>
 
+                        {formData.status === 'FAILED' && (
+                            <div>
+                                <label className="mb-1.5 block text-sm font-medium text-zinc-700">Failure Reason</label>
+                                <textarea
+                                    name="failureReason"
+                                    value={formData.failureReason}
+                                    onChange={handleInputChange}
+                                    rows={2}
+                                    className={cn(
+                                        'w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus-visible:ring-2 focus-visible:ring-gold-500',
+                                        fieldErrors.failureReason ? 'border-red-300' : 'border-zinc-200'
+                                    )}
+                                    placeholder="Reason for failure"
+                                />
+                                {fieldErrors.failureReason && (
+                                    <p className="mt-1 text-sm text-red-600">{fieldErrors.failureReason}</p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex justify-end gap-3 border-t border-gold-500/20 px-6 py-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg border border-gold-500/20 text-gray-300 hover:text-white transition-colors"
-                        >
+                    <div className="flex justify-end gap-3 border-t border-zinc-100 px-6 py-4">
+                        <Button type="button" variant="secondary" onClick={onClose}>
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || showBalanceWarning}
-                            className="px-4 py-2 rounded-lg bg-gold-600 hover:bg-gold-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting || showBalanceWarning}>
+                            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                             {isEditing ? 'Save Changes' : 'Create Transaction'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </motion.div>
