@@ -2,24 +2,32 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
+import { adminRoutes } from '@/lib/adminRoutes'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import AdminLayout from '../../../components/AdminLayout'
 import {
     ArrowLeft,
     Save,
-    X,
     User,
-    Mail,
     Phone,
-    MapPin,
     Shield,
-    DollarSign,
     CheckCircle,
     AlertCircle,
-    Loader
+    Loader,
 } from 'lucide-react'
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    IconButton,
+    Input,
+    Select,
+    Skeleton,
+    WorkspaceHeader,
+} from '@/components/ui'
 
 interface UserData {
     id: string
@@ -83,7 +91,7 @@ const EditUserPage = () => {
         isActive: true,
         isVerified: false,
         kycStatus: 'PENDING',
-        balance: '0'
+        balance: '0',
     })
 
     useEffect(() => {
@@ -103,7 +111,6 @@ const EditUserPage = () => {
                 const userData = response.data.user
                 setUser(userData)
 
-                // Populate form with user data
                 setFormData({
                     firstName: userData.firstName || '',
                     lastName: userData.lastName || '',
@@ -118,7 +125,7 @@ const EditUserPage = () => {
                     isActive: userData.isActive ?? true,
                     isVerified: userData.isVerified ?? false,
                     kycStatus: userData.kycStatus || 'PENDING',
-                    balance: userData.balance?.toString() || '0'
+                    balance: userData.balance?.toString() || '0',
                 })
             } else {
                 setError(response.error?.message || 'Failed to load user details')
@@ -136,9 +143,9 @@ const EditUserPage = () => {
 
         if (type === 'checkbox') {
             const checked = (e.target as HTMLInputElement).checked
-            setFormData(prev => ({ ...prev, [name]: checked }))
+            setFormData((prev) => ({ ...prev, [name]: checked }))
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }))
+            setFormData((prev) => ({ ...prev, [name]: value }))
         }
     }
 
@@ -149,8 +156,7 @@ const EditUserPage = () => {
         setSuccessMessage(null)
 
         try {
-            // Prepare data for API
-            const updateData: any = {
+            const updateData: Record<string, unknown> = {
                 firstName: formData.firstName || null,
                 lastName: formData.lastName || null,
                 phoneNumber: formData.phoneNumber || null,
@@ -163,7 +169,7 @@ const EditUserPage = () => {
                 isActive: formData.isActive,
                 isVerified: formData.isVerified,
                 kycStatus: formData.kycStatus,
-                balance: parseFloat(formData.balance) || 0
+                balance: parseFloat(formData.balance) || 0,
             }
 
             const response = await apiClient.updateUser(userId, updateData)
@@ -171,9 +177,8 @@ const EditUserPage = () => {
             if (response.success) {
                 setSuccessMessage('User updated successfully!')
 
-                // Redirect after 1.5 seconds
                 setTimeout(() => {
-                    router.push(`/admin/customers/${userId}`)
+                    router.push(adminRoutes.customerDetails(userId))
                 }, 1500)
             } else {
                 setError(response.error?.message || 'Failed to update user')
@@ -187,18 +192,17 @@ const EditUserPage = () => {
     }
 
     const handleCancel = () => {
-        router.push(`/admin/customers/${userId}`)
+        router.push(adminRoutes.customerDetails(userId))
     }
 
     if (isLoading) {
         return (
             <ProtectedRoute>
                 <AdminLayout>
-                    <div className="flex items-center justify-center min-h-[600px]">
-                        <div className="text-center">
-                            <Loader className="w-12 h-12 text-gold-500 animate-spin mx-auto mb-4" />
-                            <p className="text-gray-400">Loading user details...</p>
-                        </div>
+                    <div className="space-y-6">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-64 w-full" />
+                        <Skeleton className="h-64 w-full" />
                     </div>
                 </AdminLayout>
             </ProtectedRoute>
@@ -209,18 +213,11 @@ const EditUserPage = () => {
         return (
             <ProtectedRoute>
                 <AdminLayout>
-                    <div className="flex items-center justify-center min-h-[600px]">
-                        <div className="text-center">
-                            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                            <p className="text-xl text-white mb-2">Error Loading User</p>
-                            <p className="text-gray-400 mb-6">{error}</p>
-                            <button
-                                onClick={() => router.push('/admin/customers')}
-                                className="px-6 py-2 bg-gold-500 text-dark-900 rounded-lg hover:bg-gold-600 transition-colors"
-                            >
-                                Back to Users
-                            </button>
-                        </div>
+                    <div className="flex min-h-[400px] flex-col items-center justify-center text-center">
+                        <AlertCircle className="mb-4 h-12 w-12 text-red-500" />
+                        <p className="mb-2 text-lg font-semibold text-zinc-900">Error loading user</p>
+                        <p className="mb-6 text-sm text-zinc-500">{error}</p>
+                        <Button onClick={() => router.push(adminRoutes.customers)}>Back to users</Button>
                     </div>
                 </AdminLayout>
             </ProtectedRoute>
@@ -230,342 +227,195 @@ const EditUserPage = () => {
     return (
         <ProtectedRoute>
             <AdminLayout>
-                <div className="p-8 space-y-6">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={handleCancel}
-                                className="p-2 bg-dark-800/50 rounded-lg hover:bg-dark-800 transition-colors border border-gold-500/20"
-                            >
-                                <ArrowLeft className="w-5 h-5 text-gray-400" />
-                            </button>
-                            <div>
-                                <h1 className="text-3xl font-bold text-white">Edit User</h1>
-                                <p className="text-gray-400 mt-1">Update user information</p>
-                            </div>
-                        </div>
+                <div className="space-y-6">
+                    <div className="flex items-start gap-3">
+                        <IconButton onClick={handleCancel} title="Back to user details" className="mt-0.5">
+                            <ArrowLeft className="h-4 w-4" />
+                        </IconButton>
+                        <WorkspaceHeader title="Edit user" description="Update customer account information." />
                     </div>
 
-                    {/* Success Message */}
                     {successMessage && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 flex items-center space-x-3"
-                        >
-                            <CheckCircle className="w-5 h-5 text-green-400" />
-                            <p className="text-green-400">{successMessage}</p>
-                        </motion.div>
+                        <Card className="border-green-200 bg-green-50">
+                            <CardContent className="flex items-center gap-3 p-4">
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                <p className="text-sm text-green-700">{successMessage}</p>
+                            </CardContent>
+                        </Card>
                     )}
 
-                    {/* Error Message */}
                     {error && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-center space-x-3"
-                        >
-                            <AlertCircle className="w-5 h-5 text-red-400" />
-                            <p className="text-red-400">{error}</p>
-                        </motion.div>
+                        <Card className="border-red-200 bg-red-50">
+                            <CardContent className="flex items-center gap-3 p-4">
+                                <AlertCircle className="h-5 w-5 text-red-600" />
+                                <p className="text-sm text-red-700">{error}</p>
+                            </CardContent>
+                        </Card>
                     )}
 
-                    {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Personal Information */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20"
-                        >
-                            <div className="flex items-center space-x-3 mb-6">
-                                <User className="w-6 h-6 text-gold-500" />
-                                <h2 className="text-xl font-semibold text-white">Personal Information</h2>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <User className="h-4 w-4 text-gold-600" />
+                                    Personal information
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Input
+                                    label="First name"
+                                    name="firstName"
+                                    value={formData.firstName}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter first name"
+                                />
+                                <Input
+                                    label="Last name"
+                                    name="lastName"
+                                    value={formData.lastName}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter last name"
+                                />
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        First Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="firstName"
-                                        value={formData.firstName}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter first name"
-                                    />
+                                    <Input label="Username" value={user?.username || ''} disabled />
+                                    <p className="mt-1 text-xs text-zinc-400">Username cannot be changed</p>
                                 </div>
-
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Last Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="lastName"
-                                        value={formData.lastName}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter last name"
-                                    />
+                                    <Input label="Email address" value={user?.email || ''} disabled />
+                                    <p className="mt-1 text-xs text-zinc-400">Email cannot be changed</p>
                                 </div>
+                            </CardContent>
+                        </Card>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Username
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={user?.username || ''}
-                                        disabled
-                                        className="w-full px-4 py-2 bg-navy-900/50 border border-gold-500/10 rounded-lg text-gray-500 cursor-not-allowed"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
-                                </div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Phone className="h-4 w-4 text-gold-600" />
+                                    Contact information
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Input
+                                    label="Phone number"
+                                    name="phoneNumber"
+                                    value={formData.phoneNumber}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter phone number"
+                                />
+                                <Input
+                                    label="Country"
+                                    name="country"
+                                    value={formData.country}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter country"
+                                />
+                                <Input
+                                    label="State / province"
+                                    name="state"
+                                    value={formData.state}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter state or province"
+                                />
+                                <Input
+                                    label="City"
+                                    name="city"
+                                    value={formData.city}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter city"
+                                />
+                                <Input
+                                    label="Address"
+                                    name="address"
+                                    value={formData.address}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter address"
+                                />
+                                <Input
+                                    label="ZIP / postal code"
+                                    name="zipCode"
+                                    value={formData.zipCode}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter ZIP or postal code"
+                                />
+                            </CardContent>
+                        </Card>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Email Address
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={user?.email || ''}
-                                        disabled
-                                        className="w-full px-4 py-2 bg-navy-900/50 border border-gold-500/10 rounded-lg text-gray-500 cursor-not-allowed"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Contact Information */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20"
-                        >
-                            <div className="flex items-center space-x-3 mb-6">
-                                <Phone className="w-6 h-6 text-gold-500" />
-                                <h2 className="text-xl font-semibold text-white">Contact Information</h2>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Phone Number
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter phone number"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Country
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="country"
-                                        value={formData.country}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter country"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        State/Province
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="state"
-                                        value={formData.state}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter state/province"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        City
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="city"
-                                        value={formData.city}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter city"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Address
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="address"
-                                        value={formData.address}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter address"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        ZIP/Postal Code
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="zipCode"
-                                        value={formData.zipCode}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="Enter ZIP/postal code"
-                                    />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Account Settings */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20"
-                        >
-                            <div className="flex items-center space-x-3 mb-6">
-                                <Shield className="w-6 h-6 text-gold-500" />
-                                <h2 className="text-xl font-semibold text-white">Account Settings</h2>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Role
-                                    </label>
-                                    <select
-                                        name="role"
-                                        value={formData.role}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                    >
-                                        <option value="USER">User</option>
-                                        <option value="ADMIN">Admin</option>
-                                        <option value="SUPER_ADMIN">Super Admin</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        KYC Status
-                                    </label>
-                                    <select
-                                        name="kycStatus"
-                                        value={formData.kycStatus}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                    >
-                                        <option value="PENDING">Pending</option>
-                                        <option value="VERIFIED">Verified</option>
-                                        <option value="REJECTED">Rejected</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Balance ($)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        name="balance"
-                                        value={formData.balance}
-                                        onChange={handleInputChange}
-                                        step="0.01"
-                                        min="0"
-                                        className="w-full px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="flex items-center space-x-3">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Shield className="h-4 w-4 text-gold-600" />
+                                    Account settings
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Select label="Role" name="role" value={formData.role} onChange={handleInputChange}>
+                                    <option value="USER">User</option>
+                                    <option value="ADMIN">Admin</option>
+                                    <option value="SUPER_ADMIN">Super Admin</option>
+                                </Select>
+                                <Select
+                                    label="KYC status"
+                                    name="kycStatus"
+                                    value={formData.kycStatus}
+                                    onChange={handleInputChange}
+                                >
+                                    <option value="PENDING">Pending</option>
+                                    <option value="VERIFIED">Verified</option>
+                                    <option value="REJECTED">Rejected</option>
+                                </Select>
+                                <Input
+                                    label="Balance ($)"
+                                    type="number"
+                                    name="balance"
+                                    value={formData.balance}
+                                    onChange={handleInputChange}
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="0.00"
+                                />
+                                <div className="flex flex-col justify-center gap-3">
+                                    <label className="flex items-center gap-3">
                                         <input
                                             type="checkbox"
                                             name="isActive"
                                             checked={formData.isActive}
                                             onChange={handleInputChange}
-                                            className="w-5 h-5 bg-navy-800/50 border border-gold-500/20 rounded text-gold-500 focus:ring-2 focus:ring-gold-500"
+                                            className="rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
                                         />
-                                        <label className="text-sm font-medium text-gray-300">
-                                            Account Active
-                                        </label>
-                                    </div>
-
-                                    <div className="flex items-center space-x-3">
+                                        <span className="text-sm font-medium text-zinc-700">Account active</span>
+                                    </label>
+                                    <label className="flex items-center gap-3">
                                         <input
                                             type="checkbox"
                                             name="isVerified"
                                             checked={formData.isVerified}
                                             onChange={handleInputChange}
-                                            className="w-5 h-5 bg-navy-800/50 border border-gold-500/20 rounded text-gold-500 focus:ring-2 focus:ring-gold-500"
+                                            className="rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
                                         />
-                                        <label className="text-sm font-medium text-gray-300">
-                                            Account Verified
-                                        </label>
-                                    </div>
+                                        <span className="text-sm font-medium text-zinc-700">Account verified</span>
+                                    </label>
                                 </div>
-                            </div>
-                        </motion.div>
+                            </CardContent>
+                        </Card>
 
-                        {/* Form Actions */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="flex justify-end space-x-4"
-                        >
-                            <button
-                                type="button"
-                                onClick={handleCancel}
-                                disabled={isSaving}
-                                className="px-6 py-3 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors border border-gold-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                            >
-                                <X className="w-5 h-5" />
-                                <span>Cancel</span>
-                            </button>
-
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="px-6 py-3 bg-gold-500 text-dark-900 rounded-lg hover:bg-gold-600 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                            >
+                        <div className="flex justify-end gap-3">
+                            <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSaving}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isSaving}>
                                 {isSaving ? (
                                     <>
-                                        <Loader className="w-5 h-5 animate-spin" />
-                                        <span>Saving...</span>
+                                        <Loader className="h-4 w-4 animate-spin" />
+                                        Saving...
                                     </>
                                 ) : (
                                     <>
-                                        <Save className="w-5 h-5" />
-                                        <span>Save Changes</span>
+                                        <Save className="h-4 w-4" />
+                                        Save changes
                                     </>
                                 )}
-                            </button>
-                        </motion.div>
+                            </Button>
+                        </div>
                     </form>
                 </div>
             </AdminLayout>

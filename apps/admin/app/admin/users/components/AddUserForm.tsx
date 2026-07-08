@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
+import { adminRoutes } from '@/lib/adminRoutes'
 import {
     User,
     Mail,
@@ -14,8 +14,19 @@ import {
     Check,
     AlertCircle,
     Eye,
-    EyeOff
+    EyeOff,
 } from 'lucide-react'
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    IconButton,
+    Input,
+    Select,
+    WorkspaceHeader,
+} from '@/components/ui'
 
 const AddUserForm = () => {
     const router = useRouter()
@@ -34,7 +45,7 @@ const AddUserForm = () => {
         phoneNumber: '',
         role: 'USER' as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
         isActive: true,
-        isVerified: false
+        isVerified: false,
     })
 
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -43,16 +54,15 @@ const AddUserForm = () => {
         const { name, value, type } = e.target
         const checked = (e.target as HTMLInputElement).checked
 
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: type === 'checkbox' ? checked : value,
         }))
 
-        // Clear field error when user starts typing
         if (fieldErrors[name]) {
-            setFieldErrors(prev => ({
+            setFieldErrors((prev) => ({
                 ...prev,
-                [name]: ''
+                [name]: '',
             }))
         }
     }
@@ -112,13 +122,13 @@ const AddUserForm = () => {
                 phoneNumber: formData.phoneNumber || undefined,
                 role: formData.role,
                 isActive: formData.isActive,
-                isVerified: formData.isVerified
+                isVerified: formData.isVerified,
             })
 
             if (response.success) {
                 setSuccess(true)
                 setTimeout(() => {
-                    router.push('/admin/customers')
+                    router.push(adminRoutes.customers)
                 }, 2000)
             } else {
                 setError(response.error?.message || 'Failed to create user')
@@ -133,289 +143,193 @@ const AddUserForm = () => {
 
     if (success) {
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center justify-center min-h-[400px]"
-            >
+            <div className="flex min-h-[400px] items-center justify-center">
                 <div className="text-center">
-                    <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Check className="w-10 h-10 text-green-500" />
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                        <Check className="h-8 w-8 text-green-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">User Created Successfully!</h2>
-                    <p className="text-gray-400">Redirecting to user management...</p>
+                    <h2 className="mb-2 text-xl font-semibold text-zinc-900">User created successfully!</h2>
+                    <p className="text-sm text-zinc-500">Redirecting to user management...</p>
                 </div>
-            </motion.div>
+            </div>
         )
     }
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => router.back()}
-                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Add New User</h1>
-                    <p className="text-gray-400">Create a new user account</p>
-                </div>
+            <div className="flex items-start gap-3">
+                <IconButton onClick={() => router.back()} title="Go back" className="mt-0.5">
+                    <ArrowLeft className="h-4 w-4" />
+                </IconButton>
+                <WorkspaceHeader title="Add new user" description="Create a new customer account." />
             </div>
 
-            {/* Error Message */}
             {error && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"
-                >
-                    <div className="flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                        <p className="text-sm text-red-400">{error}</p>
-                    </div>
-                </motion.div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center gap-3 p-4">
+                        <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+                        <p className="text-sm text-red-700">{error}</p>
+                    </CardContent>
+                </Card>
             )}
 
-            {/* Form */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-            >
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Personal Information */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <User className="w-5 h-5 text-gold-500" />
-                            Personal Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    First Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="firstName"
-                                    value={formData.firstName}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.firstName ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="John"
-                                />
-                                {fieldErrors.firstName && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.firstName}</p>
-                                )}
-                            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <User className="h-4 w-4 text-gold-600" />
+                            Personal information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                            label="First name *"
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleInputChange}
+                            placeholder="John"
+                            error={fieldErrors.firstName}
+                        />
+                        <Input
+                            label="Last name *"
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleInputChange}
+                            placeholder="Doe"
+                            error={fieldErrors.lastName}
+                        />
+                    </CardContent>
+                </Card>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Last Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="lastName"
-                                    value={formData.lastName}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.lastName ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="Doe"
-                                />
-                                {fieldErrors.lastName && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.lastName}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Mail className="h-4 w-4 text-gold-600" />
+                            Account information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                            label="Email *"
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="john@example.com"
+                            error={fieldErrors.email}
+                        />
+                        <Input
+                            label="Username *"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleInputChange}
+                            placeholder="johndoe"
+                            error={fieldErrors.username}
+                        />
+                        <Input
+                            label="Phone number"
+                            type="tel"
+                            name="phoneNumber"
+                            value={formData.phoneNumber}
+                            onChange={handleInputChange}
+                            placeholder="+1 (555) 123-4567"
+                        />
+                        <Select label="Role *" name="role" value={formData.role} onChange={handleInputChange}>
+                            <option value="USER">User</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="SUPER_ADMIN">Super Admin</option>
+                        </Select>
+                    </CardContent>
+                </Card>
 
-                    {/* Account Information */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <Mail className="w-5 h-5 text-gold-500" />
-                            Account Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Email <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.email ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="john@example.com"
-                                />
-                                {fieldErrors.email && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.email}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Username <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="username"
-                                    value={formData.username}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.username ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="johndoe"
-                                />
-                                {fieldErrors.username && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.username}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Phone Number
-                                </label>
-                                <input
-                                    type="tel"
-                                    name="phoneNumber"
-                                    value={formData.phoneNumber}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors"
-                                    placeholder="+1 (555) 123-4567"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Role <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    name="role"
-                                    value={formData.role}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white focus:outline-none focus:border-gold-500/40 transition-colors"
-                                >
-                                    <option value="USER">User</option>
-                                    <option value="ADMIN">Admin</option>
-                                    <option value="SUPER_ADMIN">Super Admin</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <Lock className="w-5 h-5 text-gold-500" />
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Lock className="h-4 w-4 text-gold-600" />
                             Security
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Password <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        name="password"
-                                        value={formData.password}
-                                        onChange={handleInputChange}
-                                        className={`w-full px-4 py-3 pr-10 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.password ? 'border-red-500/50' : 'border-gold-500/20'
-                                            }`}
-                                        placeholder="••••••••"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                                    >
-                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-                                {fieldErrors.password && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.password}</p>
-                                )}
-                            </div>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                            label="Password *"
+                            type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            placeholder="••••••••"
+                            rightIcon={
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="text-zinc-400 hover:text-zinc-600"
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            }
+                            error={fieldErrors.password}
+                        />
+                        <Input
+                            label="Confirm password *"
+                            type={showPassword ? 'text' : 'password'}
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            placeholder="••••••••"
+                            error={fieldErrors.confirmPassword}
+                        />
+                    </CardContent>
+                </Card>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Confirm Password <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    name="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.confirmPassword ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="••••••••"
-                                />
-                                {fieldErrors.confirmPassword && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.confirmPassword}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Checkboxes */}
-                    <div className="space-y-3">
-                        <label className="flex items-center gap-3 cursor-pointer">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Shield className="h-4 w-4 text-gold-600" />
+                            Account options
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <label className="flex cursor-pointer items-center gap-3">
                             <input
                                 type="checkbox"
                                 name="isActive"
                                 checked={formData.isActive}
                                 onChange={handleInputChange}
-                                className="w-4 h-4 text-gold-500 bg-navy-800 border-gold-500/30 rounded focus:ring-gold-500 focus:ring-2"
+                                className="rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
                             />
-                            <span className="text-sm text-gray-300">Active account (user can login)</span>
+                            <span className="text-sm text-zinc-700">Active account (user can login)</span>
                         </label>
-
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-3">
                             <input
                                 type="checkbox"
                                 name="isVerified"
                                 checked={formData.isVerified}
                                 onChange={handleInputChange}
-                                className="w-4 h-4 text-gold-500 bg-navy-800 border-gold-500/30 rounded focus:ring-gold-500 focus:ring-2"
+                                className="rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
                             />
-                            <span className="text-sm text-gray-300">Email verified</span>
+                            <span className="text-sm text-zinc-700">Email verified</span>
                         </label>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Buttons */}
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            type="button"
-                            onClick={() => router.back()}
-                            disabled={isLoading}
-                            className="px-6 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white hover:bg-navy-700/50 hover:border-gold-500/40 transition-colors disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isLoading ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-navy-900"></div>
-                                    Creating User...
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center gap-2">
-                                    <User className="w-5 h-5" />
-                                    Create User
-                                </div>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </motion.div>
+                <div className="flex gap-3">
+                    <Button type="button" variant="secondary" onClick={() => router.back()} disabled={isLoading}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading} className="flex-1 sm:flex-none">
+                        {isLoading ? (
+                            <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy-900 border-t-transparent" />
+                                Creating user...
+                            </>
+                        ) : (
+                            <>
+                                <User className="h-4 w-4" />
+                                Create user
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </form>
         </div>
     )
 }
