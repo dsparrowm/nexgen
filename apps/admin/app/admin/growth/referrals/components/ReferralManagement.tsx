@@ -1,19 +1,40 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
 import {
     BadgeDollarSign,
     Gift,
-    Loader2,
     RefreshCw,
     Search,
     TrendingUp,
     Trophy,
     Users,
 } from 'lucide-react'
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    DataTable,
+    EmptyState,
+    Input,
+    Pagination,
+    Skeleton,
+    StatCard,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    WorkspaceHeader,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 interface ReferralLeader {
     id: string
@@ -237,369 +258,318 @@ const ReferralManagement = () => {
     const recentBonuses = dashboard?.recentBonuses || []
     const pagination = dashboard?.pagination
 
-    const summaryCards = [
-        {
-            label: 'Active Referrers',
-            value: summary?.totalReferrers ?? 0,
-            helper: 'Users with at least one referral',
-            icon: Users,
-        },
-        {
-            label: 'Referred Users',
-            value: summary?.totalReferredUsers ?? 0,
-            helper: 'All accounts tied to a referrer',
-            icon: TrendingUp,
-        },
-        {
-            label: 'Referral Bonuses',
-            value: formatCurrency(summary?.totalReferralBonuses ?? 0),
-            helper: 'Completed bonus value on the ledger',
-            icon: BadgeDollarSign,
-        },
-        {
-            label: 'Bonus Transactions',
-            value: summary?.totalBonusTransactions ?? 0,
-            helper: 'Adjustment and payout entries combined',
-            icon: Gift,
-        },
-    ]
+    if (loading && !dashboard) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm"
-            >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="max-w-3xl">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
-                            Growth
-                        </div>
-                        <h1 className="mt-4 text-3xl font-bold text-white">Referral oversight is now live for admin</h1>
-                        <p className="mt-3 text-sm leading-6 text-gray-300">
-                            Growth operations can monitor referral performance, review leaderboard standings, and apply audited
-                            bonus corrections without leaving the admin workspace.
+            <WorkspaceHeader
+                title="Referral Management"
+                description="Monitor referral performance, review leaderboard standings, and apply audited bonus corrections."
+                action={
+                    <Button variant="secondary" onClick={handleRefresh} disabled={loading || refreshing}>
+                        <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                        Refresh
+                    </Button>
+                }
+            />
+
+            {error ? (
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="p-6">
+                        <h2 className="text-lg font-semibold text-red-700">Referral workspace unavailable</h2>
+                        <p className="mt-2 text-sm text-red-600">{error}</p>
+                        <p className="mt-3 text-xs text-red-500">
+                            If this is a fresh rollout, make sure the admin referral routes are mounted on the backend.
                         </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        <button
-                            type="button"
-                            onClick={handleRefresh}
-                            disabled={loading || refreshing}
-                            className="inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            Refresh
-                        </button>
-                    </div>
-                </div>
-            </motion.div>
-
-            {loading ? (
-                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 px-6 py-16 text-center text-gray-300">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-gold-300" />
-                    <p className="mt-4 text-sm">Loading referral oversight...</p>
-                </div>
-            ) : error ? (
-                <div className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6 text-red-100">
-                    <h2 className="text-lg font-semibold">Referral workspace unavailable</h2>
-                    <p className="mt-2 text-sm leading-6 text-red-100/80">{error}</p>
-                    <p className="mt-3 text-xs text-red-100/60">
-                        If this is a fresh rollout, make sure the admin referral routes are mounted on the backend.
-                    </p>
-                </div>
+                    </CardContent>
+                </Card>
             ) : (
                 <>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        {summaryCards.map((card, index) => (
-                            <motion.div
-                                key={card.label}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p className="text-sm text-gray-400">{card.label}</p>
-                                        <p className="mt-3 text-2xl font-semibold text-white">{card.value}</p>
-                                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-gray-500">{card.helper}</p>
-                                    </div>
-                                    <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                                        <card.icon className="h-5 w-5" />
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
+                        <StatCard
+                            title="Active Referrers"
+                            value={String(summary?.totalReferrers ?? 0)}
+                            description="Users with at least one referral"
+                            icon={Users}
+                        />
+                        <StatCard
+                            title="Referred Users"
+                            value={String(summary?.totalReferredUsers ?? 0)}
+                            description="All accounts tied to a referrer"
+                            icon={TrendingUp}
+                        />
+                        <StatCard
+                            title="Referral Bonuses"
+                            value={formatCurrency(summary?.totalReferralBonuses ?? 0)}
+                            description="Completed bonus value on the ledger"
+                            icon={BadgeDollarSign}
+                        />
+                        <StatCard
+                            title="Bonus Transactions"
+                            value={String(summary?.totalBonusTransactions ?? 0)}
+                            description="Adjustment and payout entries combined"
+                            icon={Gift}
+                        />
                     </div>
 
                     <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.6fr),minmax(320px,0.9fr)]">
                         <div className="space-y-6">
-                            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-white">Leaderboard oversight</h2>
-                                        <p className="mt-2 text-sm text-gray-300">
-                                            Review who is driving referrals, how many referred users converted, and how much
-                                            referral bonus value has reached the ledger.
-                                        </p>
-                                    </div>
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                                        <div>
+                                            <CardTitle className="text-base">Leaderboard oversight</CardTitle>
+                                            <CardDescription>
+                                                Review who is driving referrals, conversion rates, and bonus value on
+                                                the ledger.
+                                            </CardDescription>
+                                        </div>
 
-                                    <form onSubmit={handleSearchSubmit} className="flex w-full max-w-xl gap-3">
-                                        <div className="relative flex-1">
-                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                                            <input
+                                        <form onSubmit={handleSearchSubmit} className="flex w-full max-w-xl gap-2">
+                                            <Input
                                                 value={searchInput}
                                                 onChange={(event) => setSearchInput(event.target.value)}
                                                 placeholder="Search name, email, username, or referral code"
-                                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 py-3 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
+                                                leftIcon={<Search className="h-4 w-4" />}
+                                                className="flex-1"
                                             />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            className="rounded-xl bg-gold-500 px-4 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400"
-                                        >
-                                            Search
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <div className="mt-6 overflow-hidden rounded-2xl border border-gold-500/20 bg-navy-950/30">
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-white/10">
-                                            <thead className="bg-white/5">
-                                                <tr className="text-left text-xs uppercase tracking-[0.2em] text-gray-400">
-                                                    <th className="px-4 py-4 font-medium">Referrer</th>
-                                                    <th className="px-4 py-4 font-medium">Code</th>
-                                                    <th className="px-4 py-4 font-medium">Referrals</th>
-                                                    <th className="px-4 py-4 font-medium">Converted</th>
-                                                    <th className="px-4 py-4 font-medium">Bonuses</th>
-                                                    <th className="px-4 py-4 font-medium">Last Bonus</th>
-                                                    <th className="px-4 py-4 font-medium">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-white/10">
-                                                {leaderboard.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
-                                                            No referral performance matched this search yet.
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    leaderboard.map((leader) => (
-                                                        <tr key={leader.id} className="text-sm text-gray-200">
-                                                            <td className="px-4 py-4 align-top">
-                                                                <div className="font-medium text-white">{leader.displayName}</div>
-                                                                <div className="mt-1 text-xs text-gray-400">{leader.email}</div>
-                                                                <div className="mt-1 text-xs text-gray-500">ID: {leader.id}</div>
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top">
-                                                                <span className="rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-300">
-                                                                    {leader.referralCode || 'N/A'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top">
-                                                                <div className="font-semibold text-white">{leader.referralCount}</div>
-                                                                <div className="mt-1 text-xs text-gray-500">All referred users</div>
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top">
-                                                                <div className="font-semibold text-white">{leader.referredInvestedCount}</div>
-                                                                <div className="mt-1 text-xs text-gray-500">With funded activity</div>
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top">
-                                                                <div className="font-semibold text-white">
-                                                                    {formatCurrency(leader.referralBonusTotal)}
-                                                                </div>
-                                                                <div className="mt-1 text-xs text-gray-500">
-                                                                    {leader.bonusCount} ledger entries
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top text-xs text-gray-400">
-                                                                {formatDateTime(leader.lastBonusAt)}
-                                                            </td>
-                                                            <td className="px-4 py-4 align-top">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleSelectLeader(leader)}
-                                                                    className="inline-flex items-center gap-2 rounded-lg border border-gold-500/20 bg-navy-900/60 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-navy-800"
-                                                                >
-                                                                    <Gift className="h-4 w-4 text-gold-300" />
-                                                                    Correct bonus
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
+                                            <Button type="submit" variant="secondary">
+                                                Search
+                                            </Button>
+                                        </form>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <DataTable>
+                                        {refreshing ? (
+                                            <div className="flex items-center justify-center py-16">
+                                                <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
+                                            </div>
+                                        ) : leaderboard.length === 0 ? (
+                                            <EmptyState
+                                                icon={Trophy}
+                                                title="No referrers found"
+                                                description="No referral performance matched this search yet."
+                                            />
+                                        ) : (
+                                            <>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Referrer</TableHead>
+                                                            <TableHead>Code</TableHead>
+                                                            <TableHead>Referrals</TableHead>
+                                                            <TableHead>Converted</TableHead>
+                                                            <TableHead>Bonuses</TableHead>
+                                                            <TableHead>Last Bonus</TableHead>
+                                                            <TableHead className="text-right">Action</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {leaderboard.map((leader) => (
+                                                            <TableRow key={leader.id}>
+                                                                <TableCell>
+                                                                    <p className="font-medium text-zinc-900">{leader.displayName}</p>
+                                                                    <p className="text-xs text-zinc-500">{leader.email}</p>
+                                                                    <p className="text-xs text-zinc-400">ID: {leader.id}</p>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant="gold">{leader.referralCode || 'N/A'}</Badge>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <p className="font-semibold text-zinc-900">{leader.referralCount}</p>
+                                                                    <p className="text-xs text-zinc-400">All referred users</p>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <p className="font-semibold text-zinc-900">{leader.referredInvestedCount}</p>
+                                                                    <p className="text-xs text-zinc-400">With funded activity</p>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <p className="font-semibold text-zinc-900">
+                                                                        {formatCurrency(leader.referralBonusTotal)}
+                                                                    </p>
+                                                                    <p className="text-xs text-zinc-400">{leader.bonusCount} ledger entries</p>
+                                                                </TableCell>
+                                                                <TableCell className="text-xs text-zinc-500">
+                                                                    {formatDateTime(leader.lastBonusAt)}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="secondary"
+                                                                        size="sm"
+                                                                        onClick={() => handleSelectLeader(leader)}
+                                                                    >
+                                                                        <Gift className="h-4 w-4" />
+                                                                        Correct bonus
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                                {pagination && pagination.pages > 1 && (
+                                                    <Pagination
+                                                        page={pagination.page}
+                                                        pages={pagination.pages}
+                                                        total={pagination.total}
+                                                        limit={pagination.limit}
+                                                        onPageChange={(nextPage) => loadDashboard(nextPage, true)}
+                                                    />
                                                 )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-gray-400 md:flex-row md:items-center md:justify-between">
-                                    <p>
-                                        Showing page {pagination?.page || 1} of {Math.max(pagination?.pages || 1, 1)} with{' '}
-                                        {pagination?.total || 0} tracked referrers.
-                                    </p>
-                                    <div className="flex gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => loadDashboard(Math.max(1, currentPage - 1), true)}
-                                            disabled={currentPage <= 1 || refreshing}
-                                            className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Previous
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                loadDashboard(
-                                                    Math.min(pagination?.pages || currentPage, currentPage + 1),
-                                                    true
-                                                )
-                                            }
-                                            disabled={!pagination || currentPage >= pagination.pages || refreshing}
-                                            className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                                            </>
+                                        )}
+                                    </DataTable>
+                                </CardContent>
+                            </Card>
 
                             <div className="grid gap-6 xl:grid-cols-2">
-                                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                                            <Trophy className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-semibold text-white">Top referrers</h2>
-                                            <p className="text-sm text-gray-400">Highest bonus totals in the current view</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 space-y-3">
-                                        {topReferrers.length === 0 ? (
-                                            <div className="rounded-2xl border border-white/10 bg-navy-900/40 p-4 text-sm text-gray-400">
-                                                No top performers available yet.
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex items-center gap-3">
+                                            <div className="rounded-lg bg-gold-50 p-2">
+                                                <Trophy className="h-5 w-5 text-gold-600" />
                                             </div>
+                                            <div>
+                                                <CardTitle className="text-base">Top referrers</CardTitle>
+                                                <CardDescription>Highest bonus totals in the current view</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {topReferrers.length === 0 ? (
+                                            <EmptyState
+                                                icon={Trophy}
+                                                title="No top performers"
+                                                description="No top performers available yet."
+                                                className="py-8"
+                                            />
                                         ) : (
                                             topReferrers.map((leader, index) => (
                                                 <div
                                                     key={leader.id}
-                                                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-navy-900/40 p-4"
+                                                    className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-4"
                                                 >
                                                     <div>
-                                                        <div className="text-sm text-gray-500">#{index + 1}</div>
-                                                        <div className="mt-1 font-medium text-white">{leader.displayName}</div>
-                                                        <div className="mt-1 text-xs text-gray-400">
+                                                        <p className="text-xs text-zinc-400">#{index + 1}</p>
+                                                        <p className="mt-1 font-medium text-zinc-900">{leader.displayName}</p>
+                                                        <p className="mt-1 text-xs text-zinc-500">
                                                             {leader.referralCount} referrals, {leader.referredInvestedCount} converted
-                                                        </div>
+                                                        </p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className="font-semibold text-gold-300">
+                                                        <p className="font-semibold text-gold-700">
                                                             {formatCurrency(leader.referralBonusTotal)}
-                                                        </div>
-                                                        <div className="mt-1 text-xs text-gray-500">{leader.bonusCount} bonus entries</div>
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-zinc-400">{leader.bonusCount} bonus entries</p>
                                                     </div>
                                                 </div>
                                             ))
                                         )}
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
 
-                                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                                            <BadgeDollarSign className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-semibold text-white">Recent referral bonuses</h2>
-                                            <p className="text-sm text-gray-400">Latest completed referral bonus entries</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 space-y-3">
-                                        {recentBonuses.length === 0 ? (
-                                            <div className="rounded-2xl border border-white/10 bg-navy-900/40 p-4 text-sm text-gray-400">
-                                                No referral bonus activity is available yet.
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex items-center gap-3">
+                                            <div className="rounded-lg bg-gold-50 p-2">
+                                                <BadgeDollarSign className="h-5 w-5 text-gold-600" />
                                             </div>
+                                            <div>
+                                                <CardTitle className="text-base">Recent referral bonuses</CardTitle>
+                                                <CardDescription>Latest completed referral bonus entries</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {recentBonuses.length === 0 ? (
+                                            <EmptyState
+                                                icon={Gift}
+                                                title="No bonus activity"
+                                                description="No referral bonus activity is available yet."
+                                                className="py-8"
+                                            />
                                         ) : (
                                             recentBonuses.map((bonus) => (
                                                 <div
                                                     key={bonus.id}
-                                                    className="rounded-2xl border border-white/10 bg-navy-900/40 p-4"
+                                                    className="rounded-xl border border-zinc-200 bg-zinc-50 p-4"
                                                 >
                                                     <div className="flex items-start justify-between gap-4">
                                                         <div>
-                                                            <div className="font-medium text-white">{getDisplayName(bonus.user)}</div>
-                                                            <div className="mt-1 text-xs text-gray-400">
+                                                            <p className="font-medium text-zinc-900">{getDisplayName(bonus.user)}</p>
+                                                            <p className="mt-1 text-xs text-zinc-500">
                                                                 {bonus.user?.email || bonus.reference || 'Referral bonus entry'}
-                                                            </div>
+                                                            </p>
                                                         </div>
                                                         <div className="text-right">
-                                                            <div className="font-semibold text-gold-300">
+                                                            <p className="font-semibold text-gold-700">
                                                                 {formatCurrency(bonus.amount)}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-gray-500">{formatDateTime(bonus.createdAt)}</div>
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-zinc-400">{formatDateTime(bonus.createdAt)}</p>
                                                         </div>
                                                     </div>
                                                     {bonus.description ? (
-                                                        <p className="mt-3 text-sm leading-6 text-gray-300">{bonus.description}</p>
+                                                        <p className="mt-3 text-sm text-zinc-600">{bonus.description}</p>
                                                     ) : null}
                                                 </div>
                                             ))
                                         )}
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </div>
                         </div>
 
-                        <div className="space-y-6">
-                            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
+                        <Card>
+                            <CardHeader>
                                 <div className="flex items-center gap-3">
-                                    <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                                        <Gift className="h-5 w-5" />
+                                    <div className="rounded-lg bg-gold-50 p-2">
+                                        <Gift className="h-5 w-5 text-gold-600" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-semibold text-white">Manual bonus correction</h2>
-                                        <p className="text-sm text-gray-400">
+                                        <CardTitle className="text-base">Manual bonus correction</CardTitle>
+                                        <CardDescription>
                                             Apply an audited positive or negative referral bonus adjustment.
-                                        </p>
+                                        </CardDescription>
                                     </div>
                                 </div>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleBonusCorrection} className="space-y-4">
+                                    <Input
+                                        label="Target user ID"
+                                        value={bonusForm.userId}
+                                        onChange={(event) =>
+                                            setBonusForm((current) => ({ ...current, userId: event.target.value }))
+                                        }
+                                        placeholder="Select a referrer above or paste a user ID"
+                                    />
 
-                                <form onSubmit={handleBonusCorrection} className="mt-6 space-y-4">
-                                    <div>
-                                        <label className="mb-2 block text-sm font-medium text-white">Target user ID</label>
-                                        <input
-                                            value={bonusForm.userId}
-                                            onChange={(event) =>
-                                                setBonusForm((current) => ({ ...current, userId: event.target.value }))
-                                            }
-                                            placeholder="Select a referrer above or paste a user ID"
-                                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-2 block text-sm font-medium text-white">Adjustment amount</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={bonusForm.amount}
-                                            onChange={(event) =>
-                                                setBonusForm((current) => ({ ...current, amount: event.target.value }))
-                                            }
-                                            placeholder="Use a negative value to reverse an over-credit"
-                                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
-                                        />
-                                    </div>
+                                    <Input
+                                        label="Adjustment amount"
+                                        type="number"
+                                        step="0.01"
+                                        value={bonusForm.amount}
+                                        onChange={(event) =>
+                                            setBonusForm((current) => ({ ...current, amount: event.target.value }))
+                                        }
+                                        placeholder="Use a negative value to reverse an over-credit"
+                                    />
 
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-white">Reason</label>
+                                        <label className="mb-1.5 block text-sm font-medium text-zinc-700">Reason</label>
                                         <textarea
                                             value={bonusForm.reason}
                                             onChange={(event) =>
@@ -607,26 +577,26 @@ const ReferralManagement = () => {
                                             }
                                             rows={5}
                                             placeholder="Explain why the referral bonus needs correction"
-                                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
+                                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                                         />
                                     </div>
 
-                                    <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm leading-6 text-blue-100">
-                                        This action writes a completed `REFERRAL_BONUS` transaction and an audit log entry, then
-                                        notifies the user about the correction.
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+                                        This action writes a completed `REFERRAL_BONUS` transaction and an audit log entry,
+                                        then notifies the user about the correction.
                                     </div>
 
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold-500 px-4 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                                    <Button type="submit" disabled={saving} className="w-full">
+                                        {saving ? (
+                                            <RefreshCw className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Gift className="h-4 w-4" />
+                                        )}
                                         Save referral correction
-                                    </button>
+                                    </Button>
                                 </form>
-                            </div>
-                        </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </>
             )}

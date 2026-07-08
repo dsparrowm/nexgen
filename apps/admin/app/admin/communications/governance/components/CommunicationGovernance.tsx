@@ -1,10 +1,19 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { apiClient, CommunicationPolicy } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, Save, Settings, Shield, ToggleLeft, ToggleRight } from 'lucide-react'
+import { AlertTriangle, CheckCircle, RefreshCw, Save, ToggleLeft, ToggleRight } from 'lucide-react'
+import {
+    Button,
+    Card,
+    CardContent,
+    IconButton,
+    Select,
+    Skeleton,
+    WorkspaceHeader,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 const defaultPolicy: CommunicationPolicy = {
     allowScheduledBroadcasts: true,
@@ -79,60 +88,60 @@ const CommunicationGovernance = () => {
         },
     ] as const
 
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid gap-4 md:grid-cols-2">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            {isLoading && (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                </div>
-            )}
+            <WorkspaceHeader
+                title="Communication Governance"
+                description="Control how broadcasts are scheduled, approved, and targeted."
+                action={
+                    <div className="flex items-center gap-2">
+                        <Button onClick={savePolicy} disabled={isSaving}>
+                            {isSaving ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            {isSaving ? 'Saving...' : 'Save policy'}
+                        </Button>
+                        <IconButton onClick={loadPolicy} title="Refresh">
+                            <RefreshCw className="h-4 w-4" />
+                        </IconButton>
+                    </div>
+                }
+            />
 
             {error && (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
-                    <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-6 w-6 text-red-500" />
-                        <div>
-                            <h3 className="font-semibold text-red-400">Error Loading Governance</h3>
-                            <p className="mt-1 text-sm text-red-300">{error}</p>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                            <div>
+                                <p className="text-sm font-medium text-red-700">Error loading governance</p>
+                                <p className="text-sm text-red-600">{error}</p>
+                            </div>
                         </div>
-                        <button onClick={loadPolicy} className="ml-auto rounded-lg bg-red-500/20 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/30">
+                        <Button variant="ghost" size="sm" onClick={loadPolicy}>
                             Retry
-                        </button>
-                    </div>
-                </div>
+                        </Button>
+                    </CardContent>
+                </Card>
             )}
 
-            {!isLoading && !error && (
+            {!error && (
                 <>
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="rounded-2xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm"
-                    >
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <div className="inline-flex rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
-                                    Communications
-                                </div>
-                                <h2 className="mt-4 text-2xl font-bold text-white">Outbound messaging governance</h2>
-                                <p className="mt-2 text-gray-300">Control how broadcasts are scheduled, approved, and targeted.</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={savePolicy}
-                                    disabled={isSaving}
-                                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:from-green-600 hover:to-green-700 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-700"
-                                >
-                                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                                    <span>{isSaving ? 'Saving...' : 'Save Policy'}</span>
-                                </button>
-                                <button onClick={loadPolicy} className="rounded-xl p-3 text-gray-400 transition-colors hover:bg-navy-700/50 hover:text-white">
-                                    <RefreshCw className="h-5 w-5" />
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-
                     <div className="grid gap-4 md:grid-cols-2">
                         {communicationItems.map((item) => {
                             const enabled = policy[item.key]
@@ -141,48 +150,57 @@ const CommunicationGovernance = () => {
                                     key={item.key}
                                     type="button"
                                     onClick={() => setPolicy((current) => ({ ...current, [item.key]: !enabled }))}
-                                    className={`rounded-2xl border p-5 text-left transition-all ${
-                                        enabled ? 'border-green-500/30 bg-green-500/10' : 'border-gray-700 bg-navy-900/40 hover:border-gold-500/20'
-                                    }`}
+                                    className={cn(
+                                        'rounded-xl border p-5 text-left transition-colors',
+                                        enabled
+                                            ? 'border-green-200 bg-green-50'
+                                            : 'border-zinc-200 bg-white hover:border-zinc-300'
+                                    )}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
-                                            <h3 className="text-base font-semibold text-white">{item.title}</h3>
-                                            <p className="mt-1 text-sm leading-6 text-gray-400">{item.description}</p>
+                                            <h3 className="text-sm font-semibold text-zinc-900">{item.title}</h3>
+                                            <p className="mt-1 text-sm text-zinc-500">{item.description}</p>
                                         </div>
-                                        {enabled ? <ToggleRight className="h-5 w-5 text-green-300" /> : <ToggleLeft className="h-5 w-5 text-gray-400" />}
+                                        {enabled ? (
+                                            <ToggleRight className="h-5 w-5 shrink-0 text-green-600" />
+                                        ) : (
+                                            <ToggleLeft className="h-5 w-5 shrink-0 text-zinc-400" />
+                                        )}
                                     </div>
                                 </button>
                             )
                         })}
 
-                        <label className="rounded-2xl border border-gray-700 bg-navy-900/40 p-5">
-                            <span className="mb-2 block text-sm font-medium text-white">Default broadcast channel</span>
-                            <select
-                                value={policy.defaultChannel}
-                                onChange={(event) =>
-                                    setPolicy((current) => ({
-                                        ...current,
-                                        defaultChannel: event.target.value as CommunicationPolicy['defaultChannel'],
-                                    }))
-                                }
-                                className="w-full rounded-lg border border-gray-700 bg-dark-900/60 px-4 py-3 text-white outline-none focus:border-gold-500/40"
-                            >
-                                <option value="email">Email</option>
-                                <option value="sms">SMS</option>
-                                <option value="in-app">In-app</option>
-                            </select>
-                        </label>
+                        <Card>
+                            <CardContent className="p-5">
+                                <Select
+                                    label="Default broadcast channel"
+                                    value={policy.defaultChannel}
+                                    onChange={(event) =>
+                                        setPolicy((current) => ({
+                                            ...current,
+                                            defaultChannel: event.target.value as CommunicationPolicy['defaultChannel'],
+                                        }))
+                                    }
+                                >
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="in-app">In-app</option>
+                                </Select>
+                            </CardContent>
+                        </Card>
                     </div>
 
-                    <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4">
-                        <div className="flex items-start gap-3">
-                            <CheckCircle className="mt-0.5 h-5 w-5 text-green-500" />
-                            <p className="text-sm text-gray-300">
-                                Governance settings now persist in the backend so outbound messaging can be controlled from the admin dashboard.
+                    <Card className="border-green-200 bg-green-50">
+                        <CardContent className="flex items-start gap-3 p-4">
+                            <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+                            <p className="text-sm text-green-700">
+                                Governance settings persist in the backend so outbound messaging can be controlled from
+                                the admin dashboard.
                             </p>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                 </>
             )}
         </div>

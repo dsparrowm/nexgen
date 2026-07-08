@@ -1,18 +1,32 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
 import {
     Bell,
-    Loader2,
     RefreshCw,
-    Search,
     Send,
-    ShieldCheck,
     Users,
 } from 'lucide-react'
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    EmptyState,
+    Input,
+    Pagination,
+    SearchInput,
+    Select,
+    Skeleton,
+    StatCard,
+    WorkspaceHeader,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 type TargetRole = 'ADMIN' | 'SUPER_ADMIN' | 'USER' | 'ALL'
 type KycFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'
@@ -134,9 +148,9 @@ const NotificationCenter: React.FC = () => {
         if (!payload) return []
 
         return [
-            { label: 'Broadcasts', value: payload.summary.total, helper: 'System announcement notifications' },
-            { label: 'Unread', value: payload.summary.unreadCount, helper: 'Users who have not opened them yet' },
-            { label: 'Recipients', value: payload.summary.recipientCount, helper: 'Matching users in the current view' },
+            { label: 'Broadcasts', value: String(payload.summary.total), helper: 'System announcement notifications', icon: Bell },
+            { label: 'Unread', value: String(payload.summary.unreadCount), helper: 'Users who have not opened them yet', icon: Bell },
+            { label: 'Recipients', value: String(payload.summary.recipientCount), helper: 'Matching users in the current view', icon: Users },
         ]
     }, [payload])
 
@@ -179,222 +193,215 @@ const NotificationCenter: React.FC = () => {
         }
     }
 
+    if (loading && !payload) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm"
-            >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="max-w-3xl">
-                        <div className="inline-flex rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
-                            Notifications
-                        </div>
-                        <h1 className="mt-4 text-3xl font-bold text-white">Broadcast announcements and system notices</h1>
-                        <p className="mt-3 text-sm leading-6 text-gray-300">
-                            Admin can now send system announcements to users and review the broadcast history from one workspace.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => void loadWorkspace(page, true)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400"
-                    >
-                        {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <WorkspaceHeader
+                title="Notification Center"
+                description="Broadcast announcements and system notices to targeted user segments."
+                action={
+                    <Button variant="secondary" onClick={() => void loadWorkspace(page, true)} disabled={refreshing}>
+                        <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
                         Refresh
-                    </button>
-                </div>
-            </motion.div>
+                    </Button>
+                }
+            />
 
             {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                </div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="p-4">
+                        <p className="text-sm text-red-700">{error}</p>
+                    </CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {summaryCards.map((card) => (
-                    <div key={card.label} className="rounded-2xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm">
-                        <p className="text-sm text-gray-400">{card.label}</p>
-                        <p className="mt-2 text-3xl font-bold text-white">{card.value}</p>
-                        <p className="mt-1 text-xs text-gray-500">{card.helper}</p>
-                    </div>
+                    <StatCard
+                        key={card.label}
+                        title={card.label}
+                        value={card.value}
+                        description={card.helper}
+                        icon={card.icon}
+                    />
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h2 className="text-xl font-semibold text-white">Recent broadcasts</h2>
-                            <p className="text-sm text-gray-400">Notifications sent through the admin workspace.</p>
-                        </div>
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                            <input
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle className="text-base">Recent broadcasts</CardTitle>
+                                <CardDescription>Notifications sent through the admin workspace.</CardDescription>
+                            </div>
+                            <SearchInput
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Search title, message, or recipient"
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-gray-500 focus:border-gold-500/40"
+                                containerClassName="w-full md:w-72"
                             />
                         </div>
-                    </div>
-
-                    <div className="mt-6 space-y-4">
-                        {loading ? (
-                            <div className="rounded-2xl border border-gold-500/10 bg-navy-900/40 p-8 text-center text-gray-400">
-                                Loading notification history...
+                    </CardHeader>
+                    <CardContent>
+                        {refreshing ? (
+                            <div className="flex items-center justify-center py-12">
+                                <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
                             </div>
                         ) : !payload?.notifications.length ? (
-                            <div className="rounded-2xl border border-gold-500/10 bg-navy-900/40 p-8 text-center text-gray-400">
-                                No broadcast notifications have been sent yet.
-                            </div>
+                            <EmptyState
+                                icon={Bell}
+                                title="No broadcasts yet"
+                                description="No broadcast notifications have been sent yet."
+                            />
                         ) : (
-                            payload.notifications.map((notification) => (
-                                <div key={notification.id} className="rounded-2xl border border-gold-500/10 bg-navy-900/40 p-4">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <Bell className="h-4 w-4 text-gold-300" />
-                                                <h3 className="font-semibold text-white">{notification.title}</h3>
+                            <div className="space-y-4">
+                                {payload.notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        className="rounded-xl border border-zinc-200 bg-zinc-50 p-4"
+                                    >
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <Bell className="h-4 w-4 text-gold-600" />
+                                                    <h3 className="font-semibold text-zinc-900">{notification.title}</h3>
+                                                </div>
+                                                <p className="mt-2 text-sm text-zinc-600">{notification.message}</p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <Badge variant="neutral">{formatDate(notification.createdAt)}</Badge>
+                                                    <Badge variant="neutral">
+                                                        {notification.user?.email || 'Broadcast recipient'}
+                                                    </Badge>
+                                                    {notification.metadata?.broadcast && (
+                                                        <Badge variant="success">Broadcast</Badge>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <p className="mt-2 text-sm leading-6 text-gray-300">{notification.message}</p>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-400">
-                                                <span className="rounded-full border border-white/10 px-3 py-1">
-                                                    {formatDate(notification.createdAt)}
-                                                </span>
-                                                <span className="rounded-full border border-white/10 px-3 py-1">
-                                                    {notification.user?.email || 'Broadcast recipient'}
-                                                </span>
-                                                {notification.metadata?.broadcast && (
-                                                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-emerald-200">
-                                                        Broadcast
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border border-white/10 bg-dark-900/50 px-3 py-2 text-xs text-gray-300">
-                                            {notification.isRead ? 'Read' : 'Unread'}
+                                            <Badge variant={notification.isRead ? 'neutral' : 'warning'}>
+                                                {notification.isRead ? 'Read' : 'Unread'}
+                                            </Badge>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         )}
-                    </div>
 
-                    {!loading && payload?.pagination && payload.pagination.pages > 1 && (
-                        <div className="mt-6 flex items-center justify-between border-t border-gold-500/10 pt-4 text-sm text-gray-400">
-                            <p>
-                                Page {payload.pagination.page} of {payload.pagination.pages}
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => void loadWorkspace(Math.max(1, page - 1))}
-                                    disabled={page <= 1}
-                                    className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => void loadWorkspace(Math.min(payload.pagination.pages, page + 1))}
-                                    disabled={page >= payload.pagination.pages}
-                                    className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Next
-                                </button>
+                        {!loading && payload?.pagination && payload.pagination.pages > 1 && (
+                            <Pagination
+                                page={payload.pagination.page}
+                                pages={payload.pagination.pages}
+                                total={payload.pagination.total}
+                                limit={payload.pagination.limit}
+                                onPageChange={(nextPage) => void loadWorkspace(nextPage)}
+                                className="mt-4 border-t-0 px-0"
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-lg bg-gold-50 p-2">
+                                <Send className="h-5 w-5 text-gold-600" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base">Compose broadcast</CardTitle>
+                                <CardDescription>Send a system announcement to a target segment.</CardDescription>
                             </div>
                         </div>
-                    )}
-                </div>
-
-                <form onSubmit={submitBroadcast} className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                            <Send className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-semibold text-white">Compose broadcast</h2>
-                            <p className="text-sm text-gray-400">Send a system announcement to a target segment.</p>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 space-y-4">
-                        <label className="block space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Title</span>
-                            <input
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={submitBroadcast} className="space-y-4">
+                            <Input
+                                label="Title"
                                 value={form.title}
                                 onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                                 placeholder="Scheduled maintenance notice"
                             />
-                        </label>
 
-                        <label className="block space-y-2">
-                            <span className="text-sm font-medium text-gray-300">Message</span>
-                            <textarea
-                                value={form.message}
-                                onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
-                                rows={5}
-                                className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                placeholder="Write the announcement you want users to receive."
-                            />
-                        </label>
+                            <div>
+                                <label className="mb-1.5 block text-sm font-medium text-zinc-700">Message</label>
+                                <textarea
+                                    value={form.message}
+                                    onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+                                    rows={5}
+                                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                                    placeholder="Write the announcement you want users to receive."
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <label className="block space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Target role</span>
-                                <select
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <Select
+                                    label="Target role"
                                     value={form.targetRole}
-                                    onChange={(event) => setForm((current) => ({ ...current, targetRole: event.target.value as TargetRole }))}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(event) =>
+                                        setForm((current) => ({ ...current, targetRole: event.target.value as TargetRole }))
+                                    }
                                 >
                                     <option value="ALL">All users</option>
                                     <option value="USER">Users only</option>
                                     <option value="ADMIN">Admins only</option>
                                     <option value="SUPER_ADMIN">Super admins only</option>
-                                </select>
-                            </label>
+                                </Select>
 
-                            <label className="block space-y-2">
-                                <span className="text-sm font-medium text-gray-300">KYC status</span>
-                                <select
+                                <Select
+                                    label="KYC status"
                                     value={form.kycStatus}
-                                    onChange={(event) => setForm((current) => ({ ...current, kycStatus: event.target.value as KycFilter }))}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(event) =>
+                                        setForm((current) => ({ ...current, kycStatus: event.target.value as KycFilter }))
+                                    }
                                 >
                                     <option value="ALL">Any status</option>
                                     <option value="PENDING">Pending</option>
                                     <option value="APPROVED">Approved</option>
                                     <option value="REJECTED">Rejected</option>
                                     <option value="UNDER_REVIEW">Under review</option>
-                                </select>
+                                </Select>
+                            </div>
+
+                            <label className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+                                <input
+                                    type="checkbox"
+                                    checked={form.activeOnly}
+                                    onChange={(event) =>
+                                        setForm((current) => ({ ...current, activeOnly: event.target.checked }))
+                                    }
+                                    className="rounded border-zinc-300 text-gold-500 focus:ring-gold-500"
+                                />
+                                Send only to active accounts
                             </label>
-                        </div>
 
-                        <label className="flex items-center gap-3 rounded-2xl border border-gold-500/10 bg-navy-900/40 px-4 py-3 text-sm text-gray-200">
-                            <input
-                                type="checkbox"
-                                checked={form.activeOnly}
-                                onChange={(event) => setForm((current) => ({ ...current, activeOnly: event.target.checked }))}
-                                className="h-4 w-4 rounded border-gold-500/30 bg-navy-900 text-gold-500"
-                            />
-                            Send only to active accounts
-                        </label>
-                    </div>
+                            <Button type="submit" disabled={saving} className="w-full">
+                                {saving ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Send className="h-4 w-4" />
+                                )}
+                                Send broadcast
+                            </Button>
 
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold-500 px-4 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        Send broadcast
-                    </button>
-
-                    <div className="mt-4 rounded-2xl border border-gold-500/10 bg-navy-900/40 p-4 text-xs leading-6 text-gray-400">
-                        The backend stores broadcasts as `SYSTEM_ANNOUNCEMENT` notifications and writes an audit log entry for each send action.
-                    </div>
-                </form>
+                            <p className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-xs leading-6 text-zinc-500">
+                                The backend stores broadcasts as `SYSTEM_ANNOUNCEMENT` notifications and writes an audit
+                                log entry for each send action.
+                            </p>
+                        </form>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     )
