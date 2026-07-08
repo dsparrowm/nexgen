@@ -6,7 +6,27 @@ import { apiClient, TransactionRecord } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
 import TransactionFormModal from './TransactionFormModal'
 import {
-    Search,
+    Badge,
+    Button,
+    DataTable,
+    EmptyState,
+    IconButton,
+    Pagination,
+    SearchInput,
+    Select,
+    StatCard,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    WorkspaceHeader,
+    WorkspaceToolbar,
+    WorkspaceToolbarFilters,
+    type BadgeVariant,
+} from '@/components/ui'
+import {
     CheckCircle,
     XCircle,
     Clock,
@@ -160,16 +180,19 @@ const TransactionManagement = () => {
         }
     }
 
-    const getStatusBadge = (status: string) => {
-        const badges = {
-            PENDING: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-            PROCESSING: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-            COMPLETED: 'bg-green-500/20 text-green-400 border-green-500/30',
-            FAILED: 'bg-red-500/20 text-red-400 border-red-500/30',
-            CANCELLED: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-            REFUNDED: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    const getStatusBadgeVariant = (status: string): BadgeVariant => {
+        switch (status) {
+            case 'COMPLETED':
+                return 'success'
+            case 'FAILED':
+            case 'CANCELLED':
+                return 'error'
+            case 'PENDING':
+            case 'PROCESSING':
+                return 'warning'
+            default:
+                return 'neutral'
         }
-        return badges[status as keyof typeof badges] || badges.PENDING
     }
 
     const getStatusIcon = (status: string) => {
@@ -222,396 +245,288 @@ const TransactionManagement = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Transaction Management</h1>
-                    <p className="text-gray-400">Manage ledger entries, deposits, withdrawals, and approvals</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={openCreateForm}
-                        className="flex items-center gap-2 px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Transaction
-                    </button>
-                    <button
-                        onClick={() => fetchTransactions(currentPage)}
-                        className="flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        Refresh
-                    </button>
-                </div>
+            <WorkspaceHeader
+                title="Transaction Management"
+                description="Manage ledger entries, deposits, withdrawals, and approvals."
+                action={
+                    <div className="flex gap-2">
+                        <Button onClick={openCreateForm}>
+                            <Plus className="h-4 w-4" />
+                            Add transaction
+                        </Button>
+                        <Button variant="secondary" onClick={() => fetchTransactions(currentPage)}>
+                            <RefreshCw className="h-4 w-4" />
+                            Refresh
+                        </Button>
+                    </div>
+                }
+            />
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <StatCard title="Total Transactions" value={String(totalTransactions)} icon={DollarSign} />
+                <StatCard
+                    title="Pending"
+                    value={String(transactions.filter((t) => t.status === 'PENDING').length)}
+                    icon={Clock}
+                />
+                <StatCard
+                    title="Completed"
+                    value={String(transactions.filter((t) => t.status === 'COMPLETED').length)}
+                    icon={CheckCircle}
+                />
+                <StatCard
+                    title="Failed/Rejected"
+                    value={String(transactions.filter((t) => ['FAILED', 'CANCELLED'].includes(t.status)).length)}
+                    icon={XCircle}
+                />
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 text-sm">Total Transactions</p>
-                            <p className="text-white font-semibold">{totalTransactions}</p>
-                        </div>
-                    </div>
-                </div>
+            <WorkspaceToolbar>
+                <WorkspaceToolbarFilters>
+                    <SearchInput
+                        placeholder="Search by user, reference, or description..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        containerClassName="w-full lg:flex-1"
+                    />
+                    <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-40">
+                        <option value="all">All status</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="refunded">Refunded</option>
+                    </Select>
+                    <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:w-40">
+                        <option value="all">All types</option>
+                        <option value="deposit">Deposit</option>
+                        <option value="withdrawal">Withdrawal</option>
+                        <option value="investment">Investment</option>
+                        <option value="payout">Payout</option>
+                        <option value="fee">Fee</option>
+                        <option value="refund">Refund</option>
+                        <option value="bonus">Bonus</option>
+                        <option value="referral_bonus">Referral Bonus</option>
+                    </Select>
+                </WorkspaceToolbarFilters>
+            </WorkspaceToolbar>
 
-                <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-yellow-500/20 rounded-lg">
-                            <Clock className="w-5 h-5 text-yellow-400" />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 text-sm">Pending</p>
-                            <p className="text-white font-semibold">
-                                {transactions.filter(t => t.status === 'PENDING').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-500/20 rounded-lg">
-                            <CheckCircle className="w-5 h-5 text-green-400" />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 text-sm">Completed</p>
-                            <p className="text-white font-semibold">
-                                {transactions.filter(t => t.status === 'COMPLETED').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-500/20 rounded-lg">
-                            <XCircle className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 text-sm">Failed/Rejected</p>
-                            <p className="text-white font-semibold">
-                                {transactions.filter(t => ['FAILED', 'CANCELLED'].includes(t.status)).length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg p-6">
-                <div className="flex flex-col lg:flex-row gap-4">
-                    <div className="flex-1">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <input
-                                type="text"
-                                placeholder="Search by user email, username, reference, or description..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-dark-900/50 border border-gold-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-gold-400"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-3 py-2 bg-dark-900/50 border border-gold-500/30 rounded-lg text-white focus:outline-none focus:border-gold-400"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="processing">Processing</option>
-                            <option value="completed">Completed</option>
-                            <option value="failed">Failed</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="refunded">Refunded</option>
-                        </select>
-
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
-                            className="px-3 py-2 bg-dark-900/50 border border-gold-500/30 rounded-lg text-white focus:outline-none focus:border-gold-400"
-                        >
-                            <option value="all">All Types</option>
-                            <option value="deposit">Deposit</option>
-                            <option value="withdrawal">Withdrawal</option>
-                            <option value="investment">Investment</option>
-                            <option value="payout">Payout</option>
-                            <option value="fee">Fee</option>
-                            <option value="refund">Refund</option>
-                            <option value="bonus">Bonus</option>
-                            <option value="referral_bonus">Referral Bonus</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Transactions Table */}
-            <div className="bg-dark-800/50 backdrop-blur-sm border border-gold-500/20 rounded-lg overflow-hidden">
+            <DataTable>
                 {isLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-gold-400 animate-spin" />
-                        <span className="ml-2 text-gray-400">Loading transactions...</span>
+                    <div className="flex items-center justify-center gap-2 py-16 text-zinc-500">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Loading transactions...
                     </div>
                 ) : error ? (
-                    <div className="flex items-center justify-center py-12">
-                        <AlertTriangle className="w-8 h-8 text-red-400" />
-                        <span className="ml-2 text-red-400">{error}</span>
-                    </div>
+                    <EmptyState icon={AlertTriangle} title="Failed to load transactions" description={error} />
                 ) : (
                     <>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-dark-900/50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gold-500/10">
-                                    {filteredTransactions.map((transaction) => (
-                                        <tr key={transaction.id} className="hover:bg-dark-900/30">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div>
-                                                    <div className="text-sm font-medium text-white">
-                                                        {transaction.user.firstName} {transaction.user.lastName}
-                                                    </div>
-                                                    <div className="text-sm text-gray-400">
-                                                        {transaction.user.email}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    {getTypeIcon(transaction.type)}
-                                                    <span className="text-sm text-white capitalize">
-                                                        {transaction.type.toLowerCase()}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`text-sm font-medium ${transaction.type === 'WITHDRAWAL' || transaction.type === 'FEE'
-                                                    ? 'text-red-400'
-                                                    : 'text-green-400'
-                                                    }`}>
-                                                    {formatAmount(transaction.amount, transaction.type)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(transaction.status)}`}>
-                                                    {getStatusIcon(transaction.status)}
-                                                    {transaction.status.toLowerCase()}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                                {new Date(transaction.createdAt).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedTransaction(transaction)
-                                                            setShowDetailsModal(true)
-                                                        }}
-                                                        className="text-gray-400 hover:text-white transition-colors"
-                                                        title="View Details"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => openEditForm(transaction)}
-                                                        className="text-gold-400 hover:text-gold-300 transition-colors"
-                                                        title="Edit"
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </button>
-
-                                                    {transaction.status === 'PENDING' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleApproveTransaction(transaction.id)}
-                                                                disabled={processingTransaction === transaction.id}
-                                                                className="text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
-                                                                title="Approve"
-                                                            >
-                                                                {processingTransaction === transaction.id ? (
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                ) : (
-                                                                    <CheckCircle className="w-4 h-4" />
-                                                                )}
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => handleRejectTransaction(transaction.id, 'Rejected by admin')}
-                                                                disabled={processingTransaction === transaction.id}
-                                                                className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                                                                title="Reject"
-                                                            >
-                                                                {processingTransaction === transaction.id ? (
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                ) : (
-                                                                    <XCircle className="w-4 h-4" />
-                                                                )}
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="px-6 py-4 bg-dark-900/50 border-t border-gold-500/10">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-sm text-gray-400">
-                                        Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, totalTransactions)} of {totalTransactions} transactions
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => fetchTransactions(currentPage - 1)}
-                                            disabled={currentPage === 1}
-                                            className="px-3 py-1 text-sm bg-navy-700 hover:bg-navy-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded transition-colors"
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredTransactions.map((transaction) => (
+                                    <TableRow key={transaction.id}>
+                                        <TableCell>
+                                            <p className="font-medium text-zinc-900">
+                                                {transaction.user.firstName} {transaction.user.lastName}
+                                            </p>
+                                            <p className="text-sm text-zinc-500">{transaction.user.email}</p>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2 capitalize">
+                                                {getTypeIcon(transaction.type)}
+                                                {transaction.type.toLowerCase()}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell
+                                            className={
+                                                transaction.type === 'WITHDRAWAL' || transaction.type === 'FEE'
+                                                    ? 'font-medium text-red-600'
+                                                    : 'font-medium text-green-600'
+                                            }
                                         >
-                                            Previous
-                                        </button>
-                                        <span className="text-sm text-gray-400">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => fetchTransactions(currentPage + 1)}
-                                            disabled={currentPage === totalPages}
-                                            className="px-3 py-1 text-sm bg-navy-700 hover:bg-navy-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded transition-colors"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                                            {formatAmount(transaction.amount, transaction.type)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={getStatusBadgeVariant(transaction.status)}>
+                                                {transaction.status.toLowerCase()}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-zinc-500">
+                                            {new Date(transaction.createdAt).toLocaleDateString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <IconButton
+                                                    onClick={() => {
+                                                        setSelectedTransaction(transaction)
+                                                        setShowDetailsModal(true)
+                                                    }}
+                                                    title="View details"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </IconButton>
+                                                <IconButton onClick={() => openEditForm(transaction)} title="Edit">
+                                                    <Pencil className="h-4 w-4" />
+                                                </IconButton>
+                                                {transaction.status === 'PENDING' && (
+                                                    <>
+                                                        <IconButton
+                                                            onClick={() => handleApproveTransaction(transaction.id)}
+                                                            disabled={processingTransaction === transaction.id}
+                                                            title="Approve"
+                                                            className="hover:bg-green-50 hover:text-green-700"
+                                                        >
+                                                            {processingTransaction === transaction.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <CheckCircle className="h-4 w-4" />
+                                                            )}
+                                                        </IconButton>
+                                                        <IconButton
+                                                            onClick={() =>
+                                                                handleRejectTransaction(transaction.id, 'Rejected by admin')
+                                                            }
+                                                            disabled={processingTransaction === transaction.id}
+                                                            title="Reject"
+                                                            className="hover:bg-red-50 hover:text-red-700"
+                                                        >
+                                                            {processingTransaction === transaction.id ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <XCircle className="h-4 w-4" />
+                                                            )}
+                                                        </IconButton>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        <Pagination
+                            page={currentPage}
+                            pages={totalPages}
+                            total={totalTransactions}
+                            limit={20}
+                            onPageChange={fetchTransactions}
+                        />
                     </>
                 )}
-            </div>
+            </DataTable>
 
             {/* Transaction Details Modal */}
             {showDetailsModal && selectedTransaction && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-dark-800 border border-gold-500/20 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-card-hover"
                     >
                         <div className="p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-white">Transaction Details</h2>
+                            <div className="mb-6 flex items-center justify-between">
+                                <h2 className="text-xl font-semibold text-zinc-900">Transaction details</h2>
                                 <button
                                     onClick={() => setShowDetailsModal(false)}
-                                    className="text-gray-400 hover:text-white"
+                                    className="text-zinc-400 hover:text-zinc-600"
                                 >
-                                    <XCircle className="w-6 h-6" />
+                                    <XCircle className="h-6 w-6" />
                                 </button>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-sm text-gray-400">Transaction ID</label>
-                                        <p className="text-white font-mono">{selectedTransaction.id}</p>
+                                        <label className="text-sm text-zinc-500">Transaction ID</label>
+                                        <p className="font-mono text-zinc-900">{selectedTransaction.id}</p>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-400">Reference</label>
-                                        <p className="text-white">{selectedTransaction.reference || 'N/A'}</p>
+                                        <label className="text-sm text-zinc-500">Reference</label>
+                                        <p className="text-zinc-900">{selectedTransaction.reference || 'N/A'}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-sm text-gray-400">User</label>
-                                        <p className="text-white">
+                                        <label className="text-sm text-zinc-500">User</label>
+                                        <p className="text-zinc-900">
                                             {selectedTransaction.user.firstName} {selectedTransaction.user.lastName}
                                         </p>
-                                        <p className="text-gray-400 text-sm">{selectedTransaction.user.email}</p>
+                                        <p className="text-sm text-zinc-500">{selectedTransaction.user.email}</p>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-400">Type</label>
-                                        <p className="text-white capitalize">{selectedTransaction.type.toLowerCase()}</p>
+                                        <label className="text-sm text-zinc-500">Type</label>
+                                        <p className="capitalize text-zinc-900">{selectedTransaction.type.toLowerCase()}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-sm text-gray-400">Amount</label>
-                                        <p className={`text-lg font-semibold ${selectedTransaction.type === 'WITHDRAWAL' || selectedTransaction.type === 'FEE'
-                                            ? 'text-red-400'
-                                            : 'text-green-400'
-                                            }`}>
+                                        <label className="text-sm text-zinc-500">Amount</label>
+                                        <p
+                                            className={`text-lg font-semibold ${selectedTransaction.type === 'WITHDRAWAL' || selectedTransaction.type === 'FEE'
+                                                ? 'text-red-600'
+                                                : 'text-green-600'
+                                                }`}
+                                        >
                                             {formatAmount(selectedTransaction.amount, selectedTransaction.type)}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-400">Status</label>
-                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(selectedTransaction.status)}`}>
-                                            {getStatusIcon(selectedTransaction.status)}
-                                            {selectedTransaction.status.toLowerCase()}
-                                        </span>
+                                        <label className="text-sm text-zinc-500">Status</label>
+                                        <div className="mt-1">
+                                            <Badge variant={getStatusBadgeVariant(selectedTransaction.status)}>
+                                                {selectedTransaction.status.toLowerCase()}
+                                            </Badge>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {selectedTransaction.fee > 0 && (
                                     <div>
-                                        <label className="text-sm text-gray-400">Fee</label>
-                                        <p className="text-orange-400">-${selectedTransaction.fee.toFixed(2)}</p>
+                                        <label className="text-sm text-zinc-500">Fee</label>
+                                        <p className="text-orange-600">-${selectedTransaction.fee.toFixed(2)}</p>
                                     </div>
                                 )}
 
                                 <div>
-                                    <label className="text-sm text-gray-400">Description</label>
-                                    <p className="text-white">{selectedTransaction.description || 'N/A'}</p>
+                                    <label className="text-sm text-zinc-500">Description</label>
+                                    <p className="text-zinc-900">{selectedTransaction.description || 'N/A'}</p>
                                 </div>
 
                                 {selectedTransaction.type === 'WITHDRAWAL' &&
                                     typeof selectedTransaction.metadata?.withdrawalAddress === 'string' && (
                                     <div>
-                                        <label className="text-sm text-gray-400">Withdrawal Address</label>
-                                        <p className="text-white font-mono bg-dark-900/50 p-2 rounded border">
+                                        <label className="text-sm text-zinc-500">Withdrawal Address</label>
+                                        <p className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 font-mono text-sm text-zinc-900">
                                             {selectedTransaction.metadata.withdrawalAddress}
                                         </p>
-                                        {typeof selectedTransaction.metadata?.currency === 'string' && (
-                                            <p className="text-gray-400 text-xs mt-1">
-                                                Currency: {selectedTransaction.metadata.currency}
-                                            </p>
-                                        )}
                                     </div>
                                 )}
 
                                 {selectedTransaction.metadata && Object.keys(selectedTransaction.metadata).length > 0 && (
                                     <div>
-                                        <label className="text-sm text-gray-400">Additional Details</label>
-                                        <div className="bg-dark-900/50 p-3 rounded border text-sm">
+                                        <label className="text-sm text-zinc-500">Additional Details</label>
+                                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
                                             {Object.entries(selectedTransaction.metadata).map(([key, value]) => {
-                                                // Skip fields we've already displayed above
-                                                if (key === 'withdrawalAddress' || key === 'currency') return null;
+                                                if (key === 'withdrawalAddress' || key === 'currency') return null
                                                 return (
                                                     <div key={key} className="flex justify-between py-1">
-                                                        <span className="text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                                        <span className="text-white ml-2">{String(value)}</span>
+                                                        <span className="text-zinc-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                                                        <span className="ml-2 text-zinc-900">{String(value)}</span>
                                                     </div>
-                                                );
+                                                )
                                             })}
                                         </div>
                                     </div>
@@ -619,22 +534,22 @@ const TransactionManagement = () => {
 
                                 {selectedTransaction.failureReason && (
                                     <div>
-                                        <label className="text-sm text-gray-400">Failure Reason</label>
-                                        <p className="text-red-400">{selectedTransaction.failureReason}</p>
+                                        <label className="text-sm text-zinc-500">Failure Reason</label>
+                                        <p className="text-red-600">{selectedTransaction.failureReason}</p>
                                     </div>
                                 )}
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-sm text-gray-400">Created</label>
-                                        <p className="text-gray-300">
+                                        <label className="text-sm text-zinc-500">Created</label>
+                                        <p className="text-zinc-700">
                                             {new Date(selectedTransaction.createdAt).toLocaleString()}
                                         </p>
                                     </div>
                                     {selectedTransaction.processedAt && (
                                         <div>
-                                            <label className="text-sm text-gray-400">Processed</label>
-                                            <p className="text-gray-300">
+                                            <label className="text-sm text-zinc-500">Processed</label>
+                                            <p className="text-zinc-700">
                                                 {new Date(selectedTransaction.processedAt).toLocaleString()}
                                             </p>
                                         </div>
@@ -642,52 +557,35 @@ const TransactionManagement = () => {
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 mt-6 pt-6 border-t border-gold-500/20">
-                                <button
-                                    onClick={() => openEditForm(selectedTransaction)}
-                                    className="flex-1 bg-gold-600 hover:bg-gold-700 text-white px-4 py-2 rounded-lg transition-colors"
-                                >
-                                    Edit Transaction
-                                </button>
+                            <div className="mt-6 flex gap-3 border-t border-zinc-200 pt-6">
+                                <Button className="flex-1" onClick={() => openEditForm(selectedTransaction)}>
+                                    Edit transaction
+                                </Button>
                             </div>
 
                             {selectedTransaction.status === 'PENDING' && (
-                                <div className="flex gap-3 mt-3">
-                                    <button
+                                <div className="mt-3 flex gap-3">
+                                    <Button
+                                        className="flex-1"
                                         onClick={() => {
                                             handleApproveTransaction(selectedTransaction.id)
                                             setShowDetailsModal(false)
                                         }}
                                         disabled={processingTransaction === selectedTransaction.id}
-                                        className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed"
                                     >
-                                        {processingTransaction === selectedTransaction.id ? (
-                                            <span className="flex items-center justify-center gap-2">
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Processing...
-                                            </span>
-                                        ) : (
-                                            'Approve Transaction'
-                                        )}
-                                    </button>
-
-                                    <button
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        className="flex-1"
                                         onClick={() => {
                                             handleRejectTransaction(selectedTransaction.id, 'Rejected by admin')
                                             setShowDetailsModal(false)
                                         }}
                                         disabled={processingTransaction === selectedTransaction.id}
-                                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed"
                                     >
-                                        {processingTransaction === selectedTransaction.id ? (
-                                            <span className="flex items-center justify-center gap-2">
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Processing...
-                                            </span>
-                                        ) : (
-                                            'Reject Transaction'
-                                        )}
-                                    </button>
+                                        Reject
+                                    </Button>
                                 </div>
                             )}
                         </div>

@@ -2,11 +2,32 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Ban, Eye, Loader2, RefreshCw, Search, Unlock, UserCheck } from 'lucide-react'
+import { Ban, Eye, Loader2, RefreshCw, Unlock, UserCheck } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { adminRoutes } from '@/lib/adminRoutes'
 import { useToast } from '@/components/ToastContext'
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    DataTable,
+    EmptyState,
+    IconButton,
+    SearchInput,
+    Select,
+    Skeleton,
+    StatCard,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    WorkspaceHeader,
+    WorkspaceToolbar,
+    WorkspaceToolbarFilters,
+} from '@/components/ui'
 
 type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'
 type AccountState = 'ACTIVE' | 'FROZEN'
@@ -48,16 +69,17 @@ const kycLabels: Record<KycStatus, string> = {
     UNDER_REVIEW: 'Under review',
 }
 
-const kycClasses: Record<KycStatus, string> = {
-    PENDING: 'border-yellow-500/20 bg-yellow-500/10 text-yellow-200',
-    APPROVED: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200',
-    REJECTED: 'border-red-500/20 bg-red-500/10 text-red-200',
-    UNDER_REVIEW: 'border-blue-500/20 bg-blue-500/10 text-blue-200',
-}
-
-const accountClasses: Record<AccountState, string> = {
-    ACTIVE: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200',
-    FROZEN: 'border-amber-500/20 bg-amber-500/10 text-amber-200',
+const kycBadgeVariant = (status: KycStatus): 'success' | 'warning' | 'error' | 'neutral' => {
+    switch (status) {
+        case 'APPROVED':
+            return 'success'
+        case 'REJECTED':
+            return 'error'
+        case 'PENDING':
+            return 'warning'
+        default:
+            return 'neutral'
+    }
 }
 
 const ComplianceWorkspace: React.FC = () => {
@@ -181,216 +203,206 @@ const ComplianceWorkspace: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm"
-            >
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="max-w-3xl">
-                        <div className="inline-flex rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
-                            Compliance
-                        </div>
-                        <h1 className="mt-4 text-3xl font-bold text-white">Freeze, unfreeze, and move KYC into review from one queue</h1>
-                        <p className="mt-3 text-sm leading-6 text-gray-300">
-                            This queue is intentionally compact. It surfaces restricted accounts and customers whose KYC state still needs an operator decision, then writes each action to the audit log with a reason.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
+            <WorkspaceHeader
+                title="Compliance queue"
+                description="Freeze, unfreeze, and move KYC into review from one queue. Each action is written to the audit log with a reason."
+                action={
+                    <div className="flex flex-wrap gap-2">
                         <Link
                             href={adminRoutes.complianceKyc}
-                            className="inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-2 text-sm text-white transition-colors hover:bg-navy-800"
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                         >
                             <UserCheck className="h-4 w-4" />
-                            Open full KYC queue
+                            Open KYC queue
                         </Link>
-                        <button
-                            onClick={() => void fetchWorkspace(true)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400"
-                        >
-                            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <Button onClick={() => void fetchWorkspace(true)} disabled={refreshing}>
+                            {refreshing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="h-4 w-4" />
+                            )}
                             Refresh
-                        </button>
+                        </Button>
                     </div>
-                </div>
-            </motion.div>
+                }
+            />
 
             {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                </div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {summaryCards.map((card) => (
-                    <div key={card.label} className="rounded-2xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm">
-                        <p className="text-sm text-gray-400">{card.label}</p>
-                        <p className="mt-2 text-3xl font-bold text-white">{card.value}</p>
-                        <p className="mt-1 text-xs text-gray-500">{card.helper}</p>
-                    </div>
-                ))}
+                {loading && !payload
+                    ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)
+                    : summaryCards.map((card) => (
+                          <StatCard
+                              key={card.label}
+                              title={card.label}
+                              value={String(card.value)}
+                              description={card.helper}
+                          />
+                      ))}
             </div>
 
-            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                        <input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search username, email, or customer name"
-                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 py-3 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
-                        />
-                    </div>
-
-                    <select
+            <WorkspaceToolbar>
+                <WorkspaceToolbarFilters>
+                    <SearchInput
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search username, email, or customer name"
+                        containerClassName="w-full xl:w-80"
+                    />
+                    <Select
                         value={accountState}
                         onChange={(event) => setAccountState(event.target.value as 'ALL' | AccountState)}
-                        className="rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none"
+                        className="w-full sm:w-40"
                     >
                         <option value="ALL">All accounts</option>
                         <option value="ACTIVE">Active only</option>
                         <option value="FROZEN">Frozen only</option>
-                    </select>
-
-                    <select
+                    </Select>
+                    <Select
                         value={kycFilter}
                         onChange={(event) => setKycFilter(event.target.value as 'ALL' | KycStatus)}
-                        className="rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none"
+                        className="w-full sm:w-44"
                     >
                         <option value="ALL">All KYC states</option>
                         <option value="PENDING">Pending</option>
                         <option value="UNDER_REVIEW">Under review</option>
                         <option value="APPROVED">Approved</option>
                         <option value="REJECTED">Rejected</option>
-                    </select>
-                </div>
+                    </Select>
+                </WorkspaceToolbarFilters>
+            </WorkspaceToolbar>
 
-                <div className="mt-6 overflow-hidden rounded-2xl border border-gold-500/10">
-                    <div className="grid grid-cols-[minmax(0,1.5fr)_120px_120px_140px] gap-4 border-b border-gold-500/10 bg-navy-900/40 px-5 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                        <div>Customer</div>
-                        <div>Account</div>
-                        <div>KYC</div>
-                        <div>Actions</div>
+            <DataTable>
+                {loading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
                     </div>
-
-                    {loading ? (
-                        <div className="px-5 py-10 text-center text-sm text-gray-400">Loading compliance queue...</div>
-                    ) : payload?.queue.length ? (
-                        <div className="divide-y divide-gold-500/10">
+                ) : payload?.queue.length ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Account</TableHead>
+                                <TableHead>KYC</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {payload.queue.map((entry) => {
-                                const displayName = `${entry.firstName || ''} ${entry.lastName || ''}`.trim() || entry.username
+                                const displayName =
+                                    `${entry.firstName || ''} ${entry.lastName || ''}`.trim() || entry.username
                                 const currentAccountState: AccountState = entry.isActive ? 'ACTIVE' : 'FROZEN'
 
                                 return (
-                                    <div key={entry.id} className="grid grid-cols-[minmax(0,1.5fr)_120px_120px_140px] gap-4 px-5 py-4">
-                                        <div>
-                                            <p className="font-semibold text-white">{displayName}</p>
-                                            <p className="text-sm text-gray-400">{entry.email}</p>
-                                            <p className="mt-2 text-xs text-gray-500">
-                                                {entry.pendingDocuments} pending docs, {entry.rejectedDocuments} rejected docs
+                                    <TableRow key={entry.id}>
+                                        <TableCell>
+                                            <p className="font-medium text-zinc-900">{displayName}</p>
+                                            <p className="text-sm text-zinc-500">{entry.email}</p>
+                                            <p className="mt-1 text-xs text-zinc-400">
+                                                {entry.pendingDocuments} pending docs, {entry.rejectedDocuments}{' '}
+                                                rejected
                                             </p>
-                                        </div>
-
-                                        <div>
-                                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${accountClasses[currentAccountState]}`}>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={currentAccountState === 'ACTIVE' ? 'success' : 'warning'}>
                                                 {currentAccountState}
-                                            </span>
-                                        </div>
-
-                                        <div>
-                                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${kycClasses[entry.kycStatus]}`}>
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={kycBadgeVariant(entry.kycStatus)}>
                                                 {kycLabels[entry.kycStatus]}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2">
-                                            {entry.isActive ? (
-                                                <button
-                                                    onClick={() => startAction(entry, 'freeze')}
-                                                    className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 text-amber-100 transition-colors hover:bg-amber-500/20"
-                                                    title="Freeze account"
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex justify-end gap-1">
+                                                {entry.isActive ? (
+                                                    <IconButton
+                                                        onClick={() => startAction(entry, 'freeze')}
+                                                        title="Freeze account"
+                                                        className="hover:bg-amber-50 hover:text-amber-700"
+                                                    >
+                                                        <Ban className="h-4 w-4" />
+                                                    </IconButton>
+                                                ) : (
+                                                    <IconButton
+                                                        onClick={() => startAction(entry, 'unfreeze')}
+                                                        title="Unfreeze account"
+                                                        className="hover:bg-green-50 hover:text-green-700"
+                                                    >
+                                                        <Unlock className="h-4 w-4" />
+                                                    </IconButton>
+                                                )}
+                                                {entry.kycStatus !== 'UNDER_REVIEW' && (
+                                                    <IconButton
+                                                        onClick={() => startAction(entry, 'mark_under_review')}
+                                                        title="Mark KYC under review"
+                                                        className="hover:bg-blue-50 hover:text-blue-700"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </IconButton>
+                                                )}
+                                                <Link
+                                                    href={`${adminRoutes.customers}/${entry.id}`}
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+                                                    title="Open customer"
                                                 >
-                                                    <Ban className="h-4 w-4" />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => startAction(entry, 'unfreeze')}
-                                                    className="inline-flex h-9 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 text-emerald-100 transition-colors hover:bg-emerald-500/20"
-                                                    title="Unfreeze account"
-                                                >
-                                                    <Unlock className="h-4 w-4" />
-                                                </button>
-                                            )}
-
-                                            {entry.kycStatus !== 'UNDER_REVIEW' && (
-                                                <button
-                                                    onClick={() => startAction(entry, 'mark_under_review')}
-                                                    className="inline-flex h-9 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 text-blue-100 transition-colors hover:bg-blue-500/20"
-                                                    title="Mark KYC under review"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                            )}
-
-                                            <Link
-                                                href={`${adminRoutes.customers}/${entry.id}`}
-                                                className="inline-flex h-9 items-center justify-center rounded-lg border border-gold-500/20 bg-navy-900/60 px-3 text-white transition-colors hover:bg-navy-800"
-                                                title="Open customer"
-                                            >
-                                                <UserCheck className="h-4 w-4" />
-                                            </Link>
-                                        </div>
-                                    </div>
+                                                    <UserCheck className="h-4 w-4" />
+                                                </Link>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                 )
                             })}
-                        </div>
-                    ) : (
-                        <div className="px-5 py-10 text-center text-sm text-gray-400">No compliance cases matched the current filters.</div>
-                    )}
-                </div>
-            </div>
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <EmptyState
+                        title="No compliance cases"
+                        description="No accounts matched the current filters."
+                    />
+                )}
+            </DataTable>
 
             {actingOn && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-xl rounded-3xl border border-gold-500/20 bg-dark-900 p-6">
-                        <h2 className="text-2xl font-bold text-white">
-                            {action === 'freeze'
-                                ? 'Freeze account'
-                                : action === 'unfreeze'
-                                  ? 'Unfreeze account'
-                                  : 'Mark KYC under review'}
-                        </h2>
-                        <p className="mt-2 text-sm text-gray-400">
-                            Add a short note for {actingOn.username}. This reason is stored in the admin audit log.
-                        </p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
+                    <Card className="w-full max-w-xl shadow-card-hover">
+                        <CardContent className="p-6">
+                            <h2 className="text-xl font-semibold text-zinc-900">
+                                {action === 'freeze'
+                                    ? 'Freeze account'
+                                    : action === 'unfreeze'
+                                      ? 'Unfreeze account'
+                                      : 'Mark KYC under review'}
+                            </h2>
+                            <p className="mt-2 text-sm text-zinc-500">
+                                Add a short note for {actingOn.username}. This reason is stored in the admin audit
+                                log.
+                            </p>
 
-                        <textarea
-                            value={reason}
-                            onChange={(event) => setReason(event.target.value)}
-                            rows={5}
-                            className="mt-5 w-full rounded-2xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none placeholder:text-gray-500"
-                            placeholder="Reason for this compliance action"
-                        />
+                            <textarea
+                                value={reason}
+                                onChange={(event) => setReason(event.target.value)}
+                                rows={5}
+                                className="mt-5 w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-gold-500"
+                                placeholder="Reason for this compliance action"
+                            />
 
-                        <div className="mt-6 flex justify-end gap-3">
-                            <button
-                                onClick={closeAction}
-                                className="rounded-xl border border-gold-500/20 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-800"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => void submitAction()}
-                                disabled={saving}
-                                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                Save action
-                            </button>
-                        </div>
-                    </div>
+                            <div className="mt-6 flex justify-end gap-3">
+                                <Button variant="secondary" onClick={closeAction}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={() => void submitAction()} disabled={saving}>
+                                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    Save action
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>

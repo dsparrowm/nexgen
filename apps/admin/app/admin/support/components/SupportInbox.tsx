@@ -44,17 +44,17 @@ type SupportConversationTyping = {
 }
 
 const statusMeta: Record<SupportConversationStatus, { label: string; className: string; icon: React.ReactNode }> = {
-    OPEN: { label: 'Open', className: 'bg-green-500/10 text-green-300 border-green-500/20', icon: <CheckCircle2 className="w-4 h-4" /> },
-    PENDING: { label: 'Pending', className: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20', icon: <Clock3 className="w-4 h-4" /> },
-    CLOSED: { label: 'Closed', className: 'bg-slate-500/10 text-slate-300 border-slate-500/20', icon: <XCircle className="w-4 h-4" /> },
-    RESOLVED: { label: 'Resolved', className: 'bg-blue-500/10 text-blue-300 border-blue-500/20', icon: <CheckCircle2 className="w-4 h-4" /> },
+    OPEN: { label: 'Open', className: 'bg-green-50 text-green-700 border-green-200', icon: <CheckCircle2 className="w-4 h-4" /> },
+    PENDING: { label: 'Pending', className: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock3 className="w-4 h-4" /> },
+    CLOSED: { label: 'Closed', className: 'bg-zinc-100 text-zinc-600 border-zinc-200', icon: <XCircle className="w-4 h-4" /> },
+    RESOLVED: { label: 'Resolved', className: 'bg-blue-50 text-blue-700 border-blue-200', icon: <CheckCircle2 className="w-4 h-4" /> },
 }
 
 const priorityMeta = {
-    HIGH: 'bg-red-500/10 text-red-300 border-red-500/20',
-    NORMAL: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20',
-    LOW: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-    URGENT: 'bg-red-500/10 text-red-200 border-red-500/30',
+    HIGH: 'bg-red-50 text-red-700 border-red-200',
+    NORMAL: 'bg-amber-50 text-amber-700 border-amber-200',
+    LOW: 'bg-blue-50 text-blue-700 border-blue-200',
+    URGENT: 'bg-red-50 text-red-800 border-red-300',
 }
 
 const statusOptions: Array<{ value: StatusFilter; label: string }> = [
@@ -668,40 +668,35 @@ const SupportInbox: React.FC = () => {
 
     return (
         <div className="flex h-full min-h-0 flex-col gap-6">
-            <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45 }}
-                className="shrink-0 rounded-3xl border border-gold-500/20 bg-gradient-to-r from-gold-500/10 via-navy-800/60 to-blue-500/10 p-6"
-            >
+            <div className="shrink-0 rounded-xl border border-zinc-200 bg-white p-6 shadow-card">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-navy-800/50 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-gold-300">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-gold-800">
                             <MessageCircle className="h-3.5 w-3.5" />
                             Support Inbox
                         </div>
-                        <h1 className="text-3xl font-bold text-white">Live customer support</h1>
-                        <p className="mt-2 max-w-2xl text-sm text-gray-300">
+                        <h1 className="text-2xl font-semibold text-zinc-900">Live customer support</h1>
+                        <p className="mt-2 max-w-2xl text-sm text-zinc-500">
                             Track conversations, answer customers in real time, and keep the support queue moving from one place.
                         </p>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="rounded-2xl border border-white/10 bg-navy-800/50 px-4 py-3">
-                            <p className="text-2xl font-bold text-white">{openCount}</p>
-                            <p className="text-xs uppercase tracking-wide text-gray-400">Open</p>
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                            <p className="text-2xl font-semibold text-zinc-900">{openCount}</p>
+                            <p className="text-xs uppercase tracking-wide text-zinc-500">Open</p>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-navy-800/50 px-4 py-3">
-                            <p className="text-2xl font-bold text-white">{pendingCount}</p>
-                            <p className="text-xs uppercase tracking-wide text-gray-400">Pending</p>
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                            <p className="text-2xl font-semibold text-zinc-900">{pendingCount}</p>
+                            <p className="text-xs uppercase tracking-wide text-zinc-500">Pending</p>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-navy-800/50 px-4 py-3">
-                            <p className="text-2xl font-bold text-white">{closedCount}</p>
-                            <p className="text-xs uppercase tracking-wide text-gray-400">Closed</p>
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                            <p className="text-2xl font-semibold text-zinc-900">{closedCount}</p>
+                            <p className="text-xs uppercase tracking-wide text-zinc-500">Closed</p>
                         </div>
                     </div>
                 </div>
-            </motion.div>
+            </div>
 
             <div className="shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <form onSubmit={handleSearchSubmit} className="flex flex-1 items-center gap-3">
@@ -711,12 +706,12 @@ const SupportInbox: React.FC = () => {
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
                             placeholder="Search customer, email, subject, or message"
-                            className="w-full rounded-2xl border border-gold-500/20 bg-dark-800/60 py-3 pl-11 pr-4 text-white placeholder:text-gray-500 focus:border-gold-500/40 focus:outline-none"
+                            className="w-full rounded-lg border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                         />
                     </div>
                     <button
                         type="submit"
-                        className="rounded-2xl border border-gold-500/20 bg-navy-800/60 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-navy-800"
+                        className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                     >
                         Search
                     </button>
@@ -730,8 +725,8 @@ const SupportInbox: React.FC = () => {
                             type="button"
                             onClick={() => setStatusFilter(option.value)}
                             className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${statusFilter === option.value
-                                ? 'border-gold-500/40 bg-gold-500 text-navy-900'
-                                : 'border-white/10 bg-navy-800/50 text-gray-300 hover:text-white'
+                                ? 'border-gold-300 bg-gold-500 text-navy-900'
+                                : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
                                 }`}
                         >
                             {option.label}
@@ -802,7 +797,7 @@ const SupportInbox: React.FC = () => {
                     initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.45, delay: 0.05 }}
-                    className="flex min-h-0 flex-col rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
+                    className="flex min-h-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-card"
                 >
                     <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
                         <div>
@@ -886,7 +881,7 @@ const SupportInbox: React.FC = () => {
                     initial={{ opacity: 0, x: 16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.45, delay: 0.1 }}
-                    className="relative flex min-h-0 flex-col overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-800/60 backdrop-blur-sm"
+                    className="relative flex min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card"
                 >
                     {isLoadingThread && !selectedConversation ? (
                         <div className="flex flex-1 items-center justify-center">
