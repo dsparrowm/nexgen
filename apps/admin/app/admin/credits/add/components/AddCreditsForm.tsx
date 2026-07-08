@@ -1,19 +1,26 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
+import {
+    Button,
+    Card,
+    CardContent,
+    Input,
+    WorkspaceHeader,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
 import {
     DollarSign,
     Search,
     User,
     Mail,
     Check,
-    ArrowLeft,
     AlertCircle,
     Loader2,
-    FileText
+    FileText,
 } from 'lucide-react'
 
 interface UserSearchResult {
@@ -40,12 +47,11 @@ const AddCreditsForm = () => {
     const [formData, setFormData] = useState({
         amount: '',
         reason: '',
-        reference: ''
+        reference: '',
     })
 
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-    // Search for users
     useEffect(() => {
         const searchUsers = async () => {
             if (searchQuery.length < 2) {
@@ -58,14 +64,13 @@ const AddCreditsForm = () => {
                 const response = await apiClient.getUsers({
                     page: 1,
                     limit: 5,
-                    search: searchQuery
+                    search: searchQuery,
                 })
 
                 if (response.success && response.data) {
-                    // Transform balance to number since it comes as string from Prisma Decimal
-                    const transformedUsers = response.data.users.map((user: any) => ({
+                    const transformedUsers = response.data.users.map((user: UserSearchResult) => ({
                         ...user,
-                        balance: Number(user.balance)
+                        balance: Number(user.balance),
                     }))
                     setSearchResults(transformedUsers)
                     setShowResults(true)
@@ -86,19 +91,22 @@ const AddCreditsForm = () => {
         setSearchQuery(`${user.firstName} ${user.lastName} (${user.email})`)
         setShowResults(false)
         setError(null)
+        if (fieldErrors.user) {
+            setFieldErrors((prev) => ({ ...prev, user: '' }))
+        }
     }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
-            [name]: value
+            [name]: value,
         }))
 
         if (fieldErrors[name]) {
-            setFieldErrors(prev => ({
+            setFieldErrors((prev) => ({
                 ...prev,
-                [name]: ''
+                [name]: '',
             }))
         }
     }
@@ -138,7 +146,7 @@ const AddCreditsForm = () => {
             const response = await apiClient.addCredits(selectedUser!.id, {
                 amount: Number(formData.amount),
                 reason: formData.reason,
-                reference: formData.reference || undefined
+                reference: formData.reference || undefined,
             })
 
             if (response.success) {
@@ -159,71 +167,53 @@ const AddCreditsForm = () => {
 
     if (success) {
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center justify-center min-h-[400px]"
-            >
-                <div className="text-center">
-                    <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Check className="w-10 h-10 text-green-500" />
+            <div className="flex min-h-[400px] items-center justify-center">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center"
+                >
+                    <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-50">
+                        <Check className="h-10 w-10 text-green-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Credits Added Successfully!</h2>
-                    <p className="text-gray-400">Redirecting to credits management...</p>
-                </div>
-            </motion.div>
+                    <h2 className="mb-2 text-2xl font-semibold text-zinc-900">Credits added successfully</h2>
+                    <p className="text-zinc-500">Redirecting to credits management...</p>
+                </motion.div>
+            </div>
         )
     }
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => router.back()}
-                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Add Credits</h1>
-                    <p className="text-gray-400">Add credits to a user account</p>
-                </div>
-            </div>
+            <WorkspaceHeader
+                title="Add Credits"
+                description="Add credits to a user account."
+                action={
+                    <Button variant="secondary" onClick={() => router.back()}>
+                        Cancel
+                    </Button>
+                }
+            />
 
-            {/* Error Message */}
             {error && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"
-                >
-                    <div className="flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                        <p className="text-sm text-red-400">{error}</p>
-                    </div>
-                </motion.div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center gap-3 p-4">
+                        <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+                        <p className="text-sm text-red-700">{error}</p>
+                    </CardContent>
+                </Card>
             )}
 
-            {/* Form */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="bg-dark-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gold-500/20"
-            >
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* User Search */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <User className="w-5 h-5 text-gold-500" />
-                            Select User
-                        </h3>
-                        <div className="relative">
+            <Card>
+                <CardContent className="p-6">
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        <div>
+                            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                                <User className="h-5 w-5 text-gold-600" />
+                                Select user
+                            </h3>
                             <div className="relative">
-                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
+                                <Input
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value)
@@ -232,192 +222,158 @@ const AddCreditsForm = () => {
                                         }
                                     }}
                                     onFocus={() => searchResults.length > 0 && setShowResults(true)}
-                                    className={`w-full pl-12 pr-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.user ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
+                                    leftIcon={<Search className="h-4 w-4" />}
+                                    rightIcon={
+                                        isSearching ? <Loader2 className="h-4 w-4 animate-spin text-gold-500" /> : undefined
+                                    }
                                     placeholder="Search by name, email, or username..."
+                                    error={fieldErrors.user}
                                 />
-                                {isSearching && (
-                                    <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gold-500 animate-spin" />
-                                )}
-                            </div>
 
-                            {/* Search Results Dropdown */}
-                            <AnimatePresence>
-                                {showResults && searchResults.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute z-10 w-full mt-2 bg-navy-800 border border-gold-500/30 rounded-xl shadow-xl overflow-hidden"
-                                    >
-                                        {searchResults.map((user) => (
-                                            <button
-                                                key={user.id}
-                                                type="button"
-                                                onClick={() => handleUserSelect(user)}
-                                                className="w-full px-4 py-3 text-left hover:bg-gold-500/10 transition-colors border-b border-gold-500/10 last:border-0"
-                                            >
-                                                <div className="flex items-center justify-between">
+                                <AnimatePresence>
+                                    {showResults && searchResults.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-card-hover"
+                                        >
+                                            {searchResults.map((user) => (
+                                                <button
+                                                    key={user.id}
+                                                    type="button"
+                                                    onClick={() => handleUserSelect(user)}
+                                                    className="flex w-full items-center justify-between border-b border-zinc-100 px-4 py-3 text-left transition-colors last:border-0 hover:bg-zinc-50"
+                                                >
                                                     <div>
-                                                        <p className="text-white font-medium">
+                                                        <p className="font-medium text-zinc-900">
                                                             {user.firstName} {user.lastName}
                                                         </p>
-                                                        <p className="text-sm text-gray-400">{user.email}</p>
+                                                        <p className="text-sm text-zinc-500">{user.email}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-sm text-gold-500 font-medium">
+                                                        <p className="text-sm font-medium text-gold-700">
                                                             ${Number(user.balance).toFixed(2)}
                                                         </p>
-                                                        <p className="text-xs text-gray-500">Current Balance</p>
+                                                        <p className="text-xs text-zinc-400">Current balance</p>
                                                     </div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                                </button>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
-                            {fieldErrors.user && (
-                                <p className="mt-1 text-sm text-red-400">{fieldErrors.user}</p>
+                            {selectedUser && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mt-4 rounded-lg border border-gold-200 bg-gold-50 p-4"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-100">
+                                            <User className="h-6 w-6 text-gold-700" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-zinc-900">
+                                                {selectedUser.firstName} {selectedUser.lastName}
+                                            </p>
+                                            <p className="flex items-center gap-2 text-sm text-zinc-500">
+                                                <Mail className="h-4 w-4" />
+                                                {selectedUser.email}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-2xl font-semibold text-gold-700">
+                                                ${Number(selectedUser.balance).toFixed(2)}
+                                            </p>
+                                            <p className="text-xs text-zinc-500">Current balance</p>
+                                        </div>
+                                    </div>
+                                </motion.div>
                             )}
                         </div>
 
-                        {/* Selected User Card */}
-                        {selectedUser && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-4 p-4 bg-gold-500/10 border border-gold-500/30 rounded-xl"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gold-500/20 rounded-full flex items-center justify-center">
-                                        <User className="w-6 h-6 text-gold-500" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-white font-semibold">
-                                            {selectedUser.firstName} {selectedUser.lastName}
-                                        </p>
-                                        <p className="text-sm text-gray-400 flex items-center gap-2">
-                                            <Mail className="w-4 h-4" />
-                                            {selectedUser.email}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-bold text-gold-500">
-                                            ${Number(selectedUser.balance).toFixed(2)}
-                                        </p>
-                                        <p className="text-xs text-gray-400">Current Balance</p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </div>
-
-                    {/* Credit Details */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-gold-500" />
-                            Credit Details
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Amount (USD) <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input
-                                        type="number"
-                                        name="amount"
-                                        value={formData.amount}
-                                        onChange={handleInputChange}
-                                        step="0.01"
-                                        min="0"
-                                        className={`w-full pl-12 pr-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors ${fieldErrors.amount ? 'border-red-500/50' : 'border-gold-500/20'
-                                            }`}
-                                        placeholder="100.00"
-                                    />
-                                </div>
-                                {fieldErrors.amount && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.amount}</p>
-                                )}
+                        <div>
+                            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                                <DollarSign className="h-5 w-5 text-gold-600" />
+                                Credit details
+                            </h3>
+                            <div className="space-y-4">
+                                <Input
+                                    label="Amount (USD) *"
+                                    type="number"
+                                    name="amount"
+                                    value={formData.amount}
+                                    onChange={handleInputChange}
+                                    step="0.01"
+                                    min="0"
+                                    leftIcon={<DollarSign className="h-4 w-4" />}
+                                    placeholder="100.00"
+                                    error={fieldErrors.amount}
+                                />
                                 {selectedUser && formData.amount && (
-                                    <p className="mt-2 text-sm text-gray-400">
-                                        New balance will be:
-                                        <span className="text-gold-500 font-semibold ml-1">
+                                    <p className="text-sm text-zinc-500">
+                                        New balance will be:{' '}
+                                        <span className="font-semibold text-gold-700">
                                             ${(Number(selectedUser.balance) + Number(formData.amount)).toFixed(2)}
                                         </span>
                                     </p>
                                 )}
-                            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Reason <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    name="reason"
-                                    value={formData.reason}
-                                    onChange={handleInputChange}
-                                    rows={4}
-                                    className={`w-full px-4 py-3 bg-navy-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors resize-none ${fieldErrors.reason ? 'border-red-500/50' : 'border-gold-500/20'
-                                        }`}
-                                    placeholder="Provide a detailed reason for adding credits (e.g., bonus, refund, compensation, etc.)"
-                                />
-                                {fieldErrors.reason && (
-                                    <p className="mt-1 text-sm text-red-400">{fieldErrors.reason}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Reference Number (Optional)
-                                </label>
-                                <div className="relative">
-                                    <FileText className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        name="reference"
-                                        value={formData.reference}
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">
+                                        Reason <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        name="reason"
+                                        value={formData.reason}
                                         onChange={handleInputChange}
-                                        className="w-full pl-12 pr-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-gold-500/40 transition-colors"
-                                        placeholder="REF-2024-001"
+                                        rows={4}
+                                        className={cn(
+                                            'flex w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500',
+                                            fieldErrors.reason ? 'border-red-300' : 'border-zinc-200'
+                                        )}
+                                        placeholder="Provide a detailed reason for adding credits (e.g., bonus, refund, compensation, etc.)"
                                     />
+                                    {fieldErrors.reason && (
+                                        <p className="mt-1.5 text-sm text-red-600">{fieldErrors.reason}</p>
+                                    )}
                                 </div>
+
+                                <Input
+                                    label="Reference number (optional)"
+                                    type="text"
+                                    name="reference"
+                                    value={formData.reference}
+                                    onChange={handleInputChange}
+                                    leftIcon={<FileText className="h-4 w-4" />}
+                                    placeholder="REF-2024-001"
+                                />
                             </div>
                         </div>
-                    </div>
 
-                    {/* Buttons */}
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            type="button"
-                            onClick={() => router.back()}
-                            disabled={isLoading}
-                            className="px-6 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white hover:bg-navy-700/50 hover:border-gold-500/40 transition-colors disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isLoading ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-navy-900"></div>
-                                    Adding Credits...
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center gap-2">
-                                    <DollarSign className="w-5 h-5" />
-                                    Add Credits
-                                </div>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </motion.div>
+                        <div className="flex gap-3 border-t border-zinc-200 pt-6">
+                            <Button type="button" variant="secondary" onClick={() => router.back()} disabled={isLoading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="flex-1" disabled={isLoading}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Adding credits...
+                                    </>
+                                ) : (
+                                    <>
+                                        <DollarSign className="h-4 w-4" />
+                                        Add credits
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     )
 }

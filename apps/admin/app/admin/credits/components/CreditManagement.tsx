@@ -1,17 +1,43 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
 import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    DataTable,
+    EmptyState,
+    IconButton,
+    Input,
+    SearchInput,
+    Select,
+    Skeleton,
+    StatCard,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    WorkspaceHeader,
+    WorkspaceToolbar,
+    WorkspaceToolbarActions,
+    WorkspaceToolbarFilters,
+    type BadgeVariant,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
+import {
     CreditCard,
     Plus,
     Minus,
-    Search,
     TrendingUp,
     TrendingDown,
-    User,
     CheckCircle,
     Clock,
     AlertTriangle,
@@ -19,10 +45,10 @@ import {
     RefreshCw,
     Eye,
     MoreVertical,
-    Loader2
+    Loader2,
+    X,
 } from 'lucide-react'
 
-// Credit transaction interface
 interface CreditTransaction {
     id: string
     userId: string
@@ -40,8 +66,10 @@ interface CreditTransaction {
 }
 
 const CreditManagement = () => {
+    const router = useRouter()
     const [transactions, setTransactions] = useState<CreditTransaction[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isRefreshing, setIsRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [typeFilter, setTypeFilter] = useState('all')
@@ -54,9 +82,12 @@ const CreditManagement = () => {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const { addToast } = useToast()
 
-    // Fetch credit transactions
-    const fetchCreditHistory = async (userId = null) => {
-        setIsLoading(true)
+    const fetchCreditHistory = async (userId = null, showRefreshIndicator = false) => {
+        if (showRefreshIndicator) {
+            setIsRefreshing(true)
+        } else {
+            setIsLoading(true)
+        }
         setError(null)
 
         try {
@@ -77,6 +108,7 @@ const CreditManagement = () => {
             setError('An error occurred while loading credit history')
         } finally {
             setIsLoading(false)
+            setIsRefreshing(false)
         }
     }
 
@@ -84,8 +116,9 @@ const CreditManagement = () => {
         fetchCreditHistory()
     }, [])
 
-    const filteredTransactions = transactions.filter(transaction => {
-        const matchesSearch = transaction.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const filteredTransactions = transactions.filter((transaction) => {
+        const matchesSearch =
+            transaction.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             transaction.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             transaction.transactionId.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesType = typeFilter === 'all' || transaction.type === typeFilter
@@ -95,30 +128,30 @@ const CreditManagement = () => {
     })
 
     const stats = {
-        totalCredits: transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0),
-        totalDebits: transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0),
-        pendingTransactions: transactions.filter(t => t.status === 'pending').length,
-        completedTransactions: transactions.filter(t => t.status === 'completed').length
+        totalCredits: transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0),
+        totalDebits: transactions.filter((t) => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0),
+        pendingTransactions: transactions.filter((t) => t.status === 'pending').length,
+        completedTransactions: transactions.filter((t) => t.status === 'completed').length,
     }
 
-    const getStatusBadge = (status: string) => {
-        const badges = {
-            completed: 'bg-green-500/20 text-green-400 border-green-500/30',
-            pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-            failed: 'bg-red-500/20 text-red-400 border-red-500/30'
-        }
-        return badges[status as keyof typeof badges] || badges.pending
-    }
-
-    const getStatusIcon = (status: string) => {
+    const getStatusBadgeVariant = (status: string): BadgeVariant => {
         switch (status) {
             case 'completed':
-                return <CheckCircle className="w-4 h-4 text-green-500" />
+                return 'success'
             case 'pending':
-                return <Clock className="w-4 h-4 text-yellow-500" />
+                return 'warning'
+            case 'failed':
+                return 'error'
             default:
-                return <AlertTriangle className="w-4 h-4 text-red-500" />
+                return 'neutral'
         }
+    }
+
+    const resetAddCreditForm = () => {
+        setSelectedUser('')
+        setCreditAmount('')
+        setCreditReason('')
+        setOperationType('credit')
     }
 
     const handleAddCredit = async () => {
@@ -140,385 +173,326 @@ const CreditManagement = () => {
             if (operationType === 'credit') {
                 response = await apiClient.addCredits(selectedUser, {
                     amount,
-                    reason: creditReason
+                    reason: creditReason,
                 })
             } else {
                 response = await apiClient.deductCredits(selectedUser, amount, creditReason)
             }
 
             if (response.success) {
-                addToast('success', 'Operation Successful', `Credits ${operationType === 'credit' ? 'added' : 'deducted'} successfully`)
+                addToast(
+                    'success',
+                    'Operation Successful',
+                    `Credits ${operationType === 'credit' ? 'added' : 'deducted'} successfully`
+                )
                 setShowAddCredit(false)
-                setSelectedUser('')
-                setCreditAmount('')
-                setCreditReason('')
-                fetchCreditHistory() // Refresh the list
+                resetAddCreditForm()
+                fetchCreditHistory()
             } else {
-                addToast('error', 'Operation Failed', response.error?.message || `Failed to ${operationType} credits`)
+                addToast(
+                    'error',
+                    'Operation Failed',
+                    response.error?.message || `Failed to ${operationType} credits`
+                )
             }
-        } catch (error) {
-            console.error('Error managing credits:', error)
+        } catch (addError) {
+            console.error('Error managing credits:', addError)
             addToast('error', 'Error', 'An error occurred while processing the request')
         } finally {
             setIsSubmitting(false)
         }
     }
 
+    if (isLoading && transactions.length === 0) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            {/* Loading State */}
-            {isLoading && (
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-4" />
-                        <p className="text-gray-400">Loading credit transactions...</p>
+            <WorkspaceHeader
+                title="Credit Management"
+                description="Manage user account credits and debits."
+                action={
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" onClick={() => setShowAddCredit(true)}>
+                            <Plus className="h-4 w-4" />
+                            Quick adjust
+                        </Button>
+                        <Button onClick={() => router.push('/admin/treasury/credits/add')}>
+                            <CreditCard className="h-4 w-4" />
+                            Add credits
+                        </Button>
                     </div>
-                </div>
+                }
+            />
+
+            {error && (
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                            <p className="text-sm text-red-700">{error}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => fetchCreditHistory()}>
+                            Retry
+                        </Button>
+                    </CardContent>
+                </Card>
             )}
 
-            {/* Error State */}
-            {error && !isLoading && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
-                    <div className="flex items-center">
-                        <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
-                        <div>
-                            <h3 className="text-red-400 font-semibold">Error Loading Credit Data</h3>
-                            <p className="text-red-300 text-sm">{error}</p>
-                        </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                    title="Total Credits"
+                    value={`$${stats.totalCredits.toLocaleString()}`}
+                    icon={TrendingUp}
+                    iconClassName="bg-green-50"
+                />
+                <StatCard
+                    title="Total Debits"
+                    value={`$${stats.totalDebits.toLocaleString()}`}
+                    icon={TrendingDown}
+                    iconClassName="bg-red-50"
+                />
+                <StatCard title="Pending" value={String(stats.pendingTransactions)} icon={Clock} />
+                <StatCard title="Completed" value={String(stats.completedTransactions)} icon={CheckCircle} />
+            </div>
+
+            <WorkspaceToolbar>
+                <WorkspaceToolbarFilters>
+                    <SearchInput
+                        placeholder="Search transactions..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        containerClassName="w-full sm:w-64"
+                    />
+                    <Select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="w-full sm:w-36"
+                    >
+                        <option value="all">All types</option>
+                        <option value="credit">Credits</option>
+                        <option value="debit">Debits</option>
+                    </Select>
+                    <Select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full sm:w-36"
+                    >
+                        <option value="all">All status</option>
+                        <option value="completed">Completed</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                    </Select>
+                </WorkspaceToolbarFilters>
+
+                <WorkspaceToolbarActions>
+                    <IconButton onClick={() => fetchCreditHistory(null, true)} disabled={isRefreshing} title="Refresh">
+                        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    </IconButton>
+                    <IconButton title="Export">
+                        <Download className="h-4 w-4" />
+                    </IconButton>
+                </WorkspaceToolbarActions>
+            </WorkspaceToolbar>
+
+            <DataTable>
+                {isRefreshing ? (
+                    <div className="flex items-center justify-center py-16">
+                        <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
                     </div>
-                    <button
-                        onClick={() => fetchCreditHistory()}
-                        className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            )}
+                ) : filteredTransactions.length === 0 ? (
+                    <EmptyState
+                        icon={CreditCard}
+                        title="No transactions found"
+                        description="Try adjusting your search or filters."
+                        actionLabel="Add credits"
+                        onAction={() => router.push('/admin/treasury/credits/add')}
+                    />
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Transaction</TableHead>
+                                <TableHead>User</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Balance change</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredTransactions.map((transaction) => (
+                                <TableRow key={transaction.id}>
+                                    <TableCell>
+                                        <p className="font-medium text-zinc-900">{transaction.transactionId}</p>
+                                        <p className="text-sm text-zinc-500">{transaction.reason}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar name={transaction.userName} size="sm" />
+                                            <div>
+                                                <p className="font-medium text-zinc-900">{transaction.userName}</p>
+                                                <p className="text-sm text-zinc-500">{transaction.userEmail}</p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2 capitalize">
+                                            {transaction.type === 'credit' ? (
+                                                <Plus className="h-4 w-4 text-green-600" />
+                                            ) : (
+                                                <Minus className="h-4 w-4 text-red-600" />
+                                            )}
+                                            <span
+                                                className={
+                                                    transaction.type === 'credit' ? 'text-green-700' : 'text-red-700'
+                                                }
+                                            >
+                                                {transaction.type}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell
+                                        className={
+                                            transaction.type === 'credit'
+                                                ? 'font-medium text-green-700'
+                                                : 'font-medium text-red-700'
+                                        }
+                                    >
+                                        {transaction.type === 'credit' ? '+' : '-'}$
+                                        {transaction.amount.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-zinc-500">
+                                        ${transaction.previousBalance.toLocaleString()} → $
+                                        {transaction.newBalance.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={getStatusBadgeVariant(transaction.status)}>
+                                            {transaction.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <p className="text-sm text-zinc-900">{transaction.timestamp.split(' ')[0]}</p>
+                                        <p className="text-xs text-zinc-500">{transaction.timestamp.split(' ')[1]}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <IconButton title="View">
+                                                <Eye className="h-4 w-4" />
+                                            </IconButton>
+                                            <IconButton title="More">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </IconButton>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </DataTable>
 
-            {/* Main Content */}
-            {!isLoading && !error && (
-                <>
-                    {/* Header */}
+            {showAddCredit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-2xl p-6 border border-green-500/20"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-card-hover"
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-2">Credit Management</h2>
-                                <p className="text-gray-300">Manage user account credits and debits</p>
-                            </div>
-                            <button
-                                onClick={() => setShowAddCredit(true)}
-                                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg"
-                            >
-                                <Plus className="w-5 h-5" />
-                                <span>Add Credit/Debit</span>
-                            </button>
-                        </div>
-                    </motion.div>
-
-                    {/* Stats Cards */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1, duration: 0.6 }}
-                        className="grid grid-cols-1 md:grid-cols-4 gap-6"
-                    >
-                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                                    <TrendingUp className="w-6 h-6 text-green-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white">${stats.totalCredits.toLocaleString()}</p>
-                                    <p className="text-gray-400 text-sm">Total Credits</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                                    <TrendingDown className="w-6 h-6 text-red-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white">${stats.totalDebits.toLocaleString()}</p>
-                                    <p className="text-gray-400 text-sm">Total Debits</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
-                                    <Clock className="w-6 h-6 text-yellow-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white">{stats.pendingTransactions}</p>
-                                    <p className="text-gray-400 text-sm">Pending</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                                    <CheckCircle className="w-6 h-6 text-blue-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white">{stats.completedTransactions}</p>
-                                    <p className="text-gray-400 text-sm">Completed</p>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Add Credit Modal */}
-                    {
-                        showAddCredit && (
-                            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="bg-dark-800 rounded-2xl p-6 w-full max-w-md border border-gold-500/20"
+                        <div className="p-6">
+                            <div className="mb-6 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-zinc-900">Quick credit/debit</h2>
+                                <button
+                                    onClick={() => {
+                                        setShowAddCredit(false)
+                                        resetAddCreditForm()
+                                    }}
+                                    className="text-zinc-400 hover:text-zinc-600"
                                 >
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-xl font-bold text-white">Add Credit/Debit</h3>
-                                        <button
-                                            onClick={() => setShowAddCredit(false)}
-                                            className="text-gray-400 hover:text-white"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">Operation Type</label>
-                                            <select
-                                                value={operationType}
-                                                onChange={(e) => setOperationType(e.target.value)}
-                                                className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            >
-                                                <option value="credit">Credit (Add Money)</option>
-                                                <option value="debit">Debit (Deduct Money)</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">User Name</label>
-                                            <input
-                                                type="text"
-                                                value={selectedUser}
-                                                onChange={(e) => setSelectedUser(e.target.value)}
-                                                placeholder="Enter user name"
-                                                className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">Amount ($)</label>
-                                            <input
-                                                type="number"
-                                                value={creditAmount}
-                                                onChange={(e) => setCreditAmount(e.target.value)}
-                                                placeholder="0.00"
-                                                min="0"
-                                                step="0.01"
-                                                className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">Reason</label>
-                                            <textarea
-                                                value={creditReason}
-                                                onChange={(e) => setCreditReason(e.target.value)}
-                                                placeholder="Enter reason for this transaction"
-                                                rows={3}
-                                                className="w-full px-4 py-3 bg-navy-800/50 border border-gold-500/20 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            />
-                                        </div>
-
-                                        <div className="flex space-x-4 pt-4">
-                                            <button
-                                                onClick={() => setShowAddCredit(false)}
-                                                className="flex-1 px-4 py-3 bg-gray-600/20 text-gray-300 rounded-xl hover:bg-gray-600/30 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={handleAddCredit}
-                                                className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all font-semibold"
-                                            >
-                                                {operationType === 'credit' ? 'Add Credit' : 'Add Debit'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </motion.div>
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-                        )
-                    }
 
-                    {/* Controls */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2, duration: 0.6 }}
-                        className="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-gold-500/20"
-                    >
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                                {/* Search */}
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search transactions..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 pr-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">
+                                        Operation type
+                                    </label>
+                                    <Select
+                                        value={operationType}
+                                        onChange={(e) => setOperationType(e.target.value)}
+                                    >
+                                        <option value="credit">Credit (add money)</option>
+                                        <option value="debit">Debit (deduct money)</option>
+                                    </Select>
+                                </div>
+
+                                <Input
+                                    label="User name"
+                                    value={selectedUser}
+                                    onChange={(e) => setSelectedUser(e.target.value)}
+                                    placeholder="Enter user name"
+                                />
+
+                                <Input
+                                    label="Amount ($)"
+                                    type="number"
+                                    value={creditAmount}
+                                    onChange={(e) => setCreditAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    min="0"
+                                    step="0.01"
+                                />
+
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">Reason</label>
+                                    <textarea
+                                        value={creditReason}
+                                        onChange={(e) => setCreditReason(e.target.value)}
+                                        placeholder="Enter reason for this transaction"
+                                        rows={3}
+                                        className="flex w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                                     />
                                 </div>
 
-                                {/* Type Filter */}
-                                <select
-                                    value={typeFilter}
-                                    onChange={(e) => setTypeFilter(e.target.value)}
-                                    className="px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                >
-                                    <option value="all">All Types</option>
-                                    <option value="credit">Credits</option>
-                                    <option value="debit">Debits</option>
-                                </select>
-
-                                {/* Status Filter */}
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="px-4 py-2 bg-navy-800/50 border border-gold-500/20 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="failed">Failed</option>
-                                </select>
-                            </div>
-
-                            <div className="flex items-center space-x-4">
-                                <button className="p-2 text-gray-400 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors">
-                                    <Download className="w-5 h-5" />
-                                </button>
-                                <button className="p-2 text-gray-400 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors">
-                                    <RefreshCw className="w-5 h-5" />
-                                </button>
+                                <div className="flex gap-3 pt-2">
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            setShowAddCredit(false)
+                                            resetAddCreditForm()
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button className="flex-1" onClick={handleAddCredit} disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : operationType === 'credit' ? (
+                                            'Add credit'
+                                        ) : (
+                                            'Add debit'
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
-
-                    {/* Transactions Table */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.6 }}
-                        className="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-gold-500/20 overflow-hidden"
-                    >
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-navy-800/50 border-b border-gold-500/20">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Transaction</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">User</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Type</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Amount</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Balance Change</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gold-500/10">
-                                    {filteredTransactions.map((transaction) => (
-                                        <tr key={transaction.id} className="hover:bg-navy-800/30 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="text-white font-medium">{transaction.transactionId}</p>
-                                                    <p className="text-gray-400 text-sm">{transaction.reason}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-3">
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                                                        <User className="w-4 h-4 text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-white font-medium">{transaction.userName}</p>
-                                                        <p className="text-gray-400 text-sm">{transaction.userEmail}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    {transaction.type === 'credit' ? (
-                                                        <Plus className="w-4 h-4 text-green-500" />
-                                                    ) : (
-                                                        <Minus className="w-4 h-4 text-red-500" />
-                                                    )}
-                                                    <span className={`font-medium ${transaction.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`font-medium ${transaction.type === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {transaction.type === 'credit' ? '+' : '-'}${transaction.amount.toLocaleString()}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="text-gray-400 text-sm">
-                                                        ${transaction.previousBalance.toLocaleString()} → ${transaction.newBalance.toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    {getStatusIcon(transaction.status)}
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(transaction.status)}`}>
-                                                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="text-white text-sm">{transaction.timestamp.split(' ')[0]}</p>
-                                                    <p className="text-gray-400 text-xs">{transaction.timestamp.split(' ')[1]}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <button className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors">
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button className="p-2 text-gray-400 hover:text-white hover:bg-navy-700/50 rounded-lg transition-colors">
-                                                        <MoreVertical className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {filteredTransactions.length === 0 && (
-                            <div className="text-center py-12">
-                                <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-400">No transactions found matching your criteria</p>
-                            </div>
-                        )}
-                    </motion.div>
-                </>
+                </div>
             )}
         </div>
     )
