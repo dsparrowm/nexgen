@@ -11,10 +11,10 @@ const AdminPage = () => {
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-navy-900 to-dark-800 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500 mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-gold-500" />
+          <p className="text-sm text-zinc-500">Loading admin portal...</p>
         </div>
       </div>
     )
