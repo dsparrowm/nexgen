@@ -7,7 +7,10 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -45,10 +48,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (isLoading) {
         return (
             fallback || (
-                <div className="min-h-screen bg-gradient-to-br from-dark-900 via-navy-900 to-dark-800 flex items-center justify-center">
-                    <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500 mb-4"></div>
-                        <p className="text-gray-400">Verifying access...</p>
+                <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-gold-500" />
+                        <p className="text-sm text-zinc-500">Verifying access...</p>
                     </div>
                 </div>
             )
@@ -63,36 +66,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Insufficient permissions
     if (requiredRole && admin?.role !== requiredRole && admin?.role !== 'SUPER_ADMIN') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-dark-900 via-navy-900 to-dark-800 flex items-center justify-center">
-                <div className="bg-dark-800/80 backdrop-blur-xl rounded-3xl p-8 border border-red-500/20 shadow-2xl max-w-md">
-                    <div className="text-center">
-                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg
-                                className="w-8 h-8 text-red-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                />
-                            </svg>
+            <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
+                <Card className="w-full max-w-md border-red-200 shadow-card">
+                    <CardContent className="p-8 text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200 bg-red-50">
+                            <AlertTriangle className="h-8 w-8 text-red-600" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
-                        <p className="text-gray-400 mb-6">
+                        <h2 className="mb-2 text-2xl font-semibold text-zinc-900">Access Denied</h2>
+                        <p className="mb-6 text-sm leading-relaxed text-zinc-500">
                             You don't have permission to access this page. This area requires {requiredRole} role.
                         </p>
-                        <button
-                            onClick={() => router.push('/admin')}
-                            className="btn-primary"
-                        >
+                        <Button onClick={() => router.push('/admin')}>
                             Go to Dashboard
-                        </button>
-                    </div>
-                </div>
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

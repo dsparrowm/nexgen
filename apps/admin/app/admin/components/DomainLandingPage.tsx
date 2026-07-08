@@ -3,7 +3,10 @@
 import React from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, LucideIcon } from 'lucide-react'
+import { ArrowRight, LucideIcon } from 'lucide-react'
+import { Badge, type BadgeVariant } from '@/components/ui/Badge'
+import { Card, CardContent } from '@/components/ui/Card'
+import { cn } from '@/lib/utils'
 
 interface DomainCard {
     title: string
@@ -25,9 +28,9 @@ interface DomainLandingPageProps {
     }
 }
 
-const statusStyles: Record<DomainCard['status'], string> = {
-    live: 'border-green-500/30 bg-green-500/10 text-green-300',
-    planned: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
+const statusVariants: Record<DomainCard['status'], BadgeVariant> = {
+    live: 'success',
+    planned: 'neutral',
 }
 
 const statusLabels: Record<DomainCard['status'], string> = {
@@ -44,19 +47,23 @@ const DomainLandingPage: React.FC<DomainLandingPageProps> = ({
 }) => {
     return (
         <div className="space-y-6">
-            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/60 p-6 backdrop-blur-sm">
-                <div className="inline-flex rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-gold-300">
-                    {eyebrow}
-                </div>
-                <h1 className="mt-4 text-3xl font-bold text-white">{title}</h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-300">{description}</p>
-            </div>
+            <Card>
+                <CardContent className="p-6">
+                    <div className="inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-800">
+                        {eyebrow}
+                    </div>
+                    <h1 className="mt-4 text-2xl font-semibold text-zinc-900">{title}</h1>
+                    <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-500">{description}</p>
+                </CardContent>
+            </Card>
 
             {callout && (
-                <div className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-5">
-                    <h2 className="text-lg font-semibold text-white">{callout.title}</h2>
-                    <p className="mt-2 text-sm text-gray-300">{callout.description}</p>
-                </div>
+                <Card className="border-gold-200 bg-gold-50/50">
+                    <CardContent className="p-6">
+                        <h2 className="text-sm font-semibold text-zinc-900">{callout.title}</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-500">{callout.description}</p>
+                    </CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -66,30 +73,32 @@ const DomainLandingPage: React.FC<DomainLandingPageProps> = ({
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.35, delay: index * 0.04 }}
-                            className="h-full rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm transition-colors hover:border-gold-400/30"
+                            className="h-full"
                         >
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="rounded-2xl bg-gold-500/10 p-3 text-gold-300">
-                                    <card.icon className="h-5 w-5" />
-                                </div>
-                                <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[card.status]}`}>
-                                    {statusLabels[card.status]}
-                                </span>
-                            </div>
+                            <Card className={cn('h-full card-hover', card.href && 'cursor-pointer')}>
+                                <CardContent className="p-6">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-zinc-600">
+                                            <card.icon className="h-5 w-5" />
+                                        </div>
+                                        <Badge variant={statusVariants[card.status]}>
+                                            {statusLabels[card.status]}
+                                        </Badge>
+                                    </div>
 
-                            <h2 className="mt-5 text-xl font-semibold text-white">{card.title}</h2>
-                            <p className="mt-2 text-sm leading-6 text-gray-300">{card.description}</p>
+                                    <h2 className="mt-5 text-lg font-semibold text-zinc-900">{card.title}</h2>
+                                    <p className="mt-2 text-sm leading-relaxed text-zinc-500">{card.description}</p>
 
-                            {card.note && (
-                                <p className="mt-4 text-xs uppercase tracking-[0.16em] text-gray-500">{card.note}</p>
-                            )}
+                                    {card.note && (
+                                        <p className="mt-4 text-xs uppercase tracking-wider text-zinc-400">{card.note}</p>
+                                    )}
 
-                            {card.href && (
-                                <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-gold-300">
-                                    Open tool
-                                    <ArrowUpRight className="h-4 w-4" />
-                                </div>
-                            )}
+                                    <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-gold-700">
+                                        {card.href ? 'Open tool' : 'Coming soon'}
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </motion.div>
                     )
 
@@ -98,7 +107,7 @@ const DomainLandingPage: React.FC<DomainLandingPageProps> = ({
                     }
 
                     return (
-                        <Link key={card.title} href={card.href} className="block">
+                        <Link key={card.title} href={card.href} className="block h-full">
                             {content}
                         </Link>
                     )

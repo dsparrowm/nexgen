@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -19,6 +20,28 @@ interface ToastItemProps {
     onRemove: (id: string) => void
 }
 
+const toastStyles: Record<
+    ToastType,
+    { container: string; icon: string }
+> = {
+    success: {
+        container: 'border-green-200 bg-green-50',
+        icon: 'text-green-600',
+    },
+    error: {
+        container: 'border-red-200 bg-red-50',
+        icon: 'text-red-600',
+    },
+    warning: {
+        container: 'border-amber-200 bg-amber-50',
+        icon: 'text-amber-600',
+    },
+    info: {
+        container: 'border-blue-200 bg-blue-50',
+        icon: 'text-blue-600',
+    },
+}
+
 const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
     const [isVisible, setIsVisible] = useState(true)
 
@@ -32,32 +55,19 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
     }, [toast.id, toast.duration, onRemove])
 
     const getIcon = () => {
-        switch (toast.type) {
-            case 'success':
-                return <CheckCircle className="w-5 h-5 text-green-500" />
-            case 'error':
-                return <XCircle className="w-5 h-5 text-red-500" />
-            case 'warning':
-                return <AlertCircle className="w-5 h-5 text-yellow-500" />
-            case 'info':
-                return <AlertCircle className="w-5 h-5 text-blue-500" />
-            default:
-                return <AlertCircle className="w-5 h-5 text-blue-500" />
-        }
-    }
+        const iconClass = cn('h-5 w-5', toastStyles[toast.type].icon)
 
-    const getBorderColor = () => {
         switch (toast.type) {
             case 'success':
-                return 'border-green-500/30'
+                return <CheckCircle className={iconClass} />
             case 'error':
-                return 'border-red-500/30'
+                return <XCircle className={iconClass} />
             case 'warning':
-                return 'border-yellow-500/30'
+                return <AlertCircle className={iconClass} />
             case 'info':
-                return 'border-blue-500/30'
+                return <AlertCircle className={iconClass} />
             default:
-                return 'border-blue-500/30'
+                return <AlertCircle className={iconClass} />
         }
     }
 
@@ -68,17 +78,18 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
                     initial={{ opacity: 0, x: 300, scale: 0.3 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 300, scale: 0.5, transition: { duration: 0.2 } }}
-                    transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                    className={`bg-dark-800/95 backdrop-blur-sm border ${getBorderColor()} rounded-xl p-4 shadow-lg max-w-sm w-full`}
+                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                    className={cn(
+                        'w-full max-w-sm rounded-xl border p-4 shadow-card',
+                        toastStyles[toast.type].container
+                    )}
                 >
                     <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0">
-                            {getIcon()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium text-sm">{toast.title}</p>
+                        <div className="flex-shrink-0">{getIcon()}</div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-zinc-900">{toast.title}</p>
                             {toast.message && (
-                                <p className="text-gray-300 text-sm mt-1">{toast.message}</p>
+                                <p className="mt-1 text-sm text-zinc-600">{toast.message}</p>
                             )}
                         </div>
                         <button
@@ -86,9 +97,9 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
                                 setIsVisible(false)
                                 setTimeout(() => onRemove(toast.id), 300)
                             }}
-                            className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                            className="flex-shrink-0 text-zinc-400 transition-colors hover:text-zinc-600"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="h-4 w-4" />
                         </button>
                     </div>
                 </motion.div>
