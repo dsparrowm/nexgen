@@ -1,23 +1,51 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { apiClient, type AdminAssetDashboard, type AdminAssetPosition } from '@/lib/api'
 import { adminRoutes } from '@/lib/adminRoutes'
 import { useToast } from '@/components/ToastContext'
 import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    DataTable,
+    EmptyState,
+    IconButton,
+    Input,
+    Pagination,
+    SearchInput,
+    Select,
+    Skeleton,
+    StatCard,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    WorkspaceHeader,
+    WorkspaceToolbar,
+    WorkspaceToolbarActions,
+    WorkspaceToolbarFilters,
+    type BadgeVariant,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
+import {
+    AlertTriangle,
+    BadgeCheck,
     CandlestickChart,
-    Loader2,
+    CircleDollarSign,
+    Edit3,
+    ExternalLink,
     RefreshCw,
-    Search,
+    Save,
     TrendingUp,
     Users,
-    BadgeCheck,
-    Edit3,
     X,
-    Save,
-    CircleDollarSign,
 } from 'lucide-react'
 
 interface PositionFormState {
@@ -69,15 +97,15 @@ const editableFields: EditableField[] = [
 const formatCurrency = (value: number | string) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value || 0))
 
-const formatDateTime = (value: string | null) => {
-    if (!value) return 'N/A'
-    return new Date(value).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    })
+const getStatusBadgeVariant = (status: string): BadgeVariant => {
+    switch (status) {
+        case 'ACTIVE':
+            return 'success'
+        case 'CLOSED':
+            return 'neutral'
+        default:
+            return 'neutral'
+    }
 }
 
 const AssetManagement = () => {
@@ -196,378 +224,395 @@ const AssetManagement = () => {
     const summary = dashboard?.summary
     const catalog = dashboard?.catalog || []
     const positions = dashboard?.positions || []
-
-    const statCards = [
-        {
-            label: 'Supported Assets',
-            value: summary?.supportedAssets ?? 0,
-            helper: 'Catalog level assets',
-            icon: CandlestickChart,
-        },
-        {
-            label: 'Total Positions',
-            value: summary?.totalPositions ?? 0,
-            helper: 'All tracked holdings',
-            icon: Users,
-        },
-        {
-            label: 'Active Positions',
-            value: summary?.activePositions ?? 0,
-            helper: 'Currently open',
-            icon: BadgeCheck,
-        },
-        {
-            label: 'Net PnL',
-            value: formatCurrency(summary?.totalPnL ?? 0),
-            helper: 'Across filtered positions',
-            icon: TrendingUp,
-        },
-    ]
+    const pagination = dashboard?.pagination
 
     const activePositionsValue = positions.reduce((sum, position) => sum + Number(position.currentValue || 0), 0)
 
+    const handlePageChange = (page: number) => {
+        loadDashboard(page)
+    }
+
+    if (loading && !dashboard) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-96 w-full" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="max-w-2xl">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
-                            Assets Desk
-                        </div>
-                        <h1 className="mt-4 text-3xl font-bold text-white">Asset portfolio control is now live</h1>
-                        <p className="mt-3 text-sm leading-6 text-gray-300">
-                            Admin can review every user asset position, inspect the supported asset catalog, and apply audited manual overrides when a portfolio correction is needed.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        <Link
-                            href={adminRoutes.customers}
-                            className="inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-2 text-sm text-white transition-colors hover:bg-navy-800"
-                        >
-                            <Users className="h-4 w-4" />
-                            Customer 360
+            <WorkspaceHeader
+                title="Asset Management"
+                description="Review user asset positions, inspect the supported catalog, and apply audited manual overrides."
+                action={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link href={adminRoutes.customers}>
+                            <Button variant="secondary">
+                                <Users className="h-4 w-4" />
+                                Customer 360
+                            </Button>
                         </Link>
-                        <button
-                            onClick={() => loadDashboard(currentPage, true)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400"
-                        >
-                            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            Refresh
-                        </button>
+                        <IconButton onClick={() => loadDashboard(currentPage, true)} disabled={refreshing} title="Refresh">
+                            <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                        </IconButton>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                </div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                            <p className="text-sm text-red-700">{error}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => loadDashboard(currentPage)}>
+                            Retry
+                        </Button>
+                    </CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {statCards.map((card) => (
-                    <motion.div
-                        key={card.label}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="rounded-2xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm"
-                    >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-400">{card.label}</p>
-                                <p className="mt-2 text-3xl font-bold text-white">{card.value}</p>
-                                <p className="mt-1 text-xs text-gray-500">{card.helper}</p>
-                            </div>
-                            <div className="rounded-xl bg-gold-500/10 p-3 text-gold-300">
-                                <card.icon className="h-5 w-5" />
-                            </div>
-                        </div>
-                    </motion.div>
-                ))}
+                <StatCard
+                    title="Supported Assets"
+                    value={String(summary?.supportedAssets ?? 0)}
+                    description="Catalog level assets"
+                    icon={CandlestickChart}
+                />
+                <StatCard
+                    title="Total Positions"
+                    value={String(summary?.totalPositions ?? 0)}
+                    description="All tracked holdings"
+                    icon={Users}
+                />
+                <StatCard
+                    title="Active Positions"
+                    value={String(summary?.activePositions ?? 0)}
+                    description="Currently open"
+                    icon={BadgeCheck}
+                />
+                <StatCard
+                    title="Net PnL"
+                    value={formatCurrency(summary?.totalPnL ?? 0)}
+                    description="Across filtered positions"
+                    icon={TrendingUp}
+                />
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                    <h2 className="text-xl font-semibold text-white">Supported Assets</h2>
-                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {catalog.map((asset) => (
-                            <div key={asset.symbol} className="rounded-2xl border border-gold-500/20 bg-navy-900/50 p-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-lg font-semibold text-white">{asset.name}</p>
-                                        <p className="text-xs uppercase tracking-[0.18em] text-gray-500">{asset.symbol}</p>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Supported Assets</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {catalog.map((asset) => (
+                                <div
+                                    key={asset.symbol}
+                                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium text-zinc-900">{asset.name}</p>
+                                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                                {asset.symbol}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg bg-gold-50 p-2 text-gold-700">
+                                            <CircleDollarSign className="h-4 w-4" />
+                                        </div>
                                     </div>
-                                    <div className="rounded-xl bg-gold-500/10 p-2 text-gold-300">
-                                        <CircleDollarSign className="h-4 w-4" />
+                                    <p className="mt-2 text-sm text-zinc-600">{asset.description}</p>
+                                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <p className="text-zinc-400">Network</p>
+                                            <p className="font-medium text-zinc-700">{asset.network}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-zinc-400">Ref Price</p>
+                                            <p className="font-medium text-zinc-700">
+                                                {formatCurrency(asset.referencePrice)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-zinc-400">Min Buy</p>
+                                            <p className="font-medium text-zinc-700">
+                                                {formatCurrency(asset.minInvestment)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-zinc-400">Precision</p>
+                                            <p className="font-medium text-zinc-700">{asset.precision}</p>
+                                        </div>
                                     </div>
                                 </div>
-                                <p className="mt-3 text-sm text-gray-300">{asset.description}</p>
-                                <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-gray-400">
-                                    <div>
-                                        <p>Network</p>
-                                        <p className="text-white">{asset.network}</p>
-                                    </div>
-                                    <div>
-                                        <p>Ref Price</p>
-                                        <p className="text-white">{formatCurrency(asset.referencePrice)}</p>
-                                    </div>
-                                    <div>
-                                        <p>Min Buy</p>
-                                        <p className="text-white">{formatCurrency(asset.minInvestment)}</p>
-                                    </div>
-                                    <div>
-                                        <p>Precision</p>
-                                        <p className="text-white">{asset.precision}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                    <h2 className="text-xl font-semibold text-white">Asset Summary</h2>
-                    <div className="mt-4 grid grid-cols-1 gap-3">
-                        <div className="rounded-2xl bg-navy-900/50 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Total Invested</p>
-                            <p className="mt-2 text-2xl font-bold text-white">{formatCurrency(summary?.totalInvested ?? 0)}</p>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Asset Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Total Invested</p>
+                            <p className="mt-1 text-2xl font-semibold text-zinc-900">
+                                {formatCurrency(summary?.totalInvested ?? 0)}
+                            </p>
                         </div>
-                        <div className="rounded-2xl bg-navy-900/50 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Current Value</p>
-                            <p className="mt-2 text-2xl font-bold text-white">{formatCurrency(summary?.currentValue ?? 0)}</p>
+                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Current Value</p>
+                            <p className="mt-1 text-2xl font-semibold text-zinc-900">
+                                {formatCurrency(summary?.currentValue ?? 0)}
+                            </p>
                         </div>
-                        <div className="rounded-2xl bg-navy-900/50 p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Visible Positions Value</p>
-                            <p className="mt-2 text-2xl font-bold text-white">{formatCurrency(activePositionsValue)}</p>
+                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                Visible Positions Value
+                            </p>
+                            <p className="mt-1 text-2xl font-semibold text-zinc-900">
+                                {formatCurrency(activePositionsValue)}
+                            </p>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
 
-            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                        <input
-                            value={searchTerm}
-                            onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Search by user, email, or symbol"
-                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 py-3 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
-                        />
-                    </div>
-
-                    <select
+            <WorkspaceToolbar>
+                <WorkspaceToolbarFilters>
+                    <SearchInput
+                        placeholder="Search by user, email, or symbol"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        containerClassName="w-full sm:w-72"
+                    />
+                    <Select
                         value={symbolFilter}
-                        onChange={(event) => setSymbolFilter(event.target.value)}
-                        className="rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none"
+                        onChange={(e) => setSymbolFilter(e.target.value)}
+                        className="w-full sm:w-40"
                     >
                         <option value="all">All assets</option>
                         {catalog.map((asset) => (
-                            <option key={asset.symbol} value={asset.symbol}>{asset.symbol}</option>
+                            <option key={asset.symbol} value={asset.symbol}>
+                                {asset.symbol}
+                            </option>
                         ))}
-                    </select>
-
-                    <select
+                    </Select>
+                    <Select
                         value={statusFilter}
-                        onChange={(event) => setStatusFilter(event.target.value)}
-                        className="rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none"
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full sm:w-40"
                     >
                         <option value="all">All statuses</option>
                         <option value="ACTIVE">Active</option>
                         <option value="CLOSED">Closed</option>
-                    </select>
-                </div>
-            </div>
+                    </Select>
+                </WorkspaceToolbarFilters>
 
-            <div className="overflow-hidden rounded-3xl border border-gold-500/20 bg-dark-800/50 backdrop-blur-sm">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gold-500/10">
-                        <thead className="bg-dark-900/40">
-                            <tr className="text-left text-xs uppercase tracking-[0.18em] text-gray-400">
-                                <th className="px-5 py-4 font-medium">User</th>
-                                <th className="px-5 py-4 font-medium">Asset</th>
-                                <th className="px-5 py-4 font-medium">Invested</th>
-                                <th className="px-5 py-4 font-medium">Current Value</th>
-                                <th className="px-5 py-4 font-medium">PnL</th>
-                                <th className="px-5 py-4 font-medium">Status</th>
-                                <th className="px-5 py-4 font-medium">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gold-500/10">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
-                                        Loading asset positions...
-                                    </td>
-                                </tr>
-                            ) : positions.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
-                                        No asset positions matched the current filters.
-                                    </td>
-                                </tr>
-                            ) : (
-                                positions.map((position) => (
-                                    <tr key={position.id}>
-                                        <td className="px-5 py-4">
-                                            <div className="space-y-1">
-                                                <p className="font-medium text-white">
+                <WorkspaceToolbarActions>
+                    <IconButton onClick={() => loadDashboard(currentPage, true)} disabled={refreshing} title="Refresh">
+                        <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                    </IconButton>
+                </WorkspaceToolbarActions>
+            </WorkspaceToolbar>
+
+            <DataTable>
+                {refreshing ? (
+                    <div className="flex items-center justify-center py-16">
+                        <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
+                    </div>
+                ) : positions.length === 0 ? (
+                    <EmptyState
+                        icon={CandlestickChart}
+                        title="No asset positions found"
+                        description="Try adjusting your search or filters."
+                    />
+                ) : (
+                    <>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Asset</TableHead>
+                                    <TableHead>Invested</TableHead>
+                                    <TableHead>Current Value</TableHead>
+                                    <TableHead>PnL</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {positions.map((position) => (
+                                    <TableRow key={position.id}>
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-medium text-zinc-900">
                                                     {position.user?.username || position.user?.email || 'Unknown user'}
                                                 </p>
-                                                <p className="text-sm text-gray-400">{position.user?.email || 'No email'}</p>
+                                                <p className="text-xs text-zinc-500">
+                                                    {position.user?.email || 'No email'}
+                                                </p>
                                             </div>
-                                        </td>
-                                        <td className="px-5 py-4">
+                                        </TableCell>
+                                        <TableCell>
                                             <div>
-                                                <p className="font-medium text-white">{position.name}</p>
-                                                <p className="text-sm text-gray-400">{position.symbol}</p>
+                                                <p className="font-medium text-zinc-900">{position.name}</p>
+                                                <p className="text-xs text-zinc-500">{position.symbol}</p>
                                             </div>
-                                        </td>
-                                        <td className="px-5 py-4 text-sm text-white">{formatCurrency(position.amountInvested)}</td>
-                                        <td className="px-5 py-4 text-sm text-white">{formatCurrency(position.currentValue)}</td>
-                                        <td className={`px-5 py-4 text-sm font-medium ${Number(position.profitLoss) >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                                        </TableCell>
+                                        <TableCell className="font-medium text-zinc-900">
+                                            {formatCurrency(position.amountInvested)}
+                                        </TableCell>
+                                        <TableCell className="font-medium text-zinc-900">
+                                            {formatCurrency(position.currentValue)}
+                                        </TableCell>
+                                        <TableCell
+                                            className={cn(
+                                                'font-medium',
+                                                Number(position.profitLoss) >= 0 ? 'text-green-600' : 'text-red-600'
+                                            )}
+                                        >
                                             {formatCurrency(position.profitLoss)}
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <span className="rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-300">
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={getStatusBadgeVariant(position.status)}>
                                                 {position.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => openEditor(position)}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-gold-500/20 bg-navy-900/60 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-navy-800"
-                                                >
-                                                    <Edit3 className="h-3.5 w-3.5" />
-                                                    Adjust
-                                                </button>
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <IconButton onClick={() => openEditor(position)} title="Adjust position">
+                                                    <Edit3 className="h-4 w-4" />
+                                                </IconButton>
                                                 <Link
                                                     href={`${adminRoutes.customers}/${position.user?.id || ''}`}
-                                                    className="rounded-lg border border-gold-500/20 px-3 py-2 text-xs font-medium text-gray-300 transition-colors hover:bg-navy-800 hover:text-white"
+                                                    title="View user"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
                                                 >
-                                                    View User
+                                                    <ExternalLink className="h-4 w-4" />
                                                 </Link>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-gold-500/10 px-5 py-4 text-sm text-gray-400 md:flex-row md:items-center md:justify-between">
-                    <p>
-                        Page {dashboard?.pagination.page || 1} of {dashboard?.pagination.pages || 1} with {dashboard?.pagination.total || 0} position{(dashboard?.pagination.total || 0) === 1 ? '' : 's'}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => loadDashboard(Math.max(1, (dashboard?.pagination.page || 1) - 1))}
-                            disabled={(dashboard?.pagination.page || 1) <= 1}
-                            className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            Previous
-                        </button>
-                        <button
-                            onClick={() => loadDashboard(Math.min(dashboard?.pagination.pages || 1, (dashboard?.pagination.page || 1) + 1))}
-                            disabled={(dashboard?.pagination.page || 1) >= (dashboard?.pagination.pages || 1)}
-                            className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            Next
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        {pagination && (
+                            <Pagination
+                                page={pagination.page}
+                                pages={pagination.pages}
+                                total={pagination.total}
+                                limit={pagination.limit}
+                                onPageChange={handlePageChange}
+                            />
+                        )}
+                    </>
+                )}
+            </DataTable>
 
             {editingPosition && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-3xl rounded-3xl border border-gold-500/20 bg-dark-900 p-6">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">Adjust Asset Position</h2>
-                                <p className="mt-1 text-sm text-gray-400">
-                                    Manual overrides are audited. Update the numbers only when you have a clear correction reason.
-                                </p>
-                            </div>
-                            <button
-                                onClick={closeEditor}
-                                className="rounded-xl border border-gold-500/20 p-2 text-gray-400 transition-colors hover:text-white"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Status</span>
-                                <select
-                                    value={formState.status}
-                                    onChange={(event) => setFormState((current) => ({ ...current, status: event.target.value as 'ACTIVE' | 'CLOSED' }))}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
+                    <Card className="max-h-[90vh] w-full max-w-3xl overflow-y-auto shadow-card-hover">
+                        <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-zinc-900">Adjust Asset Position</h2>
+                                    <p className="mt-1 text-sm text-zinc-500">
+                                        Manual overrides are audited. Update the numbers only when you have a clear
+                                        correction reason.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={closeEditor}
+                                    className="text-zinc-400 hover:text-zinc-600"
+                                    type="button"
                                 >
-                                    <option value="ACTIVE">Active</option>
-                                    <option value="CLOSED">Closed</option>
-                                </select>
-                            </label>
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Reason</span>
-                                <input
-                                    value={formState.reason}
-                                    onChange={(event) => setFormState((current) => ({ ...current, reason: event.target.value }))}
-                                    placeholder="Manual correction reason"
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                />
-                            </label>
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
 
-                            {editableFields.map((field) => (
-                                <label key={field.key} className="space-y-2">
-                                    <span className="text-sm font-medium text-gray-300">{field.label}</span>
-                                    <input
+                            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">Status</label>
+                                    <Select
+                                        value={formState.status}
+                                        onChange={(e) =>
+                                            setFormState((current) => ({
+                                                ...current,
+                                                status: e.target.value as 'ACTIVE' | 'CLOSED',
+                                            }))
+                                        }
+                                    >
+                                        <option value="ACTIVE">Active</option>
+                                        <option value="CLOSED">Closed</option>
+                                    </Select>
+                                </div>
+                                <Input
+                                    label="Reason"
+                                    value={formState.reason}
+                                    onChange={(e) =>
+                                        setFormState((current) => ({ ...current, reason: e.target.value }))
+                                    }
+                                    placeholder="Manual correction reason"
+                                />
+
+                                {editableFields.map((field) => (
+                                    <Input
+                                        key={field.key}
+                                        label={field.label}
                                         type="number"
                                         step="0.00000001"
                                         value={formState[field.key]}
-                                        onChange={(event) =>
+                                        onChange={(e) =>
                                             setFormState((current) => ({
                                                 ...current,
-                                                [field.key]: event.target.value,
+                                                [field.key]: e.target.value,
                                             }))
                                         }
-                                        className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
                                     />
-                                </label>
-                            ))}
+                                ))}
 
-                            <label className="space-y-2 md:col-span-2">
-                                <span className="text-sm font-medium text-gray-300">Last Valuation At</span>
-                                <input
-                                    type="datetime-local"
-                                    value={formState.lastValuationAt}
-                                    onChange={(event) => setFormState((current) => ({ ...current, lastValuationAt: event.target.value }))}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                />
-                            </label>
-                        </div>
+                                <div className="md:col-span-2">
+                                    <Input
+                                        label="Last Valuation At"
+                                        type="datetime-local"
+                                        value={formState.lastValuationAt}
+                                        onChange={(e) =>
+                                            setFormState((current) => ({
+                                                ...current,
+                                                lastValuationAt: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
 
-                        <div className="mt-6 flex flex-wrap justify-end gap-3">
-                            <button
-                                onClick={closeEditor}
-                                className="rounded-lg border border-gold-500/20 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-800"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="inline-flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                Save Override
-                            </button>
-                        </div>
-                    </div>
+                            <div className="mt-6 flex flex-wrap justify-end gap-3">
+                                <Button variant="secondary" onClick={closeEditor}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSave} disabled={saving}>
+                                    {saving ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    Save Override
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>

@@ -1,17 +1,39 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { apiClient, MiningOperationRecord } from '@/lib/api'
 import { useToast } from '@/components/ToastContext'
 import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    EmptyState,
+    IconButton,
+    Input,
+    Pagination,
+    SearchInput,
+    Select,
+    Skeleton,
+    StatCard,
+    WorkspaceHeader,
+    WorkspaceToolbar,
+    WorkspaceToolbarActions,
+    WorkspaceToolbarFilters,
+    type BadgeVariant,
+} from '@/components/ui'
+import { cn } from '@/lib/utils'
+import {
+    Activity,
     AlertTriangle,
+    DollarSign,
     Loader2,
+    Pickaxe,
     Plus,
     RefreshCw,
     Save,
-    Search,
     Trash2,
+    Users,
     X,
 } from 'lucide-react'
 
@@ -59,6 +81,21 @@ const defaultFormState: MiningOperationFormState = {
     endDate: '',
     imageUrl: '',
     features: '',
+}
+
+const getStatusBadgeVariant = (status: string): BadgeVariant => {
+    switch (status) {
+        case 'ACTIVE':
+            return 'success'
+        case 'PAUSED':
+            return 'warning'
+        case 'COMPLETED':
+            return 'gold'
+        case 'CANCELLED':
+            return 'error'
+        default:
+            return 'neutral'
+    }
 }
 
 const MiningManagement = () => {
@@ -129,18 +166,6 @@ const MiningManagement = () => {
 
     const formatPercent = (value: number | string) => {
         return `${(Number(value || 0) * 100).toFixed(2)}%`
-    }
-
-    const getStatusClasses = (status: string) => {
-        const styles: Record<string, string> = {
-            DRAFT: 'border-gray-500/30 bg-gray-500/10 text-gray-300',
-            ACTIVE: 'border-green-500/30 bg-green-500/10 text-green-300',
-            PAUSED: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
-            COMPLETED: 'border-blue-500/30 bg-blue-500/10 text-blue-300',
-            CANCELLED: 'border-red-500/30 bg-red-500/10 text-red-300',
-        }
-
-        return styles[status] || styles.DRAFT
     }
 
     const openCreateModal = () => {
@@ -260,97 +285,111 @@ const MiningManagement = () => {
     }
 
     const totalInvested = operations.reduce((sum, operation) => sum + Number(operation.totalInvested || 0), 0)
-    const totalActiveInvestments = operations.reduce((sum, operation) => sum + Number(operation.activeInvestments || 0), 0)
+    const totalActiveInvestments = operations.reduce(
+        (sum, operation) => sum + Number(operation.activeInvestments || 0),
+        0
+    )
 
-    const statCards = [
-        {
-            label: 'Visible Operations',
-            value: pagination.total,
-            helper: 'Across current filters',
-        },
-        {
-            label: 'Active on Page',
-            value: operations.filter((operation) => operation.status === 'ACTIVE').length,
-            helper: 'Currently selling',
-        },
-        {
-            label: 'Invested Value',
-            value: formatCurrency(totalInvested),
-            helper: 'Current page total',
-        },
-        {
-            label: 'Active Investments',
-            value: totalActiveInvestments,
-            helper: 'Linked investor positions',
-        },
-    ]
+    const handlePageChange = (page: number) => {
+        void fetchOperations(page)
+    }
+
+    if (isLoading && operations.length === 0) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-16 w-full" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-28" />
+                    ))}
+                </div>
+                <Skeleton className="h-12 w-full" />
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <Skeleton className="h-64" />
+                    <Skeleton className="h-64" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Mining Operations</h1>
-                    <p className="text-gray-400">Create, update, pause, or retire the plans users can invest in.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <button
-                        onClick={() => fetchOperations(pagination.page, true)}
-                        className="inline-flex items-center gap-2 rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-600"
-                    >
-                        {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                        Refresh
-                    </button>
-                    <button
-                        onClick={openCreateModal}
-                        className="inline-flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400"
-                    >
-                        <Plus className="h-4 w-4" />
-                        New Operation
-                    </button>
-                </div>
-            </div>
+            <WorkspaceHeader
+                title="Mining Operations"
+                description="Create, update, pause, or retire the plans users can invest in."
+                action={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <IconButton
+                            onClick={() => fetchOperations(pagination.page, true)}
+                            disabled={isRefreshing}
+                            title="Refresh"
+                        >
+                            <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                        </IconButton>
+                        <Button onClick={openCreateModal}>
+                            <Plus className="h-4 w-4" />
+                            New operation
+                        </Button>
+                    </div>
+                }
+            />
 
             {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                </div>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                            <p className="text-sm text-red-700">{error}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => fetchOperations(pagination.page)}>
+                            Retry
+                        </Button>
+                    </CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {statCards.map((card) => (
-                    <motion.div
-                        key={card.label}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="rounded-2xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm"
-                    >
-                        <p className="text-sm text-gray-400">{card.label}</p>
-                        <p className="mt-2 text-3xl font-bold text-white">{card.value}</p>
-                        <p className="mt-1 text-xs text-gray-500">{card.helper}</p>
-                    </motion.div>
-                ))}
+                <StatCard
+                    title="Visible Operations"
+                    value={String(pagination.total)}
+                    description="Across current filters"
+                    icon={Pickaxe}
+                />
+                <StatCard
+                    title="Active on Page"
+                    value={String(operations.filter((operation) => operation.status === 'ACTIVE').length)}
+                    description="Currently selling"
+                    icon={Activity}
+                />
+                <StatCard
+                    title="Invested Value"
+                    value={formatCurrency(totalInvested)}
+                    description="Current page total"
+                    icon={DollarSign}
+                />
+                <StatCard
+                    title="Active Investments"
+                    value={String(totalActiveInvestments)}
+                    description="Linked investor positions"
+                    icon={Users}
+                />
             </div>
 
-            <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-5 backdrop-blur-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                        <input
-                            value={searchTerm}
-                            onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Search by operation name or description"
-                            className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 py-3 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-gold-500/40"
-                        />
-                    </div>
-
-                    <select
+            <WorkspaceToolbar>
+                <WorkspaceToolbarFilters>
+                    <SearchInput
+                        placeholder="Search by operation name or description"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        containerClassName="w-full sm:w-72"
+                    />
+                    <Select
                         value={statusFilter}
-                        onChange={(event) => {
-                            setStatusFilter(event.target.value)
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value)
                             setPagination((current) => ({ ...current, page: 1 }))
                         }}
-                        className="rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-sm text-white outline-none"
+                        className="w-full sm:w-40"
                     >
                         <option value="all">All statuses</option>
                         <option value="draft">Draft</option>
@@ -358,324 +397,319 @@ const MiningManagement = () => {
                         <option value="paused">Paused</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
-                    </select>
-                </div>
-            </div>
+                    </Select>
+                </WorkspaceToolbarFilters>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {isLoading ? (
-                    <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 px-6 py-12 text-center text-gray-400 xl:col-span-2">
-                        Loading mining operations...
-                    </div>
-                ) : operations.length === 0 ? (
-                    <div className="rounded-3xl border border-gold-500/20 bg-dark-800/50 px-6 py-12 text-center text-gray-400 xl:col-span-2">
-                        No mining operations matched the current filters.
-                    </div>
-                ) : (
-                    operations.map((operation) => (
-                        <div key={operation.id} className="rounded-3xl border border-gold-500/20 bg-dark-800/50 p-6 backdrop-blur-sm">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="space-y-3">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h2 className="text-xl font-semibold text-white">{operation.name}</h2>
-                                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(operation.status)}`}>
-                                            {operation.status}
-                                        </span>
+                <WorkspaceToolbarActions>
+                    <IconButton
+                        onClick={() => fetchOperations(pagination.page, true)}
+                        disabled={isRefreshing}
+                        title="Refresh"
+                    >
+                        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    </IconButton>
+                </WorkspaceToolbarActions>
+            </WorkspaceToolbar>
+
+            {isRefreshing ? (
+                <div className="flex items-center justify-center py-16">
+                    <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
+                </div>
+            ) : operations.length === 0 ? (
+                <Card>
+                    <EmptyState
+                        icon={Pickaxe}
+                        title="No mining operations found"
+                        description="Try adjusting your search or filters, or create a new operation."
+                        actionLabel="New operation"
+                        onAction={openCreateModal}
+                    />
+                </Card>
+            ) : (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {operations.map((operation) => (
+                        <Card key={operation.id} className="card-hover">
+                            <CardContent className="p-5">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h2 className="text-base font-semibold text-zinc-900">{operation.name}</h2>
+                                            <Badge variant={getStatusBadgeVariant(operation.status)}>
+                                                {operation.status}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-zinc-500">
+                                            {operation.description ||
+                                                'No description has been added for this operation yet.'}
+                                        </p>
                                     </div>
-                                    <p className="text-sm text-gray-300">
-                                        {operation.description || 'No description has been added for this operation yet.'}
-                                    </p>
-                                </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        onClick={() => openEditModal(operation)}
-                                        className="rounded-lg border border-gold-500/20 bg-navy-900/60 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-800"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(operation)}
-                                        disabled={isDeletingId === operation.id}
-                                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {isDeletingId === operation.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="rounded-2xl bg-navy-900/50 p-4">
-                                    <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Investment Range</p>
-                                    <p className="mt-2 text-sm font-medium text-white">
-                                        {formatCurrency(operation.minInvestment)} - {formatCurrency(operation.maxInvestment)}
-                                    </p>
-                                </div>
-                                <div className="rounded-2xl bg-navy-900/50 p-4">
-                                    <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Daily Return</p>
-                                    <p className="mt-2 text-sm font-medium text-white">{formatPercent(operation.dailyReturn)}</p>
-                                </div>
-                                <div className="rounded-2xl bg-navy-900/50 p-4">
-                                    <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Capacity</p>
-                                    <p className="mt-2 text-sm font-medium text-white">
-                                        {formatCurrency(operation.currentCapacity)} / {formatCurrency(operation.totalCapacity)}
-                                    </p>
-                                </div>
-                                <div className="rounded-2xl bg-navy-900/50 p-4">
-                                    <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Investor Demand</p>
-                                    <p className="mt-2 text-sm font-medium text-white">
-                                        {operation.activeInvestments || 0} active investments
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-gray-400">
-                                <span>Risk: {operation.riskLevel}</span>
-                                <span>Duration: {operation.duration} days</span>
-                                <span>Starts: {new Date(operation.startDate).toLocaleDateString('en-US')}</span>
-                                {operation.endDate && <span>Ends: {new Date(operation.endDate).toLocaleDateString('en-US')}</span>}
-                            </div>
-
-                            {operation.features && operation.features.length > 0 && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {operation.features.map((feature) => (
-                                        <span
-                                            key={`${operation.id}-${feature}`}
-                                            className="rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-300"
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button variant="secondary" size="sm" onClick={() => openEditModal(operation)}>
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => handleDelete(operation)}
+                                            disabled={isDeletingId === operation.id}
                                         >
-                                            {feature}
-                                        </span>
-                                    ))}
+                                            {isDeletingId === operation.id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                            )}
+                                            Delete
+                                        </Button>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    ))
-                )}
-            </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-gold-500/20 bg-dark-800/50 px-5 py-4 text-sm text-gray-400 md:flex-row md:items-center md:justify-between">
-                <p>
-                    Page {pagination.page} of {pagination.pages} with {pagination.total} operation{pagination.total === 1 ? '' : 's'} total
-                </p>
+                                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                            Investment Range
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium text-zinc-900">
+                                            {formatCurrency(operation.minInvestment)} –{' '}
+                                            {formatCurrency(operation.maxInvestment)}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                            Daily Return
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium text-zinc-900">
+                                            {formatPercent(operation.dailyReturn)}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                            Capacity
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium text-zinc-900">
+                                            {formatCurrency(operation.currentCapacity)} /{' '}
+                                            {formatCurrency(operation.totalCapacity)}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                                            Investor Demand
+                                        </p>
+                                        <p className="mt-1 text-sm font-medium text-zinc-900">
+                                            {operation.activeInvestments || 0} active investments
+                                        </p>
+                                    </div>
+                                </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => fetchOperations(Math.max(1, pagination.page - 1))}
-                        disabled={pagination.page <= 1}
-                        className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        Previous
-                    </button>
-                    <button
-                        onClick={() => fetchOperations(Math.min(pagination.pages, pagination.page + 1))}
-                        disabled={pagination.page >= pagination.pages}
-                        className="rounded-lg border border-gold-500/20 px-3 py-2 text-white transition-colors hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        Next
-                    </button>
+                                <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+                                    <span>Risk: {operation.riskLevel}</span>
+                                    <span>Duration: {operation.duration} days</span>
+                                    <span>Starts: {new Date(operation.startDate).toLocaleDateString('en-US')}</span>
+                                    {operation.endDate && (
+                                        <span>Ends: {new Date(operation.endDate).toLocaleDateString('en-US')}</span>
+                                    )}
+                                </div>
+
+                                {operation.features && operation.features.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {operation.features.map((feature) => (
+                                            <Badge key={`${operation.id}-${feature}`} variant="gold">
+                                                {feature}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
-            </div>
+            )}
+
+            {pagination.pages > 1 && (
+                <Card>
+                    <Pagination
+                        page={pagination.page}
+                        pages={pagination.pages}
+                        total={pagination.total}
+                        limit={pagination.limit}
+                        onPageChange={handlePageChange}
+                        className="border-t-0"
+                    />
+                </Card>
+            )}
 
             {isEditorOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-4xl rounded-3xl border border-gold-500/20 bg-dark-900 p-6 shadow-2xl">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">
-                                    {editingOperation ? 'Edit Mining Operation' : 'Create Mining Operation'}
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-400">
-                                    {editingOperation
-                                        ? 'Update plan details, availability, and lifecycle state.'
-                                        : 'New operations start as draft and can be activated after review.'}
-                                </p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
+                    <Card className="max-h-[90vh] w-full max-w-4xl overflow-y-auto shadow-card-hover">
+                        <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-zinc-900">
+                                        {editingOperation ? 'Edit Mining Operation' : 'Create Mining Operation'}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-zinc-500">
+                                        {editingOperation
+                                            ? 'Update plan details, availability, and lifecycle state.'
+                                            : 'New operations start as draft and can be activated after review.'}
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={closeEditor}
+                                    className="text-zinc-400 hover:text-zinc-600"
+                                    type="button"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
 
-                            <button
-                                onClick={closeEditor}
-                                className="rounded-xl border border-gold-500/20 p-2 text-gray-400 transition-colors hover:text-white"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Operation Name</span>
-                                <input
+                            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Input
+                                    label="Operation Name"
                                     value={formData.name}
-                                    onChange={(event) => handleFormChange('name', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('name', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Risk Level</span>
-                                <select
-                                    value={formData.riskLevel}
-                                    onChange={(event) => handleFormChange('riskLevel', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                >
-                                    <option value="LOW">Low</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HIGH">High</option>
-                                </select>
-                            </label>
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">Risk Level</label>
+                                    <Select
+                                        value={formData.riskLevel}
+                                        onChange={(e) => handleFormChange('riskLevel', e.target.value)}
+                                    >
+                                        <option value="LOW">Low</option>
+                                        <option value="MEDIUM">Medium</option>
+                                        <option value="HIGH">High</option>
+                                    </Select>
+                                </div>
 
-                            <label className="space-y-2 md:col-span-2">
-                                <span className="text-sm font-medium text-gray-300">Description</span>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(event) => handleFormChange('description', event.target.value)}
-                                    rows={4}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                />
-                            </label>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => handleFormChange('description', e.target.value)}
+                                        rows={4}
+                                        className="flex w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                                    />
+                                </div>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Minimum Investment</span>
-                                <input
+                                <Input
+                                    label="Minimum Investment"
                                     type="number"
                                     min="0.01"
                                     step="0.01"
                                     value={formData.minInvestment}
-                                    onChange={(event) => handleFormChange('minInvestment', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('minInvestment', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Maximum Investment</span>
-                                <input
+                                <Input
+                                    label="Maximum Investment"
                                     type="number"
                                     min="0.01"
                                     step="0.01"
                                     value={formData.maxInvestment}
-                                    onChange={(event) => handleFormChange('maxInvestment', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('maxInvestment', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Daily Return (decimal)</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="1"
-                                    step="0.0001"
-                                    value={formData.dailyReturn}
-                                    onChange={(event) => handleFormChange('dailyReturn', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                />
-                                <p className="text-xs text-gray-500">Example: `0.015` means 1.5% daily.</p>
-                            </label>
+                                <div>
+                                    <Input
+                                        label="Daily Return (decimal)"
+                                        type="number"
+                                        min="0"
+                                        max="1"
+                                        step="0.0001"
+                                        value={formData.dailyReturn}
+                                        onChange={(e) => handleFormChange('dailyReturn', e.target.value)}
+                                    />
+                                    <p className="mt-1 text-xs text-zinc-400">Example: 0.015 means 1.5% daily.</p>
+                                </div>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Duration (days)</span>
-                                <input
+                                <Input
+                                    label="Duration (days)"
                                     type="number"
                                     min="1"
                                     step="1"
                                     value={formData.duration}
-                                    onChange={(event) => handleFormChange('duration', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('duration', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Total Capacity</span>
-                                <input
+                                <Input
+                                    label="Total Capacity"
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     value={formData.totalCapacity}
-                                    onChange={(event) => handleFormChange('totalCapacity', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('totalCapacity', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Start Date</span>
-                                <input
+                                <Input
+                                    label="Start Date"
                                     type="date"
                                     value={formData.startDate}
-                                    onChange={(event) => handleFormChange('startDate', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('startDate', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">End Date</span>
-                                <input
+                                <Input
+                                    label="End Date"
                                     type="date"
                                     value={formData.endDate}
-                                    onChange={(event) => handleFormChange('endDate', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('endDate', e.target.value)}
                                 />
-                            </label>
 
-                            <label className="space-y-2">
-                                <span className="text-sm font-medium text-gray-300">Image URL</span>
-                                <input
+                                <Input
+                                    label="Image URL"
                                     value={formData.imageUrl}
-                                    onChange={(event) => handleFormChange('imageUrl', event.target.value)}
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
+                                    onChange={(e) => handleFormChange('imageUrl', e.target.value)}
                                 />
-                            </label>
 
-                            {editingOperation && (
-                                <label className="space-y-2">
-                                    <span className="text-sm font-medium text-gray-300">Status</span>
-                                    <select
-                                        value={formData.status}
-                                        onChange={(event) => handleFormChange('status', event.target.value)}
-                                        className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                    >
-                                        <option value="DRAFT">Draft</option>
-                                        <option value="ACTIVE">Active</option>
-                                        <option value="PAUSED">Paused</option>
-                                        <option value="COMPLETED">Completed</option>
-                                        <option value="CANCELLED">Cancelled</option>
-                                    </select>
-                                </label>
-                            )}
+                                {editingOperation && (
+                                    <div>
+                                        <label className="mb-1.5 block text-sm font-medium text-zinc-700">Status</label>
+                                        <Select
+                                            value={formData.status}
+                                            onChange={(e) => handleFormChange('status', e.target.value)}
+                                        >
+                                            <option value="DRAFT">Draft</option>
+                                            <option value="ACTIVE">Active</option>
+                                            <option value="PAUSED">Paused</option>
+                                            <option value="COMPLETED">Completed</option>
+                                            <option value="CANCELLED">Cancelled</option>
+                                        </Select>
+                                    </div>
+                                )}
 
-                            <label className="space-y-2 md:col-span-2">
-                                <span className="text-sm font-medium text-gray-300">Features</span>
-                                <input
-                                    value={formData.features}
-                                    onChange={(event) => handleFormChange('features', event.target.value)}
-                                    placeholder="Comma-separated highlights"
-                                    className="w-full rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-3 text-white outline-none"
-                                />
-                            </label>
-                        </div>
+                                <div className="md:col-span-2">
+                                    <Input
+                                        label="Features"
+                                        value={formData.features}
+                                        onChange={(e) => handleFormChange('features', e.target.value)}
+                                        placeholder="Comma-separated highlights"
+                                    />
+                                </div>
+                            </div>
 
-                        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-gold-500/20 bg-gold-500/5 p-4 text-sm text-gray-300 md:flex-row md:items-start">
-                            <AlertTriangle className="mt-0.5 h-5 w-5 text-gold-400" />
-                            <p>
-                                Active operations cannot be deleted while investors still hold active positions. Use status changes for controlled rollouts, pauses, and retirements.
-                            </p>
-                        </div>
+                            <div className="mt-6 flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                                <p>
+                                    Active operations cannot be deleted while investors still hold active positions. Use
+                                    status changes for controlled rollouts, pauses, and retirements.
+                                </p>
+                            </div>
 
-                        <div className="mt-6 flex flex-wrap justify-end gap-3">
-                            <button
-                                onClick={closeEditor}
-                                className="rounded-lg border border-gold-500/20 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-800"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className="inline-flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                {editingOperation ? 'Save Changes' : 'Create Operation'}
-                            </button>
-                        </div>
-                    </div>
+                            <div className="mt-6 flex flex-wrap justify-end gap-3">
+                                <Button variant="secondary" onClick={closeEditor}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSave} disabled={isSaving}>
+                                    {isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    {editingOperation ? 'Save Changes' : 'Create Operation'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>
