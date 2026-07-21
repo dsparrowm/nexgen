@@ -17,6 +17,7 @@ import {
     type PasswordChangePayload,
     type KycUploadPayload,
 } from '../utils/api/profileApi';
+import { patchDashboardUser } from './useDashboardData';
 
 interface UseProfileDataReturn {
     // Profile state
@@ -178,6 +179,12 @@ export function useProfileData(): UseProfileDataReturn {
         try {
             const updatedUser = await uploadProfileImage(file);
             setUser(updatedUser);
+
+            patchDashboardUser({
+                profileImage: updatedUser.profileImage,
+                firstName: updatedUser.firstName || undefined,
+                lastName: updatedUser.lastName || undefined,
+            });
 
             // Keep localStorage user in sync for nav/header consumers
             try {

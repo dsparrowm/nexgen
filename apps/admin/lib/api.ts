@@ -702,6 +702,81 @@ class ApiClient {
     }
 
     /**
+     * Upload a profile image for a user
+     */
+    async uploadUserAvatar(userId: string, file: File): Promise<ApiResponse<{ user: any }>> {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const url = `${this.baseUrl}/admin/users/${userId}/avatar`;
+        const accessToken = this.getAccessToken();
+
+        const headers: Record<string, string> = {};
+        if (accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        try {
+            let response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+
+            if (response.status === 401 && accessToken) {
+                if (!this.isRefreshing) {
+                    this.isRefreshing = true;
+                    const newToken = await this.refreshAccessToken();
+                    this.isRefreshing = false;
+
+                    if (newToken) {
+                        this.onTokenRefreshed(newToken);
+                        headers['Authorization'] = `Bearer ${newToken}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers,
+                            body: formData,
+                        });
+                    } else {
+                        this.clearAuth();
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/';
+                        }
+                        return {
+                            success: false,
+                            error: {
+                                message: 'Session expired. Please login again.',
+                                code: 'SESSION_EXPIRED',
+                            },
+                        };
+                    }
+                } else {
+                    const newToken = await new Promise<string>((resolve) => {
+                        this.subscribeTokenRefresh(resolve);
+                    });
+                    headers['Authorization'] = `Bearer ${newToken}`;
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers,
+                        body: formData,
+                    });
+                }
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Upload user avatar failed:', error);
+            return {
+                success: false,
+                error: {
+                    message: 'Failed to upload profile image',
+                    code: 'UPLOAD_AVATAR_FAILED',
+                },
+            };
+        }
+    }
+
+    /**
      * Delete user (soft delete)
      */
     async deleteUser(userId: string): Promise<ApiResponse<any>> {

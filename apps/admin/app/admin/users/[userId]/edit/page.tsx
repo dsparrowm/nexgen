@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/api'
 import { adminRoutes } from '@/lib/adminRoutes'
@@ -15,8 +15,10 @@ import {
     CheckCircle,
     AlertCircle,
     Loader,
+    Camera,
 } from 'lucide-react'
 import {
+    Avatar,
     Button,
     Card,
     CardContent,
@@ -35,6 +37,7 @@ interface UserData {
     username: string
     firstName: string | null
     lastName: string | null
+    profileImage?: string | null
     role: string
     isActive: boolean
     isVerified: boolean
@@ -70,10 +73,12 @@ const EditUserPage = () => {
     const router = useRouter()
     const params = useParams()
     const userId = params?.userId as string
+    const avatarInputRef = useRef<HTMLInputElement>(null)
 
     const [user, setUser] = useState<UserData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -146,6 +151,55 @@ const EditUserPage = () => {
             setFormData((prev) => ({ ...prev, [name]: checked }))
         } else {
             setFormData((prev) => ({ ...prev, [name]: value }))
+        }
+    }
+
+    const getDisplayName = () => {
+        if (user?.firstName && user?.lastName) {
+            return `${user.firstName} ${user.lastName}`
+        }
+        return user?.username || 'User'
+    }
+
+    const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (file.size > 2 * 1024 * 1024) {
+            setError('Profile image must be less than 2MB')
+            return
+        }
+
+        if (!file.type.startsWith('image/')) {
+            setError('Only image files are allowed for profile pictures')
+            return
+        }
+
+        setIsUploadingAvatar(true)
+        setError(null)
+        setSuccessMessage(null)
+
+        try {
+            const response = await apiClient.uploadUserAvatar(userId, file)
+
+            if (response.success && response.data?.user) {
+                setUser((prev) =>
+                    prev
+                        ? { ...prev, profileImage: response.data!.user.profileImage }
+                        : prev
+                )
+                setSuccessMessage('Profile picture updated successfully!')
+            } else {
+                setError(response.error?.message || 'Failed to upload profile picture')
+            }
+        } catch (err) {
+            console.error('Error uploading avatar:', err)
+            setError('An error occurred while uploading the profile picture')
+        } finally {
+            setIsUploadingAvatar(false)
+            if (avatarInputRef.current) {
+                avatarInputRef.current.value = ''
+            }
         }
     }
 
@@ -261,7 +315,57 @@ const EditUserPage = () => {
                                     Personal information
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <CardContent className="space-y-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <Avatar
+                                            name={getDisplayName()}
+                                            src={user?.profileImage}
+                                            size="lg"
+                                            className="h-16 w-16 text-lg"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            disabled={isUploadingAvatar}
+                                            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-white shadow-sm transition-colors hover:bg-gold-600 disabled:opacity-50"
+                                            aria-label="Upload profile picture"
+                                        >
+                                            {isUploadingAvatar ? (
+                                                <Loader className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                <Camera className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+                                        <input
+                                            ref={avatarInputRef}
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp,image/jpg"
+                                            onChange={handleAvatarSelect}
+                                            className="hidden"
+                                        />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-zinc-900">{getDisplayName()}</p>
+                                        <p className="text-sm text-zinc-500">
+                                            {isUploadingAvatar
+                                                ? 'Uploading profile picture...'
+                                                : 'JPG, PNG or WebP · max 2MB'}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="mt-1 px-0"
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            disabled={isUploadingAvatar}
+                                        >
+                                            Change photo
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <Input
                                     label="First name"
                                     name="firstName"
@@ -283,6 +387,7 @@ const EditUserPage = () => {
                                 <div>
                                     <Input label="Email address" value={user?.email || ''} disabled />
                                     <p className="mt-1 text-xs text-zinc-400">Email cannot be changed</p>
+                                </div>
                                 </div>
                             </CardContent>
                         </Card>

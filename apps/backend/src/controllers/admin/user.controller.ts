@@ -4,6 +4,12 @@ import { UserRole, KycStatus, DocumentStatus } from '@prisma/client';
 import db from '@/services/database';
 import { hashPassword } from '@/utils/password';
 import { logger } from '@/utils/logger';
+import {
+    uploadProfileImage as uploadProfileImageToCloudinary,
+    deleteAsset,
+    extractPublicId,
+    isCloudinaryConfigured,
+} from '@/services/cloudinary.service';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -358,6 +364,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
                 username: true,
                 firstName: true,
                 lastName: true,
+                profileImage: true,
                 role: true,
                 isActive: true,
                 isVerified: true,
@@ -499,6 +506,123 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
         res.status(500).json({
             success: false,
             error: { message: 'Internal server error', code: 'DELETE_USER_FAILED' }
+        });
+    }
+};
+
+/**
+ * Upload profile picture for a user (admin)
+ */
+export const uploadUserProfileImage = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const adminId = req.user?.userId;
+        if (!adminId || (req.user?.role !== UserRole.ADMIN && req.user?.role !== UserRole.SUPER_ADMIN)) {
+            res.status(403).json({
+                success: false,
+                error: { message: 'Admin access required', code: 'ADMIN_REQUIRED' }
+            });
+            return;
+        }
+
+        if (!isCloudinaryConfigured()) {
+            res.status(503).json({
+                success: false,
+                error: { message: 'File upload service is not configured', code: 'UPLOAD_SERVICE_UNAVAILABLE' }
+            });
+            return;
+        }
+
+        const { userId } = req.params;
+        const file = req.file;
+
+        if (!file) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Profile image is required', code: 'IMAGE_REQUIRED' }
+            });
+            return;
+        }
+
+        if (!file.mimetype.startsWith('image/')) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Only image files are allowed', code: 'INVALID_FILE_TYPE' }
+            });
+            return;
+        }
+
+        const existingUser = await db.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, profileImage: true }
+        });
+
+        if (!existingUser) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'User not found', code: 'USER_NOT_FOUND' }
+            });
+            return;
+        }
+
+        const uploadResult = await uploadProfileImageToCloudinary(
+            file.buffer,
+            userId,
+            `avatar-${userId}`
+        );
+
+        const updatedUser = await db.prisma.user.update({
+            where: { id: userId },
+            data: { profileImage: uploadResult.secure_url },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                profileImage: true,
+                role: true,
+                isActive: true,
+                isVerified: true,
+                kycStatus: true,
+                updatedAt: true,
+            }
+        });
+
+        if (existingUser.profileImage) {
+            const oldPublicId = extractPublicId(existingUser.profileImage);
+            if (oldPublicId && oldPublicId !== uploadResult.public_id) {
+                await deleteAsset(oldPublicId, 'image');
+            }
+        }
+
+        await db.prisma.auditLog.create({
+            data: {
+                userId,
+                action: 'USER_PROFILE_IMAGE_UPLOAD',
+                resource: 'user',
+                resourceId: userId,
+                newValues: { profileImage: uploadResult.secure_url, uploadedBy: adminId },
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent')
+            }
+        });
+
+        logger.info(`Admin uploaded profile image for user ${existingUser.email}`, {
+            adminId,
+            userId,
+            publicId: uploadResult.public_id,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: { user: updatedUser },
+            message: 'Profile image uploaded successfully'
+        });
+    } catch (error) {
+        logger.error('Admin upload user profile image error:', error);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to upload profile image', code: 'UPLOAD_AVATAR_FAILED' }
         });
     }
 };

@@ -214,8 +214,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                 onClick={() => router.push('/dashboard/settings')}
                                 className="w-full flex items-center px-3 py-2 rounded-lg bg-navy-800/50 hover:bg-navy-700/50 mb-2 transition-colors text-left"
                             >
-                                <div className="w-8 h-8 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center mr-3">
-                                    <User className="w-4 h-4 text-navy-900" />
+                                <div className="w-8 h-8 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                                    {user?.profileImage ? (
+                                        <img
+                                            src={user.profileImage}
+                                            alt={displayName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className="w-4 h-4 text-navy-900" />
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-white truncate">{displayName}</p>
@@ -279,8 +287,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, activeSecti
                                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                                     className="flex items-center space-x-2 p-2 rounded-lg text-gray-400 hover:text-white hover:bg-navy-700/50 transition-colors"
                                 >
-                                    <div className="w-8 h-8 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center">
-                                        <User className="w-4 h-4 text-navy-900" />
+                                    <div className="w-8 h-8 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center overflow-hidden">
+                                        {user?.profileImage ? (
+                                            <img
+                                                src={user.profileImage}
+                                                alt={displayName}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <User className="w-4 h-4 text-navy-900" />
+                                        )}
                                     </div>
                                     <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>

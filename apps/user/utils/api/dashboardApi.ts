@@ -29,6 +29,7 @@ export interface DashboardUser {
     email: string;
     firstName?: string;
     lastName?: string;
+    profileImage?: string | null;
     balance: number;
     totalHashpower?: number;
     totalInvested: number;

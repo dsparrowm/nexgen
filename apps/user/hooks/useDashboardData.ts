@@ -8,7 +8,10 @@ import {
     getDashboardStats,
     type DashboardData,
     type DashboardStats,
+    type DashboardUser,
 } from '@/utils/api/dashboardApi';
+
+export const USER_PROFILE_UPDATED_EVENT = 'user-profile-updated';
 
 // Module-level cache and inflight promise to prevent duplicate network calls
 let cachedDashboardData: DashboardData | null = null;
@@ -21,6 +24,28 @@ interface UseDashboardDataReturn {
     loading: boolean;
     error: string | null;
     refetch: () => Promise<void>;
+}
+
+/**
+ * Patch cached dashboard user fields (e.g. after profile image upload)
+ * and notify dashboard layout listeners.
+ */
+export function patchDashboardUser(partial: Partial<DashboardUser>): void {
+    if (cachedDashboardData?.user) {
+        cachedDashboardData = {
+            ...cachedDashboardData,
+            user: {
+                ...cachedDashboardData.user,
+                ...partial,
+            },
+        };
+    }
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: partial })
+        );
+    }
 }
 
 export function useDashboardData(): UseDashboardDataReturn {
@@ -84,6 +109,29 @@ export function useDashboardData(): UseDashboardDataReturn {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        const handleProfileUpdated = (event: Event) => {
+            const detail = (event as CustomEvent<Partial<DashboardUser>>).detail;
+            if (!detail) return;
+
+            setData((prev) => {
+                if (!prev?.user) return prev;
+                return {
+                    ...prev,
+                    user: {
+                        ...prev.user,
+                        ...detail,
+                    },
+                };
+            });
+        };
+
+        window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdated);
+        return () => {
+            window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdated);
+        };
+    }, []);
 
     return {
         data,
