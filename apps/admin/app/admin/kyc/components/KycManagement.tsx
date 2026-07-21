@@ -493,6 +493,16 @@ const KycManagement: React.FC = () => {
                                     </div>
                                 )}
 
+                                {selectedDocument.mimeType?.startsWith('image/') && (
+                                    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                                        <img
+                                            src={selectedDocument.filePath}
+                                            alt={selectedDocument.fileName}
+                                            className="max-h-80 w-full object-contain"
+                                        />
+                                    </div>
+                                )}
+
                                 {selectedDocument.status === 'PENDING' ? (
                                     <div className="mt-auto flex flex-col gap-3 border-t border-zinc-200 pt-6 sm:flex-row">
                                         <Button

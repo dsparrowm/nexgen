@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, AlertCircle, Upload, FileText, X, Eye, EyeOff } from "lucide-react";
+import { Check, AlertCircle, Upload, FileText, X, Eye, EyeOff, Camera } from "lucide-react";
 import { useProfileData } from "../../../hooks/useProfileData";
 import {
     getFullName,
+    getInitials,
     getKycStatusBadgeColor,
     getDocumentStatusBadgeColor,
     formatDocumentType,
@@ -14,6 +15,7 @@ import {
     type ProfileUpdatePayload,
     type PasswordChangePayload,
     type KycUploadPayload,
+    type DocumentType,
 } from "../../../utils/api/profileApi";
 import { formatDate } from "../../../utils/formatters";
 
@@ -31,9 +33,12 @@ export default function Settings() {
         uploading,
         uploadError,
         uploadProgress,
+        uploadingAvatar,
+        avatarError,
         updateUserProfile,
         changeUserPassword,
         uploadKycDoc,
+        uploadAvatar,
         refetchProfile,
         clearErrors,
     } = useProfileData();
@@ -61,15 +66,16 @@ export default function Settings() {
     // KYC upload modal state
     const [showKycModal, setShowKycModal] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [documentType, setDocumentType] = useState<"NATIONAL_ID" | "PASSPORT" | "DRIVERS_LICENSE" | "UTILITY_BILL">("NATIONAL_ID");
-    const [documentNumber, setDocumentNumber] = useState("");
+    const [documentType, setDocumentType] = useState<DocumentType>("NATIONAL_ID");
 
     // Success/error message state
     const [successMessage, setSuccessMessage] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
 
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+
     // Initialize form values when user data loads
-    useState(() => {
+    useEffect(() => {
         if (user) {
             setFirstName(user.firstName || "");
             setLastName(user.lastName || "");
@@ -79,9 +85,9 @@ export default function Settings() {
             setCity(user.city || "");
             setAddress(user.address || "");
             setZipCode(user.zipCode || "");
-            setDateOfBirth(user.dateOfBirth || "");
+            setDateOfBirth(user.dateOfBirth ? (user.dateOfBirth.split("T")[0] ?? "") : "");
         }
-    });
+    }, [user]);
 
     const handleSaveProfile = async () => {
         console.log("handleSaveProfile called");
@@ -111,6 +117,38 @@ export default function Settings() {
             console.log("Setting error message:", message);
             setErrorMessage(message);
             setTimeout(() => setErrorMessage(""), 5000);
+        }
+    };
+
+    const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            setErrorMessage("Profile image must be less than 2MB");
+            setTimeout(() => setErrorMessage(""), 3000);
+            return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+            setErrorMessage("Only image files are allowed for profile pictures");
+            setTimeout(() => setErrorMessage(""), 3000);
+            return;
+        }
+
+        try {
+            clearErrors();
+            await uploadAvatar(file);
+            setSuccessMessage("Profile picture updated!");
+            setTimeout(() => setSuccessMessage(""), 3000);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : avatarError || "Failed to upload profile picture";
+            setErrorMessage(message);
+            setTimeout(() => setErrorMessage(""), 5000);
+        } finally {
+            if (avatarInputRef.current) {
+                avatarInputRef.current.value = "";
+            }
         }
     };
 
@@ -169,9 +207,9 @@ export default function Settings() {
             }
 
             // Validate file type
-            const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
+            const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "application/pdf"];
             if (!allowedTypes.includes(file.type)) {
-                setErrorMessage("Only images (JPEG, PNG) and PDF files are allowed");
+                setErrorMessage("Only images (JPEG, PNG, WebP) and PDF files are allowed");
                 setTimeout(() => setErrorMessage(""), 3000);
                 return;
             }
@@ -190,8 +228,7 @@ export default function Settings() {
         try {
             clearErrors();
             const payload: KycUploadPayload = {
-                documentType,
-                documentNumber: documentNumber || undefined,
+                type: documentType,
                 file: selectedFile,
             };
 
@@ -199,7 +236,6 @@ export default function Settings() {
             setSuccessMessage("Document uploaded successfully!");
             setShowKycModal(false);
             setSelectedFile(null);
-            setDocumentNumber("");
             setTimeout(() => setSuccessMessage(""), 3000);
         } catch (error) {
             // Extract error message from the caught error
@@ -314,6 +350,48 @@ export default function Settings() {
                         <h2 className="text-xl font-semibold mb-4 text-white">
                             Profile Information
                         </h2>
+
+                        {/* Avatar upload */}
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="relative">
+                                <div className="w-20 h-20 rounded-full overflow-hidden bg-blue-500/20 border-2 border-blue-500/40 flex items-center justify-center">
+                                    {user.profileImage ? (
+                                        <img
+                                            src={user.profileImage}
+                                            alt={getFullName(user)}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-xl font-semibold text-blue-300">
+                                            {getInitials(user)}
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => avatarInputRef.current?.click()}
+                                    disabled={uploadingAvatar}
+                                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center disabled:opacity-50"
+                                    aria-label="Upload profile picture"
+                                >
+                                    <Camera className="w-4 h-4" />
+                                </button>
+                                <input
+                                    ref={avatarInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                                    onChange={handleAvatarSelect}
+                                    className="hidden"
+                                />
+                            </div>
+                            <div>
+                                <p className="text-white font-medium">{getFullName(user)}</p>
+                                <p className="text-sm text-gray-400">
+                                    {uploadingAvatar ? "Uploading..." : "JPG, PNG or WebP · max 2MB"}
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm text-gray-400 mb-2">First Name</label>
@@ -496,8 +574,8 @@ export default function Settings() {
                                         <div className="flex items-center gap-3">
                                             <FileText className="w-5 h-5 text-blue-400" />
                                             <div>
-                                                <p className="text-white font-medium">{formatDocumentType(doc.documentType)}</p>
-                                                <p className="text-sm text-gray-400">Uploaded {formatDate(doc.submittedAt)}</p>
+                                                <p className="text-white font-medium">{formatDocumentType(doc.type)}</p>
+                                                <p className="text-sm text-gray-400">Uploaded {formatDate(doc.uploadedAt)}</p>
                                             </div>
                                         </div>
                                         <span className={`px-3 py-1 rounded-lg text-sm ${getDocumentStatusBadgeColor(doc.status)}`}>
@@ -764,20 +842,11 @@ export default function Settings() {
                                     >
                                         <option value="NATIONAL_ID">National ID</option>
                                         <option value="PASSPORT">Passport</option>
-                                        <option value="DRIVERS_LICENSE">Driver's License</option>
+                                        <option value="DRIVER_LICENSE">Driver&apos;s License</option>
                                         <option value="UTILITY_BILL">Utility Bill</option>
+                                        <option value="BANK_STATEMENT">Bank Statement</option>
+                                        <option value="SELFIE">Selfie</option>
                                     </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-2">Document Number (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={documentNumber}
-                                        onChange={(e) => setDocumentNumber(e.target.value)}
-                                        placeholder="Enter document number"
-                                        className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                    />
                                 </div>
 
                                 <div>

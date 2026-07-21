@@ -9,12 +9,24 @@ const API_BASE_URL = getApiBase(true);
 
 // ==================== TypeScript Interfaces ====================
 
+export type DocumentType =
+    | 'PASSPORT'
+    | 'DRIVER_LICENSE'
+    | 'NATIONAL_ID'
+    | 'UTILITY_BILL'
+    | 'BANK_STATEMENT'
+    | 'SELFIE'
+    | 'OTHER';
+
+export type DocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW';
+
 export interface User {
     id: string;
     email: string;
     username: string;
     firstName: string | null;
     lastName: string | null;
+    profileImage: string | null;
     phoneNumber: string | null;
     country: string | null;
     state: string | null;
@@ -22,7 +34,7 @@ export interface User {
     address: string | null;
     zipCode: string | null;
     dateOfBirth: string | null;
-    kycStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_SUBMITTED';
+    kycStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW';
     balance: number;
     totalInvested: number;
     totalEarnings: number;
@@ -35,15 +47,16 @@ export interface User {
 export interface KycDocument {
     id: string;
     userId: string;
-    documentType: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVERS_LICENSE' | 'UTILITY_BILL' | 'OTHER';
-    documentUrl: string;
-    documentNumber: string | null;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    type: DocumentType;
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+    status: DocumentStatus;
     rejectionReason: string | null;
-    submittedAt: string;
+    uploadedAt: string;
     reviewedAt: string | null;
-    createdAt: string;
-    updatedAt: string;
+    reviewedBy: string | null;
 }
 
 export interface ProfileUpdatePayload {
@@ -64,18 +77,8 @@ export interface PasswordChangePayload {
 }
 
 export interface KycUploadPayload {
-    documentType: KycDocument['documentType'];
-    documentNumber?: string;
+    type: DocumentType;
     file: File;
-}
-
-export interface NotificationSettings {
-    emailNotifications: boolean;
-    smsNotifications: boolean;
-    pushNotifications: boolean;
-    marketingEmails: boolean;
-    transactionAlerts: boolean;
-    investmentUpdates: boolean;
 }
 
 // ==================== API Functions ====================
@@ -127,14 +130,47 @@ export async function updateProfile(payload: ProfileUpdatePayload): Promise<User
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
 
-        // Handle validation errors with details
         if (errorData.error?.details && Array.isArray(errorData.error.details)) {
             const validationMessages = errorData.error.details.map((d: any) => d.msg).join(', ');
             throw new Error(validationMessages);
         }
 
-        // Handle specific error messages from backend
         throw new Error(errorData.error?.message || 'Failed to update profile');
+    }
+
+    const data = await response.json();
+    return data.data.user;
+}
+
+/**
+ * Upload profile picture
+ */
+export async function uploadProfileImage(file: File): Promise<User> {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        throw new Error('Authentication token not found');
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetch(`${API_BASE_URL}user/profile/avatar`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${authToken}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if (errorData.error?.details && Array.isArray(errorData.error.details)) {
+            const validationMessages = errorData.error.details.map((d: any) => d.msg).join(', ');
+            throw new Error(validationMessages);
+        }
+
+        throw new Error(errorData.error?.message || 'Failed to upload profile image');
     }
 
     const data = await response.json();
@@ -162,13 +198,11 @@ export async function changePassword(payload: PasswordChangePayload): Promise<vo
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
 
-        // Handle validation errors with details
         if (errorData.error?.details && Array.isArray(errorData.error.details)) {
             const validationMessages = errorData.error.details.map((d: any) => d.msg).join(', ');
             throw new Error(validationMessages);
         }
 
-        // Handle specific error messages from backend
         throw new Error(errorData.error?.message || 'Failed to change password');
     }
 }
@@ -210,10 +244,7 @@ export async function uploadKycDocument(payload: KycUploadPayload): Promise<KycD
 
     const formData = new FormData();
     formData.append('document', payload.file);
-    formData.append('documentType', payload.documentType);
-    if (payload.documentNumber) {
-        formData.append('documentNumber', payload.documentNumber);
-    }
+    formData.append('type', payload.type);
 
     const response = await fetch(`${API_BASE_URL}user/profile/kyc/upload`, {
         method: 'POST',
@@ -226,13 +257,11 @@ export async function uploadKycDocument(payload: KycUploadPayload): Promise<KycD
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
 
-        // Handle validation errors with details
         if (errorData.error?.details && Array.isArray(errorData.error.details)) {
             const validationMessages = errorData.error.details.map((d: any) => d.msg).join(', ');
             throw new Error(validationMessages);
         }
 
-        // Handle specific error messages from backend
         throw new Error(errorData.error?.message || 'Failed to upload KYC document');
     }
 
@@ -250,11 +279,10 @@ export function getKycStatusColor(status: User['kycStatus']): string {
         case 'APPROVED':
             return 'text-green-500';
         case 'PENDING':
+        case 'UNDER_REVIEW':
             return 'text-yellow-500';
         case 'REJECTED':
             return 'text-red-500';
-        case 'NOT_SUBMITTED':
-            return 'text-gray-500';
         default:
             return 'text-gray-500';
     }
@@ -268,11 +296,10 @@ export function getKycStatusBadgeColor(status: User['kycStatus']): string {
         case 'APPROVED':
             return 'bg-green-500/20 text-green-500';
         case 'PENDING':
+        case 'UNDER_REVIEW':
             return 'bg-yellow-500/20 text-yellow-500';
         case 'REJECTED':
             return 'bg-red-500/20 text-red-500';
-        case 'NOT_SUBMITTED':
-            return 'bg-gray-500/20 text-gray-500';
         default:
             return 'bg-gray-500/20 text-gray-500';
     }
@@ -286,6 +313,7 @@ export function getDocumentStatusColor(status: KycDocument['status']): string {
         case 'APPROVED':
             return 'text-green-500';
         case 'PENDING':
+        case 'UNDER_REVIEW':
             return 'text-yellow-500';
         case 'REJECTED':
             return 'text-red-500';
@@ -302,6 +330,7 @@ export function getDocumentStatusBadgeColor(status: KycDocument['status']): stri
         case 'APPROVED':
             return 'bg-green-500/20 text-green-500';
         case 'PENDING':
+        case 'UNDER_REVIEW':
             return 'bg-yellow-500/20 text-yellow-500';
         case 'REJECTED':
             return 'bg-red-500/20 text-red-500';
@@ -313,16 +342,20 @@ export function getDocumentStatusBadgeColor(status: KycDocument['status']): stri
 /**
  * Format document type for display
  */
-export function formatDocumentType(type: KycDocument['documentType']): string {
+export function formatDocumentType(type: DocumentType): string {
     switch (type) {
         case 'NATIONAL_ID':
             return 'National ID';
         case 'PASSPORT':
             return 'Passport';
-        case 'DRIVERS_LICENSE':
-            return 'Driver\'s License';
+        case 'DRIVER_LICENSE':
+            return "Driver's License";
         case 'UTILITY_BILL':
             return 'Utility Bill';
+        case 'BANK_STATEMENT':
+            return 'Bank Statement';
+        case 'SELFIE':
+            return 'Selfie';
         case 'OTHER':
             return 'Other Document';
         default:
@@ -342,42 +375,36 @@ export function validatePasswordStrength(password: string): {
     let strength: 'weak' | 'medium' | 'strong' = 'weak';
     let score = 0;
 
-    // Length check
     if (password.length >= 8) {
         score++;
     } else {
         feedback.push('Password must be at least 8 characters long');
     }
 
-    // Uppercase check
     if (/[A-Z]/.test(password)) {
         score++;
     } else {
         feedback.push('Include at least one uppercase letter');
     }
 
-    // Lowercase check
     if (/[a-z]/.test(password)) {
         score++;
     } else {
         feedback.push('Include at least one lowercase letter');
     }
 
-    // Number check
     if (/\d/.test(password)) {
         score++;
     } else {
         feedback.push('Include at least one number');
     }
 
-    // Special character check (matching backend: @$!%*?&#)
     if (/[@$!%*?&#]/.test(password)) {
         score++;
     } else {
         feedback.push('Include at least one special character (@$!%*?&#)');
     }
 
-    // Determine strength
     if (score >= 5) {
         strength = 'strong';
     } else if (score >= 4) {
@@ -402,6 +429,18 @@ export function getFullName(user: User): string {
         return user.firstName;
     }
     return user.username;
+}
+
+/**
+ * Get initials for avatar fallback
+ */
+export function getInitials(user: User): string {
+    const name = getFullName(user);
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+        return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
 }
 
 /**
@@ -432,6 +471,7 @@ export function getProfileCompletionPercentage(user: User): number {
         user.address,
         user.zipCode,
         user.dateOfBirth,
+        user.profileImage,
     ];
 
     const completedFields = fields.filter((field) => field !== null && field !== '').length;

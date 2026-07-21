@@ -10,6 +10,7 @@ import {
     changePassword,
     getKycDocuments,
     uploadKycDocument,
+    uploadProfileImage,
     type User,
     type KycDocument,
     type ProfileUpdatePayload,
@@ -36,11 +37,14 @@ interface UseProfileDataReturn {
     uploading: boolean;
     uploadError: string | null;
     uploadProgress: number;
+    uploadingAvatar: boolean;
+    avatarError: string | null;
 
     // Actions
     updateUserProfile: (payload: ProfileUpdatePayload) => Promise<void>;
     changeUserPassword: (payload: PasswordChangePayload) => Promise<void>;
     uploadKycDoc: (payload: KycUploadPayload) => Promise<void>;
+    uploadAvatar: (file: File) => Promise<void>;
     refetchProfile: () => Promise<void>;
     refetchKycDocuments: () => Promise<void>;
     clearErrors: () => void;
@@ -65,10 +69,9 @@ export function useProfileData(): UseProfileDataReturn {
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [avatarError, setAvatarError] = useState<string | null>(null);
 
-    /**
-     * Fetch user profile
-     */
     const fetchProfile = useCallback(async () => {
         setProfileLoading(true);
         setProfileError(null);
@@ -85,9 +88,6 @@ export function useProfileData(): UseProfileDataReturn {
         }
     }, []);
 
-    /**
-     * Fetch KYC documents
-     */
     const fetchKycDocuments = useCallback(async () => {
         setKycLoading(true);
         setKycError(null);
@@ -104,9 +104,6 @@ export function useProfileData(): UseProfileDataReturn {
         }
     }, []);
 
-    /**
-     * Update user profile
-     */
     const updateUserProfile = useCallback(async (payload: ProfileUpdatePayload) => {
         setUpdating(true);
         setUpdateError(null);
@@ -123,9 +120,6 @@ export function useProfileData(): UseProfileDataReturn {
         }
     }, []);
 
-    /**
-     * Change user password
-     */
     const changeUserPassword = useCallback(async (payload: PasswordChangePayload) => {
         setChangingPassword(true);
         setPasswordError(null);
@@ -141,16 +135,12 @@ export function useProfileData(): UseProfileDataReturn {
         }
     }, []);
 
-    /**
-     * Upload KYC document
-     */
     const uploadKycDoc = useCallback(async (payload: KycUploadPayload) => {
         setUploading(true);
         setUploadError(null);
         setUploadProgress(0);
 
         try {
-            // Simulate upload progress (since we can't track actual FormData upload progress easily)
             const progressInterval = setInterval(() => {
                 setUploadProgress((prev) => {
                     if (prev >= 90) {
@@ -166,10 +156,8 @@ export function useProfileData(): UseProfileDataReturn {
             clearInterval(progressInterval);
             setUploadProgress(100);
 
-            // Add new document to list
             setKycDocuments((prev) => [document, ...prev]);
 
-            // Update user's KYC status if needed
             if (user) {
                 setUser({ ...user, kycStatus: 'PENDING' });
             }
@@ -183,51 +171,65 @@ export function useProfileData(): UseProfileDataReturn {
         }
     }, [user]);
 
-    /**
-     * Refetch profile
-     */
+    const uploadAvatar = useCallback(async (file: File) => {
+        setUploadingAvatar(true);
+        setAvatarError(null);
+
+        try {
+            const updatedUser = await uploadProfileImage(file);
+            setUser(updatedUser);
+
+            // Keep localStorage user in sync for nav/header consumers
+            try {
+                const stored = localStorage.getItem('user');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    localStorage.setItem(
+                        'user',
+                        JSON.stringify({ ...parsed, profileImage: updatedUser.profileImage })
+                    );
+                }
+            } catch {
+                // ignore localStorage sync failures
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to upload profile image';
+            setAvatarError(errorMessage);
+            throw error;
+        } finally {
+            setUploadingAvatar(false);
+        }
+    }, []);
+
     const refetchProfile = useCallback(async () => {
         await fetchProfile();
     }, [fetchProfile]);
 
-    /**
-     * Refetch KYC documents
-     */
     const refetchKycDocuments = useCallback(async () => {
         await fetchKycDocuments();
     }, [fetchKycDocuments]);
 
-    /**
-     * Clear all errors
-     */
     const clearErrors = useCallback(() => {
         setProfileError(null);
         setKycError(null);
         setUpdateError(null);
         setPasswordError(null);
         setUploadError(null);
+        setAvatarError(null);
     }, []);
 
-    /**
-     * Initial data fetch on mount
-     */
     useEffect(() => {
         fetchProfile();
         fetchKycDocuments();
     }, [fetchProfile, fetchKycDocuments]);
 
     return {
-        // Profile state
         user,
         profileLoading,
         profileError,
-
-        // KYC documents state
         kycDocuments,
         kycLoading,
         kycError,
-
-        // Action states
         updating,
         updateError,
         changingPassword,
@@ -235,11 +237,12 @@ export function useProfileData(): UseProfileDataReturn {
         uploading,
         uploadError,
         uploadProgress,
-
-        // Actions
+        uploadingAvatar,
+        avatarError,
         updateUserProfile,
         changeUserPassword,
         uploadKycDoc,
+        uploadAvatar,
         refetchProfile,
         refetchKycDocuments,
         clearErrors,

@@ -56,6 +56,15 @@ export const config = {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB
     uploadPath: process.env.UPLOAD_PATH || './uploads',
 
+    // Cloudinary configuration
+    cloudinary: {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+        apiKey: process.env.CLOUDINARY_API_KEY || '',
+        apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+        folderProfiles: process.env.CLOUDINARY_FOLDER_PROFILES || 'nexgen/profiles',
+        folderKyc: process.env.CLOUDINARY_FOLDER_KYC || 'nexgen/kyc',
+    },
+
     // Security configuration
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes

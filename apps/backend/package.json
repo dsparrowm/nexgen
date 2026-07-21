@@ -26,6 +26,7 @@
         "@types/react": "19.1.0",
         "axios": "^1.6.2",
         "bcryptjs": "^2.4.3",
+        "cloudinary": "^2.10.0",
         "coinbase-commerce-node": "^1.0.4",
         "compression": "^1.7.4",
         "cookie-parser": "^1.4.7",

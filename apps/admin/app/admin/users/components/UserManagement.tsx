@@ -51,6 +51,7 @@ interface User {
     username: string
     firstName: string | null
     lastName: string | null
+    profileImage?: string | null
     role: string
     isActive: boolean
     isVerified: boolean
@@ -472,7 +473,7 @@ const UserManagement = () => {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
-                                                <Avatar name={getUserDisplayName(user)} size="md" />
+                                                <Avatar name={getUserDisplayName(user)} src={user.profileImage} size="md" />
                                                 <div>
                                                     <p className="font-medium text-zinc-900">
                                                         {getUserDisplayName(user)}

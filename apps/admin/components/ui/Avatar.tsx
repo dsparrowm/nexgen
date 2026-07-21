@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 
 export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
     name?: string
+    src?: string | null
     size?: 'sm' | 'md' | 'lg'
 }
 
@@ -21,17 +22,34 @@ function getInitials(name?: string) {
     return name.slice(0, 2).toUpperCase()
 }
 
-export function Avatar({ name, size = 'md', className, ...props }: AvatarProps) {
+export function Avatar({ name, src, size = 'md', className, ...props }: AvatarProps) {
+    const [imageFailed, setImageFailed] = React.useState(false)
+
+    React.useEffect(() => {
+        setImageFailed(false)
+    }, [src])
+
+    const showImage = Boolean(src) && !imageFailed
+
     return (
         <div
             className={cn(
-                'flex shrink-0 items-center justify-center rounded-full bg-gold-100 font-semibold text-gold-800',
+                'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gold-100 font-semibold text-gold-800',
                 sizeClasses[size],
                 className
             )}
             {...props}
         >
-            {getInitials(name)}
+            {showImage ? (
+                <img
+                    src={src!}
+                    alt={name || 'Avatar'}
+                    className="h-full w-full object-cover"
+                    onError={() => setImageFailed(true)}
+                />
+            ) : (
+                getInitials(name)
+            )}
         </div>
     )
 }

@@ -1,10 +1,17 @@
 import { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { User, KycStatus, DocumentType, DocumentStatus } from '@prisma/client';
+import { KycStatus, DocumentType, DocumentStatus } from '@prisma/client';
 import db from '@/services/database';
 import { hashPassword, verifyPassword } from '@/utils/password';
 import { logger } from '@/utils/logger';
 import { getAssetPortfolioSnapshot } from '@/services/assetPortfolio.service';
+import {
+    uploadKycFile,
+    uploadProfileImage as uploadProfileImageToCloudinary,
+    deleteAsset,
+    extractPublicId,
+    isCloudinaryConfigured,
+} from '@/services/cloudinary.service';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -72,6 +79,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
                 username: true,
                 firstName: true,
                 lastName: true,
+                profileImage: true,
                 phoneNumber: true,
                 country: true,
                 state: true,
@@ -103,6 +111,111 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({
             success: false,
             error: { message: 'Internal server error', code: 'UPDATE_PROFILE_FAILED' }
+        });
+    }
+};
+
+/**
+ * Upload profile picture to Cloudinary
+ */
+export const uploadProfileImage = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: { message: 'Authentication required', code: 'AUTH_REQUIRED' }
+            });
+            return;
+        }
+
+        if (!isCloudinaryConfigured()) {
+            res.status(503).json({
+                success: false,
+                error: { message: 'File upload service is not configured', code: 'UPLOAD_SERVICE_UNAVAILABLE' }
+            });
+            return;
+        }
+
+        const file = req.file;
+        if (!file) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Profile image is required', code: 'IMAGE_REQUIRED' }
+            });
+            return;
+        }
+
+        if (!file.mimetype.startsWith('image/')) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Only image files are allowed', code: 'INVALID_FILE_TYPE' }
+            });
+            return;
+        }
+
+        const existingUser = await db.prisma.user.findUnique({
+            where: { id: userId },
+            select: { profileImage: true }
+        });
+
+        const uploadResult = await uploadProfileImageToCloudinary(
+            file.buffer,
+            userId,
+            `avatar-${userId}`
+        );
+
+        const updatedUser = await db.prisma.user.update({
+            where: { id: userId },
+            data: { profileImage: uploadResult.secure_url },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                profileImage: true,
+                phoneNumber: true,
+                country: true,
+                state: true,
+                city: true,
+                address: true,
+                zipCode: true,
+                dateOfBirth: true,
+                kycStatus: true,
+                balance: true,
+                totalInvested: true,
+                totalEarnings: true,
+                referralCode: true,
+                isVerified: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+
+        // Best-effort cleanup of previous Cloudinary asset
+        if (existingUser?.profileImage) {
+            const oldPublicId = extractPublicId(existingUser.profileImage);
+            if (oldPublicId && oldPublicId !== uploadResult.public_id) {
+                await deleteAsset(oldPublicId, 'image');
+            }
+        }
+
+        logger.info(`Profile image uploaded for user ${userId}`, {
+            userId,
+            publicId: uploadResult.public_id,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: { user: updatedUser },
+            message: 'Profile image uploaded successfully'
+        });
+    } catch (error) {
+        logger.error('Upload profile image error:', error);
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to upload profile image', code: 'UPLOAD_AVATAR_FAILED' }
         });
     }
 };
@@ -190,7 +303,7 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 };
 
 /**
- * Upload KYC document
+ * Upload KYC document to Cloudinary
  */
 export const uploadKycDocument = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -199,6 +312,14 @@ export const uploadKycDocument = async (req: AuthRequest, res: Response): Promis
             res.status(401).json({
                 success: false,
                 error: { message: 'Authentication required', code: 'AUTH_REQUIRED' }
+            });
+            return;
+        }
+
+        if (!isCloudinaryConfigured()) {
+            res.status(503).json({
+                success: false,
+                error: { message: 'File upload service is not configured', code: 'UPLOAD_SERVICE_UNAVAILABLE' }
             });
             return;
         }
@@ -239,13 +360,20 @@ export const uploadKycDocument = async (req: AuthRequest, res: Response): Promis
             return;
         }
 
-        // Create KYC document record
+        const uploadResult = await uploadKycFile(
+            file.buffer,
+            userId,
+            `${type.toLowerCase()}-${Date.now()}`,
+            file.mimetype
+        );
+
+        // Create KYC document record — filePath stores the Cloudinary secure URL
         const document = await db.prisma.kycDocument.create({
             data: {
                 userId,
                 type: type as DocumentType,
                 fileName: file.originalname,
-                filePath: file.path,
+                filePath: uploadResult.secure_url,
                 fileSize: file.size,
                 mimeType: file.mimetype,
                 status: DocumentStatus.PENDING
@@ -264,7 +392,11 @@ export const uploadKycDocument = async (req: AuthRequest, res: Response): Promis
             });
         }
 
-        logger.info(`KYC document uploaded: ${type}`, { userId, documentId: document.id });
+        logger.info(`KYC document uploaded: ${type}`, {
+            userId,
+            documentId: document.id,
+            publicId: uploadResult.public_id,
+        });
 
         res.status(201).json({
             success: true,
@@ -337,6 +469,7 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
                 username: true,
                 firstName: true,
                 lastName: true,
+                profileImage: true,
                 balance: true,
                 totalInvested: true,
                 totalEarnings: true,

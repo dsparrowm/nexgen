@@ -90,6 +90,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
                     username: true,
                     firstName: true,
                     lastName: true,
+                    profileImage: true,
                     role: true,
                     isActive: true,
                     isVerified: true,

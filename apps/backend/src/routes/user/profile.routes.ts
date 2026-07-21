@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
 import { authenticateUser } from '@/middlewares/auth';
+import { config } from '@/config/env';
 import {
     updateProfile,
     changePassword,
     uploadKycDocument,
     getKycDocuments,
+    uploadProfileImage,
     getDashboard,
     updateProfileValidation,
     changePasswordValidation,
@@ -15,19 +16,10 @@ import {
 
 const router = Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(process.cwd(), 'uploads', 'kyc'));
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Memory storage — files are streamed to Cloudinary, not written to disk
+const storage = multer.memoryStorage();
 
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    // Accept only image files and PDFs
+const kycFileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
         cb(null, true);
     } else {
@@ -35,12 +27,24 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
     }
 };
 
-const upload = multer({
-    storage,
-    fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+const avatarFileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only image files are allowed for profile pictures'));
     }
+};
+
+const kycUpload = multer({
+    storage,
+    fileFilter: kycFileFilter,
+    limits: { fileSize: config.maxFileSize },
+});
+
+const avatarUpload = multer({
+    storage,
+    fileFilter: avatarFileFilter,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB for avatars
 });
 
 // All routes require user authentication
@@ -52,9 +56,10 @@ router.get('/dashboard', getDashboard);
 // Profile management
 router.put('/profile', updateProfileValidation, updateProfile);
 router.put('/password', changePasswordValidation, changePassword);
+router.post('/avatar', avatarUpload.single('avatar'), uploadProfileImage);
 
 // KYC document management
-router.post('/kyc/upload', upload.single('document'), uploadKycDocumentValidation, uploadKycDocument);
+router.post('/kyc/upload', kycUpload.single('document'), uploadKycDocumentValidation, uploadKycDocument);
 router.get('/kyc/documents', getKycDocuments);
 
 export default router;

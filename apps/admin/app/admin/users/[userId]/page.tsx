@@ -44,6 +44,7 @@ interface UserDetails {
     username: string
     firstName: string | null
     lastName: string | null
+    profileImage?: string | null
     role: string
     isActive: boolean
     isVerified: boolean
@@ -251,7 +252,7 @@ const UserDetailsPage = () => {
                             <Card>
                                 <CardContent className="p-6">
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                                        <Avatar name={getUserDisplayName()} size="lg" className="h-16 w-16 text-lg" />
+                                        <Avatar name={getUserDisplayName()} src={user.profileImage} size="lg" className="h-16 w-16 text-lg" />
                                         <div className="min-w-0 flex-1">
                                             <h2 className="text-xl font-semibold text-zinc-900">{getUserDisplayName()}</h2>
                                             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
